@@ -1,19 +1,20 @@
-# Original product presentation
+# Native HTML product proposal
 
 English · [繁體中文](README.zh-TW.md)
 
-**[Open the original 29-page deck](https://cathay-ai.github.io/interior-design-proposal/)** · [Original PDF](assets/original-proposal.pdf)
+**[Open the HTML presentation](https://cathay-ai.github.io/interior-design-proposal/?v=native)** · [Original PDF reference](assets/original-proposal.pdf)
 
-The website now reproduces the user-provided **Interior Design Agent 產品簡報.pdf** in its original order and layout. It does not rewrite the slides. Seven chapters cover background, market, needs, experience, competition, positioning and execution.
+All 29 pages are rebuilt as selectable HTML text, responsive CSS layouts and semantic SVG drawings. The original order, seven chapters, warm palette, typography, phone storyboards, charts, diagrams and tables guide the reconstruction. No full-slide images, canvas screenshots, PDF embeds or iframes render the deck.
 
-Controls: keyboard arrows, touch swipe, page number, chapter selection, page overview and zoom. The optional extracted text is verbatim and may omit diagram content. English switches the reader controls only; the supplied Chinese slides remain unchanged.
+- `index.html`: all 29 pages, readable content and diagrams.
+- `native/style.css`: desktop slide layout and mobile reflow.
+- `native/deck.js`: page/chapter navigation, keyboard/swipe, reading mode, larger text and print.
+- `assets/original-proposal.pdf`: unchanged source for comparison/download, never the presentation renderer.
 
-Local preview:
+Phone storyboards and other wide diagrams have bounded horizontal scrolling on mobile. Reading mode shows all pages; the original Chinese content is not automatically translated. The source PDF’s literal icon placeholders are replaced with SVG icons. Page 9 has no visible source chart, so no numerical data is invented.
 
 ```sh
 python3 -m http.server 8000 --bind 127.0.0.1 --directory docs/proposal
 ```
 
-The separate public presentation repo publishes HTML, the original PDF, page JPEGs and extracted text. Internal product specifications and review notes stay private. [Public source](https://github.com/Cathay-AI/interior-design-proposal).
-
-The earlier independently authored deck is retained as [legacy](legacy/index.html?lang=en#1), clearly separate from the original.
+Public hosting contains only presentation files. Private product specifications stay private. [Public source](https://github.com/Cathay-AI/interior-design-proposal).
