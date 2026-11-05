@@ -1,19 +1,15 @@
 # Interior Design Agent
 
-**Describe your space. See a 3D proposal and a rough budget.**
-
 English · [繁體中文](README.zh-TW.md)
 
-![Voice or text and reference images to a 3D proposal and rough quote](docs/visual/workflow.en.png)
+[![Your ideas. Made visible.](docs/visual/readme/cover.en.svg)](https://cathay-ai.github.io/interior-design-proposal/?v=native)
 
-**Mobile-first. Desktop-ready. Taiwan-aware.**
+**[Explore the interactive proposal →](https://cathay-ai.github.io/interior-design-proposal/?v=native)**
 
-| Start simply | Design with context | Unlock more |
-|---|---|---|
-| Voice or text + reference images | Space, Taiwan regulations, fire safety and MEP considerations | Paid advanced features; scope and pricing to validate |
+Describe your space with **voice or text and reference images**. Explore a **3D proposal and rough budget**, with Taiwan-aware design considerations.
 
-![Free and paid product direction](docs/visual/business.en.png)
+**Mobile-first · Desktop-ready · Paid upgrades**
 
-*Product concept, not a shipped demo. No generation engine is selected. Customer cases will require real projects and consent.*
+[Product plan](docs/product/mvp.md) · [Team](docs/delivery/team.md) · [Roadmap](docs/delivery/roadmap.md) · [Project board](https://github.com/orgs/Cathay-AI/projects/1/views/4)
 
-[Visual proposal](docs/README.md) · [Project board](https://github.com/orgs/Cathay-AI/projects/1/views/4) · [Team](docs/delivery/team.md) · [MVP](docs/product/mvp.md)
+<sub>Product concept in planning. Providers, pricing and supported checks remain to validate.</sub>

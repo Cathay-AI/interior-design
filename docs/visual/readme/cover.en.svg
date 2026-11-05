@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" width="1200" height="500" role="img" aria-labelledby="readme-title readme-desc">
+<title id="readme-title">Interior Design Agent concept</title><desc id="readme-desc">An original editable vector room illustration with a short product introduction. Concept only.</desc>
+<rect width="1200" height="500" rx="20" fill="#f1e9dc"/>
+<circle cx="915" cy="255" r="213" fill="#e8dccb"/>
+<g fill="#30291f" font-family="Georgia,'Songti TC','Noto Serif TC',serif" font-size="64" font-weight="500"><text x="58" y="196">Your ideas.</text><text x="58" y="279">Made visible.</text></g>
+<text x="62" y="95" fill="#a15b32" font-family="-apple-system,'PingFang TC',sans-serif" font-size="17" font-weight="600" letter-spacing="2">INTERIOR DESIGN AGENT</text>
+<text x="62" y="345" fill="#706355" font-family="-apple-system,'PingFang TC',sans-serif" font-size="23">Voice + images → 3D + rough budget</text>
+<path d="M62 386h56" stroke="#ac633a" stroke-width="3"/>
+<svg x="650" y="12" width="510" height="480" viewBox="0 0 480 460" role="img" aria-labelledby="readme-room-title"><title id="readme-room-title">空間提案示意：木質地板、沙發、地毯、窗與植栽</title>
+<polygon points="40,175 225,65 225,280 40,390" fill="#f2eadb"/><polygon points="225,65 440,185 440,390 225,280" fill="#e4d7bd"/><polygon points="40,390 225,280 440,390 255,455" fill="#c5a477"/>
+<polygon points="310,145 403,197 403,290 310,237" fill="#9ac1d1"/><path d="M356 171v93m-46-74 93 53" stroke="#eee8da" stroke-width="3"/>
+<polygon points="80,296 162,248 208,274 127,322" fill="#758e7c"/><polygon points="80,296 127,322 127,366 80,340" fill="#587463"/><polygon points="127,322 208,274 208,319 127,366" fill="#405c4c"/><polygon points="80,260 162,212 162,248 80,296" fill="#3e594b"/>
+<polygon points="150,375 253,315 353,372 250,432" fill="#b26538"/><polygon points="169,374 253,325 333,372 250,420" fill="none" stroke="#e4c58e" stroke-width="2"/>
+<polygon points="218,363 254,342 285,360 249,381" fill="#a25c2e"/><polygon points="218,363 249,381 249,398 218,380" fill="#834322"/><polygon points="249,381 285,360 285,377 249,398" fill="#8e4c26"/>
+<path d="M225 71v83" stroke="#5b5142" stroke-width="2"/><polygon points="201,175 225,150 249,175" fill="#ddc28d"/>
+<polygon points="376,365 405,365 398,408 384,408" fill="#a35b31"/><ellipse cx="383" cy="349" rx="10" ry="28" fill="#718c77" transform="rotate(-20 383 349)"/><ellipse cx="398" cy="343" rx="10" ry="30" fill="#4c6b59" transform="rotate(12 398 343)"/>
+<polygon points="74,199 151,154 151,160 74,205" fill="#8b6d4f"/><path d="M87 192v-22m10 17v-27m12 20v-19" stroke="#b37345" stroke-width="7"/>
+<polygon points="310,238 403,290 325,418 225,280" fill="#fff3ce" opacity=".23"/></svg>
+</svg>

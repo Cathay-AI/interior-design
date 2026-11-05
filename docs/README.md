@@ -1,27 +1,17 @@
-# Your ideas → a 3D proposal → a rough budget
+# Interior Design Agent · Proposal
 
-**Proposal v0.2 · Taiwan-aware AI space design · 2026-11-05**
+English · [繁體中文](README.zh-TW.md)
 
-English · [繁體中文](README.zh-TW.md) · [Browser proposal](visual/proposal.en.html) *(download and open)*
+[![Your ideas. Made visible.](visual/readme/cover.en.svg)](https://cathay-ai.github.io/interior-design-proposal/?v=native)
 
-![Simple homeowner journey](visual/workflow.en.png)
+**[Open the 29-page HTML proposal →](https://cathay-ai.github.io/interior-design-proposal/?v=native)** · [Original PDF](proposal/assets/original-proposal.pdf)
 
-**For homeowners exploring renovation ideas.** Use voice or text and reference images, on a phone or computer. A floor plan is optional at the start.
+**The experience:** voice/text + references → 3D + rough budget → optional paid upgrades.
 
-![Taiwan-aware design considerations](visual/constraints.en.png)
+**The product bet:** easy to start, with Taiwan-specific space, regulation, fire safety and MEP considerations. Supported checks and pricing remain to validate.
 
-**Our product bet:** combine easy input with space, Taiwan regulations, fire safety and MEP considerations. Every supported check needs sources and applicability; this is not automatic professional approval.
+**The first milestone:** Mika and Victor complete the basic flow; validate budget clarity and willingness to upgrade.
 
-![Free core, paid advanced features and customer cases](visual/business.en.png)
+[Product & MVP](product/mvp.md) · [Team](delivery/team.md) · [Roadmap](delivery/roadmap.md) · [Architecture](engineering/architecture.md) · [Knowledge sources](engineering/taiwan-knowledge.md) · [Project](https://github.com/orgs/Cathay-AI/projects/1/views/4)
 
-**Free core:** a basic 3D proposal and rough budget range. **Paid:** advanced features, with bundles, quotas and prices still to validate. Real customer cases require consent; none are claimed yet.
-
-![Initial team focus](visual/team.en.png)
-
-![Milestone roadmap](visual/roadmap.en.png)
-
-**First goal:** Mika and Victor complete the basic flow on phone and desktop; test rough-budget clarity and willingness to upgrade. No generation engine is selected.
-
-[Project](https://github.com/orgs/Cathay-AI/projects/1/views/4) · [MVP](product/mvp.md) · [Architecture](engineering/architecture.md) · [Team](delivery/team.md) · [Roadmap](delivery/roadmap.md) · [Knowledge sources](engineering/taiwan-knowledge.md)
-
-Detailed specifications currently use Traditional Chinese.
+<sub>Product concept, not a live design service. Detailed specifications currently use Traditional Chinese.</sub>
