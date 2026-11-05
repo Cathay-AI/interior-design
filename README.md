@@ -1,14 +1,19 @@
 # Interior Design Agent
 
-**讓屋主的想像，成為可以看、可以改、可以交給專業夥伴接手的空間方案。**
+**Your ideas → editable spaces → a clearer contractor handoff.**
 
-2026-11-05 初始提案｜產品探索與 MVP 規劃階段，尚無已部署的平台。
+English · [繁體中文](README.zh-TW.md)
 
-- [從視覺化 proposal 開始](docs/README.md)
-- [瀏覽器版 proposal](docs/visual/proposal.html)（下載後開啟；GitHub 檔案頁不會直接執行 HTML）
-- [MVP 與驗收](docs/product/mvp.md) · [團隊與分工](docs/delivery/team.md) · [Milestones](docs/delivery/roadmap.md)
-- [平台架構與 mobile rendering](docs/engineering/architecture.md)
-- [GitHub Project](https://github.com/orgs/Cathay-AI/projects/1)
-- [Victor 的生成引擎 / skill](https://github.com/vic4code/interior-design-skill)
+| Imagine the space | Explore it in 3D |
+|:---:|:---:|
+| ![AI-generated room concept](docs/visual/assets/03-imagegen.jpg) | ![Existing skill 3D viewer](docs/visual/assets/02-3d.jpg) |
 
-本 repo 負責 serving platform：承接需求、接收 skill 產物、線上檢視 3D／圖面、保存版本與交接紀錄。生成能力先整合既有 skill；不在初始化階段重寫其引擎。
+*Synthetic examples from [Victor’s skill](docs/visual/assets/README.md). The hosted platform is in planning.*
+
+**MVP:** one room · mobile-friendly 3D · revisions · material estimates · professional feedback.
+
+[Visual proposal](docs/README.md) · [Project board](https://github.com/orgs/Cathay-AI/projects/1/views/4) · [Team](docs/delivery/team.md) · [MVP spec](docs/product/mvp.md)
+
+![From homeowner ideas to professional handoff](docs/visual/workflow.en.png)
+
+**Start here:** Mika + Victor → user case · Even + Josh → professional handoff · Chris + Even + Victor → architecture, deployment and domain planning.

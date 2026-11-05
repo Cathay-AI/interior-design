@@ -31,8 +31,24 @@ Mika／Victor 可當屋主；Even／Josh 有工班與設計師資源；Chris 有
 - PASS：建立 6 milestones、[父 issue #1](https://github.com/Cathay-AI/interior-design/issues/1) 與 8 個高層子項目（#2–#9），連結原生 sub-issues／blocking relationships。
 - PASS：9 issues 全數加入私人 Project #1；沿用 Todo／In progress／Done，新增「推進主責」姓名欄與 [MVP 看板](https://github.com/orgs/Cathay-AI/projects/1/views/4)，按 Status 分欄。
 - Connector limitation：GitHub app connector 對此 repo create issue 回 404；改用既有授權的 gh CLI 完成，未要求額外權限。
-- Repo commit／push：本節將於發佈後補入結果。
+- PASS：初版文件已提交並 push main：[8af3fbe](https://github.com/Cathay-AI/interior-design/commit/8af3fbe69cada44b8c8e5affe2c3a26ce8b87ed8)。遠端 docs 內容可讀，工作樹與 origin/main 一致。
+- PASS：遠端核對 8 個 sub-issues、7 條原生 blocking edges、9 個 Todo、8 個主責值、私人 Status 看板與 repo 連結。
 
 ## Open questions
 
 第一案尺寸、專業夥伴意願、主責認領、技術棧／host、網域、費用上限、付費方式、材料來源與施工發行責任。保持 planning，不對未定範圍貼 ready-for-agent。
+
+
+## 2026-11-05 Visual / bilingual refinement
+
+使用者追加：更 compact、文字少、圖片多，README 中英文各一版。英文為 root／docs 的 README.md，繁中為 README.zh-TW.md；詳細規格保持獨立。原長篇背景保留於 docs/proposal-background.zh-TW.md。
+
+以 5 張上游公開虛構範例 JPEG 展示效果／3D／配置／尺寸圖，保留 MIT、來源 commit 及逐檔 hash；不把範例當成已完成平台。視覺 HTML 改為中英文各 6 個精簡面板，另以流程／團隊／路線圖截圖供 GitHub 直接預覽。來源稿與可重製的 renderer wrapper 一併保存，無外部執行依賴的 HTML 可離線開啟。
+
+
+- PASS：精簡後 root EN／繁中各 19 行、3 圖；docs EN 31 行／繁中 29 行、各 7 圖。詳細需求仍保留在獨立文件。
+- PASS：兩版 HTML 各 6 面板、STE 0 warnings；Chrome 390px viewport 皆為 scrollWidth=390、圖片完整載入。檢視中英文桌機／繁中手機截圖。
+- PASS：74 個本地相對連結可解析、5 張複用素材與來源 hash 一致、`git diff --cached --check` 通過。
+- PASS：Project README 與父 issue 已加入中英文提案入口。
+
+- PASS：精簡與雙語修改另以 code-review Standards／Spec 分開覆核，兩軸皆 0 findings。

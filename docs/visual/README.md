@@ -1,15 +1,22 @@
-# 視覺化提案的來源與閱讀方式
+# Visual proposal / 視覺提案
 
-- `proposal.html`：自含 CSS、SVG 與操作腳本的單檔提案，可下載後直接用瀏覽器開啟，不需啟動平台。
-- `proposal-preview.png`：桌機版實際瀏覽器截圖，供 GitHub 直接預覽。
-- `proposal.am.md`：可編輯的內容來源，含 flow／timeline 等元件語法；不是產品程式。
+| Language | Source | Browser page | GitHub entry |
+|---|---|---|---|
+| English | [proposal.en.am.md](proposal.en.am.md) | [proposal.en.html](proposal.en.html) | [English proposal](../README.md) |
+| 繁體中文 | [proposal.am.md](proposal.am.md) | [proposal.html](proposal.html) | [繁中提案](../README.zh-TW.md) |
 
-以 `answer-me-with-html` 0.4.7 的 CLI 產生，8 個面板。重新產生時，由 repo 根目錄執行：
+Six compact panels per page. Photographs are embedded so each HTML opens offline. All diagrams and layout come from `answer-me-with-html` 0.4.7. Small responsive image elements are used because its native components cannot size photographs.
+
+[Example image credits and MIT license](assets/README.md). These images demonstrate the existing skill, not a finished platform.
+
+## Regenerate
+
+From the repository root, using an installed skill CLI:
 
 ```sh
-node "$ANSWER_HTML_SKILL_DIR/scripts/am.mjs" render docs/visual/proposal.am.md -o docs/visual/proposal.html --no-open --mode light
+python3 docs/visual/render-proposal.py --renderer /path/to/answer-me-with-html/scripts/am.mjs
 ```
 
-`ANSWER_HTML_SKILL_DIR` 請指向本機已安裝的技能目錄；renderer 不被複製進此 repo。產物更新後需重新截圖並檢查桌機／手機排版。完整動機與來源見 [proposal](../README.md)。
+`workflow.*.png`, `team.*.png`, `roadmap.*.png` and `proposal-preview*.png` are actual Chrome screenshots of the generated pages. Capture these panels again after changing the source. PNGs are used in READMEs so GitHub can show them directly.
 
-初版已檢查桌機畫面與 390px 手機 viewport；手機按面板逐段閱讀，較寬的圖可在面板內橫向捲動。這是文件的排版檢查，不能替代產品 3D 的實機測試。
+Desktop and 390px mobile viewport layout checks are documentation checks, not product WebGL or physical-device verification.

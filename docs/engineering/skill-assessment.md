@@ -32,4 +32,4 @@ v0.1.2 的專業交接提升主要是指令與交付要求；demo 不會自動�
 
 ## 整合策略
 
-先固定上游 commit 做相容性基線，透過 adapter 接入既有 review package。上游更新時比對契約與測試；不讓未檢查的最新版自動改變既有交付。若複用程式碼或 assets，保留 MIT 與第三方 notices；首輪只記錄來源，未複製上游素材到 repo。
+先固定上游 commit 做相容性基線，透過 adapter 接入既有 review package。上游更新時比對契約與測試；不讓未檢查的最新版自動改變既有交付。若複用程式碼或 assets，保留 MIT 與第三方 notices；本次為視覺提案複用 5 張公開虛構範例 JPEG，保留 MIT license、來源 commit 與 SHA-256；沒有複製生成引擎或 viewer 程式。
