@@ -1,38 +1,19 @@
-# Product proposal slides
+# Original product presentation
 
 English · [繁體中文](README.zh-TW.md)
 
-**[Open the 8-slide deck](index.html)** · [English PDF](proposal.en.pdf) · [繁中 PDF](proposal.zh.pdf)
+**[Open the original 29-page deck](https://cathay-ai.github.io/interior-design-proposal/)** · [Original PDF](assets/original-proposal.pdf)
 
-![Proposal cover](preview.en.png)
+The website now reproduces the user-provided **Interior Design Agent 產品簡報.pdf** in its original order and layout. It does not rewrite the slides. Seven chapters cover background, market, needs, experience, competition, positioning and execution.
 
-A compact visual proposal for Taiwan-aware AI space design. The page supports language switching, keyboard arrows, touch swipes, direct slide links, fullscreen and Print / PDF. Download this folder and open `index.html`, or serve it locally:
+Controls: keyboard arrows, touch swipe, page number, chapter selection, page overview and zoom. The optional extracted text is verbatim and may omit diagram content. English switches the reader controls only; the supplied Chinese slides remain unchanged.
+
+Local preview:
 
 ```sh
-python3 -m http.server 8000 --directory docs/proposal
+python3 -m http.server 8000 --bind 127.0.0.1 --directory docs/proposal
 ```
 
-Visit `http://localhost:8000`. No npm installation, build, external fonts or runtime libraries.
+The separate public presentation repo publishes HTML, the original PDF, page JPEGs and extracted text. Internal product specifications and review notes stay private. [Public source](https://github.com/Cathay-AI/interior-design-proposal).
 
-| Slide | Story |
-|---|---|
-| 1 | Vision |
-| 2 | Homeowner problem |
-| 3 | Voice/text + images → 3D + rough budget |
-| 4 | Taiwan regulations, fire safety, MEP and physical space |
-| 5 | Free core, paid feature candidates and real cases |
-| 6 | MVP boundaries |
-| 7 | Team focus |
-| 8 | Milestones and first goal |
-
-## Published site
-
-**[Open online](https://cathay-ai.github.io/interior-design-proposal/)** · [English](https://cathay-ai.github.io/interior-design-proposal/?lang=en#1) · [Public presentation source](https://github.com/Cathay-AI/interior-design-proposal)
-
-The product repository stays private. Its current Free organization plan cannot host Pages from this private repository (GitHub API 422), so a separate public repository publishes only `index.html`, `.nojekyll`, the concept JPEG and a short README. Internal specifications and this directory’s notes/PDFs are not copied there.
-
-Pages uses the public repository’s default branch root. Update only the presentation files there to republish. No custom domain or production-product deployment was changed.
-
-## Content and image
-
-`index.html` contains the bilingual copy, CSS and navigation. [Sources and decisions](sources.md). The hero is an original AI-generated concept, not Victor’s skill output, customer work or proof of product capability. No generation engine, actual pricing or delivery dates are selected by this deck.
+The earlier independently authored deck is retained as [legacy](legacy/index.html?lang=en#1), clearly separate from the original.

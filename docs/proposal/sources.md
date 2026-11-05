@@ -1,8 +1,9 @@
-# Proposal sources and boundaries
+# Original presentation source
 
-- Product direction: [MVP v0.2](../product/mvp.md), [team](../delivery/team.md), [roadmap](../delivery/roadmap.md), [Taiwan knowledge assessment](../engineering/taiwan-knowledge.md).
-- Content: homeowner voice/text and reference images → 3D proposal and rough budget; mobile-first and desktop-ready; paid advanced features; real consented cases only. Generation engines, prices and quotas stay open.
-- Taiwan regulations, fire safety, MEP and geometry are planned considerations with limited, evidenced checks. The slides claim no comprehensive approval or construction readiness.
-- Candidate knowledge entry: [HJPLUS Taiwan Architect KB](https://github.com/h30190/HJPLUS_Taiwan_Architect_KB). No KB content or code is copied into this deck.
-- Hero: original image generated for this proposal on 2026-11-05 with the built-in image-generation tool, without reference images. Compact apartment concept, not customer evidence. JPEG conversion for delivery; original composition unchanged.
-- Hosting: [public presentation repository](https://github.com/Cathay-AI/interior-design-proposal) via GitHub Pages default-branch root. The private product repository remains private. Only the HTML, concept JPEG, `.nojekyll` and public README are uploaded; no internal documents or domain changes. A previously prepared private-repository workflow was removed after the current plan rejected private Pages.
+Current source: user-supplied **Interior Design Agent 產品簡報.pdf**, 29 pages, 960 × 540 pt, 8,631,291 bytes. SHA-256: `8613a34710940f3c50a7c862690486e114721cb0716009c4dcb859aa3c8ec657`.
+
+`assets/original-proposal.pdf` is an unchanged copy. `assets/pages/page-01.jpg` through `page-29.jpg` are 1920px rasterizations, quality 86 JPEG, with no cropping or content edits. `assets/page-text.json` is extracted text, not a rewrite or complete substitute for charts.
+
+The reader adds only navigation, zoom, language controls and extracted-text access. English UI does not translate the Chinese original. Market figures, examples, comparison claims and attribution remain as supplied; the reader does not present them as independently researched additions.
+
+The earlier independently authored eight-page deck is preserved under `legacy/`. Its generated concept image is unrelated to the user-supplied original and is not used as an original-deck example.
