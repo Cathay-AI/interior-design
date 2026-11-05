@@ -1,5 +1,7 @@
 # 2026-11-05 產品提案與 Project 初始化
 
+> 歷史紀錄（v0.1）。現行範圍已改為 [v0.2](2026-11-05-product-v02.md)；本頁保留當時實際操作與驗證，不作現行引擎或產品承諾。
+
 ## Request / confirmed scope
 
 使用者要求先明確產品定位與 serving platform 方向，將相關文件寫在 docs，呈現生動、可視覺化的 proposal，包含動機、團隊、設計流程、差異化、願景、目標、MVP、高層分工。授權初始化到 Cathay-AI repo 與既有 Project；先維持 high level，再依試點收斂產品。Render 輕量且 mobile friendly。

@@ -1,31 +1,27 @@
-# From ideas to a space people can act on
+# Your ideas → a 3D proposal → a rough budget
 
-**Interior Design Agent · Proposal v0.1 · 2026-11-05**
+**Proposal v0.2 · Taiwan-aware AI space design · 2026-11-05**
 
 English · [繁體中文](README.zh-TW.md) · [Browser proposal](visual/proposal.en.html) *(download and open)*
 
-| The idea | The space |
-|:---:|:---:|
-| ![Generated appearance study](visual/assets/03-imagegen.jpg) | ![Interactive 3D screenshot](visual/assets/02-3d.jpg) |
-| **The layout** | **The detail** |
-| ![Furniture layout](visual/assets/01-layout.jpg) | ![Dimensioned cabinet drawing](visual/assets/05-engineering.jpg) |
+![Simple homeowner journey](visual/workflow.en.png)
 
-*Existing skill’s synthetic outputs — not the finished platform or approved construction documents. [Sources](visual/assets/README.md).*
+**For homeowners exploring renovation ideas.** Use voice or text and reference images, on a phone or computer. A floor plan is optional at the start.
 
-**Why:** homeowners have ideas; professionals need dimensions, decisions and a traceable brief.
+![Taiwan-aware design considerations](visual/constraints.en.png)
 
-![Homeowner journey](visual/workflow.en.png)
+**Our product bet:** combine easy input with space, Taiwan regulations, fire safety and MEP considerations. Every supported check needs sources and applicability; this is not automatic professional approval.
 
-**Our bet:** combine Victor’s skill, lightweight mobile review, consistent revisions and local professional feedback. Chat, images and 3D alone are not the differentiation.
+![Free core, paid advanced features and customer cases](visual/business.en.png)
 
-![Initial team responsibilities](visual/team.en.png)
+**Free core:** a basic 3D proposal and rough budget range. **Paid:** advanced features, with bundles, quotas and prices still to validate. Real customer cases require consent; none are claimed yet.
 
-**Business hypothesis:** a homeowner-facing tool leading to paid review or services. Pricing and demand remain unvalidated.
+![Initial team focus](visual/team.en.png)
 
 ![Milestone roadmap](visual/roadmap.en.png)
 
-**MVP goal:** two internal homeowners complete a review–revise–compare loop; one consenting professional reviews the handoff. Construction readiness is a later, scope-specific gate.
+**First goal:** Mika and Victor complete the basic flow on phone and desktop; test rough-budget clarity and willingness to upgrade. No generation engine is selected.
 
-[Project board](https://github.com/orgs/Cathay-AI/projects/1/views/4) · [MVP](product/mvp.md) · [Architecture / mobile](engineering/architecture.md) · [Team](delivery/team.md) · [Roadmap](delivery/roadmap.md)
+[Project](https://github.com/orgs/Cathay-AI/projects/1/views/4) · [MVP](product/mvp.md) · [Architecture](engineering/architecture.md) · [Team](delivery/team.md) · [Roadmap](delivery/roadmap.md) · [Knowledge sources](engineering/taiwan-knowledge.md)
 
-Detailed specs currently use Traditional Chinese. [Full rationale / 產品背景](proposal-background.zh-TW.md).
+Detailed specifications currently use Traditional Chinese.

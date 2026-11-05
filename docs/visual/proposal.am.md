@@ -3,64 +3,69 @@ template: sheet
 theme: blueprint
 mode: light
 lang: zh
-title: 想像你的家，讓方案往前走
-subtitle: Interior Design Agent · Proposal v0.1 · 探索與 MVP 規劃
+title: 說出想像，看見 3D 與預算
+subtitle: 台灣裝修條件 × AI 空間設計 · Proposal v0.2 · 產品規劃中
 cols: 3
 ---
-屋主想像 → 可修改的空間 → 可追溯的專業交接。
+手機優先，電腦也可用。先簡單體驗，需要更多再付費。
 
-## A 先看見想像 {span=2 meta="VISION"}
-```html
-<img src="assets/03-imagegen.jpg" alt="既有 skill 的虛構空間效果範例" width="400" style="max-width:100%;height:auto">
-```
-**屋主說想法，平台串起方案、修改與交接。**
-範例來自既有 skill；平台仍在規劃，圖面未獲施工核准。
-
-## B 手機看得懂，空間改得動 {meta="MVP"}
-```html
-<img src="assets/02-3d.jpg" alt="既有 skill 的互動 GLB 範例截圖" width="300" style="max-width:100%;height:auto">
-```
-**一個房間・有限材料・一次修改。**
-先看預覽，點選才載入輕量 3D。
-
-## C 從想像到接手 {span=3 meta="JOURNEY"}
+## A 使用者只要走這幾步 {span=3 meta="USER JOURNEY"}
 ```flow LR
-屋主想像 -> Skill 方案: 需求與尺寸
-Skill 方案 -> *手機 3D: 模型與圖面
-手機 3D -> 版本比較: 修改與保存
-版本比較 -> 專業接手: 材料與問題
+語音或文字加參考圖 -> 確認需求: 少量必要資訊
+確認需求 -> *3D 提案與粗報價: 看效果與預算區間
+3D 提案與粗報價 -> 進階付費解鎖: 需要更多再選
 ```
-**尺寸有來源，產物有版本，未知事項看得見。**
+**不強制先有完整平面圖，不綁定任何生成引擎。**
 
-## D 全員可開發，各自推進一段 {span=2 meta="TEAM"}
+## B 主打：考量台灣裝修條件 {span=2 meta="TAIWAN-AWARE"}
+```flow LR
+物理空間 -> *有根據的提案
+台灣法規 -> 有根據的提案
+消防條件 -> 有根據的提案
+機電配置 -> 有根據的提案
+```
+**尺寸、來源、版本與適用條件可追溯。**
+先驗證有限檢查；缺資料要說明，不宣稱全面專業核准。
+
+## C 隨時方便開始 {meta="PHONE + DESKTOP"}
+```flow TB
+手機 -> 同一個方案
+電腦 -> 同一個方案
+同一個方案 -> 輕量 3D 與預算
+```
+**語音可改文字，圖片可從相簿選。**
+先看預覽，較重內容按需載入。
+
+## D 基本免費，進階解鎖 {span=2 meta="BUSINESS MODEL"}
+| 入口 | 產品內容 | 狀態 |
+|---|---|---|
+| 免費基本 | 3D 提案、粗略預算區間 | 額度待定 |
+| 付費進階 | 更多方案、高畫質、匯出、細估價等候選 | 組合與價格待驗證 |
+| 客戶案例 | 看風格、需求、方案與預算 | 真實來源與同意才發布 |
+**重要限制不鎖在付費牆後。**
+案例未取得先空狀態，不以示意圖冒充客戶成果。
+
+## E 團隊先並行 {meta="TEAM"}
 | 成員 | 初版主責 |
 |---|---|
-| Mika | 屋主體驗、手機介面、3D |
-| Chris | 架構、服務、任務流程 |
-| Even | 材料估算、工班需求 |
-| Josh | 圖面交接、專業回饋 |
-| Victor | Skill 整合、使用者驗收 |
-**客戶：Mika、Victor。部署／網域：Chris、Even、Victor。**
+| Mika | 輸入、手機／桌機、3D 體驗 |
+| Chris | 架構、服務、供應商比較 |
+| Even | 粗報價、工班與機電條件 |
+| Josh | 台灣知識、專業覆核、案例 |
+| Victor | 產品驗收、付費假設、選型 |
+**客戶：Mika、Victor。**
+部署／網域：Chris、Even、Victor。
 
-## E 我們要驗證的差異 {meta="PRODUCT BET"}
-```timeline v
-Skill | 把生成能力變成服務
-一致版本 | 模型、圖面、用量可追溯
-專業接手 | 用真實回饋縮短落地距離
-```
-**商業假設：** 屋主工具入口，專業服務付費。
-需求、價格與成本仍待驗證。
-
-## F 用成果前進 {span=3 meta="MILESTONES"}
+## F 先驗證，再收斂 {span=3 meta="MILESTONES"}
 ```timeline h
-*M0 | 對齊需求 | 案例、交接與部署
-M1 | 上線可看 | 輕量手機 3D
-M2 | 可以修改 | 重產與版本比較
-M3 | 可以交接 | 材料預估與問題
-M4 | 真實試點 | 屋主與專業回饋
-M5 | 施工探索 | 限定工項與責任
+*M0 | 產品與來源 | 旅程、條件、選型
+M1 | 輸入到 3D | 語音、文字、圖片
+M2 | 粗報價與限制 | 台灣條件與依據
+M3 | 付費與案例 | 權益、真實內容
+M4 | 跨裝置試點 | 體驗、成本、升級意願
+M5 | 專業延伸 | 按需求決定投入
 ```
-**第一個目標：兩位屋主完成修改，一位專業夥伴回饋。**
-M5 依試點證據決定；不承諾全屋全自動施工圖。
+**首輪：兩位使用者走完基本流程，驗證預算理解與升級意願。**
+平面施工圖與統包服務，不是基本體驗的前置條件。
 
-[繁中提案](../README.zh-TW.md) · [English](proposal.en.html) · [MVP](../product/mvp.md) · [Project](https://github.com/orgs/Cathay-AI/projects/1/views/4)
+[繁中提案](../README.zh-TW.md) · [English](proposal.en.html) · [知識來源](../engineering/taiwan-knowledge.md) · [看板](https://github.com/orgs/Cathay-AI/projects/1/views/4)

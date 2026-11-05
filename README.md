@@ -1,19 +1,19 @@
 # Interior Design Agent
 
-**Your ideas → editable spaces → a clearer contractor handoff.**
+**Describe your space. See a 3D proposal and a rough budget.**
 
 English · [繁體中文](README.zh-TW.md)
 
-| Imagine the space | Explore it in 3D |
-|:---:|:---:|
-| ![AI-generated room concept](docs/visual/assets/03-imagegen.jpg) | ![Existing skill 3D viewer](docs/visual/assets/02-3d.jpg) |
+![Voice or text and reference images to a 3D proposal and rough quote](docs/visual/workflow.en.png)
 
-*Synthetic examples from [Victor’s skill](docs/visual/assets/README.md). The hosted platform is in planning.*
+**Mobile-first. Desktop-ready. Taiwan-aware.**
 
-**MVP:** one room · mobile-friendly 3D · revisions · material estimates · professional feedback.
+| Start simply | Design with context | Unlock more |
+|---|---|---|
+| Voice or text + reference images | Space, Taiwan regulations, fire safety and MEP considerations | Paid advanced features; scope and pricing to validate |
 
-[Visual proposal](docs/README.md) · [Project board](https://github.com/orgs/Cathay-AI/projects/1/views/4) · [Team](docs/delivery/team.md) · [MVP spec](docs/product/mvp.md)
+![Free and paid product direction](docs/visual/business.en.png)
 
-![From homeowner ideas to professional handoff](docs/visual/workflow.en.png)
+*Product concept, not a shipped demo. No generation engine is selected. Customer cases will require real projects and consent.*
 
-**Start here:** Mika + Victor → user case · Even + Josh → professional handoff · Chris + Even + Victor → architecture, deployment and domain planning.
+[Visual proposal](docs/README.md) · [Project board](https://github.com/orgs/Cathay-AI/projects/1/views/4) · [Team](docs/delivery/team.md) · [MVP](docs/product/mvp.md)

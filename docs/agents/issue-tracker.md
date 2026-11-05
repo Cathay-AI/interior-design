@@ -11,3 +11,5 @@
 - Milestones 表示成果門檻，不預填日期；時間由認領人估計後再設定。
 - 父 issue 串起初始 proposal；子 issue 使用 native sub-issue 與 blocking links，body 也保留依賴文字以利閱讀。
 - 使用者已授權本次初始化到 repo 與 Project。此授權不等於購買網域、付費雲端服務、傳訊第三人或發行施工圖。
+
+現行定位為 v0.2：語音／文字＋參考圖 → 3D＋粗報價，進階付費，手機與電腦；台灣工程條件是待驗證差異化，不指定 skill。來源見 `docs/product/mvp.md`；歷史決策不可覆蓋最新使用者指示。

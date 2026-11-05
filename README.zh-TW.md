@@ -1,19 +1,19 @@
 # Interior Design Agent
 
-**把屋主的想像，變成可修改、可交接的空間方案。**
+**說出想像、放上參考圖，看看 3D 提案與粗略報價。**
 
 [English](README.md) · 繁體中文
 
-| 想像家的樣子 | 用 3D 看懂空間 |
-|:---:|:---:|
-| ![AI 空間效果範例](docs/visual/assets/03-imagegen.jpg) | ![現有 skill 的 3D 檢視](docs/visual/assets/02-3d.jpg) |
+![語音或文字與參考圖，產出 3D 與粗略報價](docs/visual/workflow.zh-TW.png)
 
-*圖片是 [Victor skill 的虛構範例](docs/visual/assets/README.md)；線上平台目前在規劃階段。*
+**手機優先・電腦也可用・考量台灣裝修條件。**
 
-**MVP：** 一個房間・手機輕量 3D・方案修訂・材料預估・專業回饋。
+| 簡單開始 | 有根據的提案 | 需要更多再解鎖 |
+|---|---|---|
+| 語音／文字＋參考圖片 | 空間、法規、消防、機電配置 | 進階功能付費，內容與價格待驗證 |
 
-[視覺提案](docs/README.zh-TW.md) · [專案看板](https://github.com/orgs/Cathay-AI/projects/1/views/4) · [團隊](docs/delivery/team.md) · [MVP 規格](docs/product/mvp.md)
+![免費與付費的產品方向](docs/visual/business.zh-TW.png)
 
-![從屋主想像到專業交接](docs/visual/workflow.zh-TW.png)
+*這是產品構想，尚非已完成平台；不綁定生成引擎。客戶案例需有真實專案與展示同意。*
 
-**先並行：** Mika＋Victor 做使用者案例；Even＋Josh 定義專業交接；Chris＋Even＋Victor 規劃架構、部署與網域。
+[視覺提案](docs/README.zh-TW.md) · [看板](https://github.com/orgs/Cathay-AI/projects/1/views/4) · [分工](docs/delivery/team.md) · [MVP](docs/product/mvp.md)
