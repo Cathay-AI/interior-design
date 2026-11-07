@@ -3,7 +3,7 @@
   const total=slides.length, chapter=document.getElementById('chapter');
   const number=document.getElementById('page-number');
   const previous=document.getElementById('previous'), next=document.getElementById('next');
-  const starts=[1,2,3,7,10,13,17,20,24,29];
+  const starts=[...chapter.options].map(option=>+option.value);
   const readHash=()=>{const m=location.hash.match(/^#(?:page-|slide-)?(\d+)$/);return Math.max(1,Math.min(total,m?+m[1]:1))};
   let page=readHash(),reading=false;
   slides.forEach(slide=>{const title=slide.querySelector('.slide-head h2');if(title&&title.textContent.length>23)slide.classList.add('long-title')});
