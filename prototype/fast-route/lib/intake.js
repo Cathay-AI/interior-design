@@ -74,7 +74,7 @@ export function normalizeNumbers(text) {
 
 /**
  * @param {string} text 例：「客廳大概八坪，長五米六、寬四米七，天花板兩米八，中古屋」
- * @returns {Partial<{ping:string, len:string, wid:string, height:string, age:string}>} 只回傳聽得出來的欄位
+ * @returns {Partial<{ping:string, len:string, wid:string, height:string, age:string, floors:string, partition:'yes'|'no'}>} 只回傳聽得出來的欄位
  */
 export function parseHome(text) {
   const t = normalizeNumbers(text), out = {};
@@ -89,6 +89,10 @@ export function parseHome(text) {
   if (wid) out.wid = wid;
   const height = grab(new RegExp('(?:天花板|挑高|樓高|屋高|高度|淨高)(?:高)?(?:大概|大約|約|是|有)?\\s*' + N));
   if (height) out.height = height;
+  const floors = grab(new RegExp('(?:共|總共|總樓層|樓高|地上)\\s*' + N + '\\s*(?:層|樓)')) || grab(new RegExp(N + '\\s*層樓?(?:的)?(?:電梯)?(?:大樓|公寓|華廈|建築|透天)'));
+  if (floors) out.floors = floors;
+  if (/不(?:會)?(?:動|改|拆|變更)隔間|隔間不(?:動|改|變)/.test(t)) out.partition = 'no';
+  else if (/(?:動|改|拆|變更|打掉)隔間|隔間(?:要|會)?(?:動|改|重做|打掉)|(?:加|增設|多做)(?:一間)?(?:廁所|浴室)/.test(t)) out.partition = 'yes';
   const age = AGES.find((a) => t.includes(a)) ?? (/新房|新屋|預售/.test(t) ? '新成屋' : /二手/.test(t) ? '中古屋' : /老房|老公寓/.test(t) ? '老屋' : null);
   if (age) out.age = age;
   return out;

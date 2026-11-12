@@ -44,12 +44,15 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   assert.match(await page.locator('#score').innerText(), /掌握度 0%/);
   await page.getByRole('button', { name: '先跳過，生成 3D' }).waitFor();
   // 用一句話（語音辨識的結果走同一條路）：聽得出來的欄位自動填好
-  await page.fill('#say', '客廳長五米六、寬四米七'); await page.locator('#say').blur();
-  await page.getByText('聽到：長 5.6 公尺、寬 4.7 公尺').waitFor();
+  assert.match(await page.locator('#taste').innerText(), /你喜歡的是日光北歐/);
+  await page.fill('#say', '客廳長五米六、寬四米七，十二層樓的大樓，隔間不動'); await page.locator('#say').blur();
+  await page.getByText('聽到：長 5.6 公尺、寬 4.7 公尺、建物總樓層 12 層、隔間 不動').waitFor();
+  assert.equal(await page.inputValue('#f-floors'), '12');
+  assert.equal(await page.locator('#part-no').getAttribute('aria-pressed'), 'true');
   assert.equal(await page.inputValue('#f-len'), '5.6');
   assert.equal(await page.inputValue('#f-wid'), '4.7');
   await page.waitForFunction(() => document.querySelector('#f-ping').value === '8');   // 長×寬 換算坪數
-  assert.match(await page.locator('#score').innerText(), /掌握度 30%/);
+  assert.match(await page.locator('#score').innerText(), /掌握度 40%/);
   await page.setInputFiles('#docFile', [
     { name: '3F 機電圖.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') },
     { name: '平面圖.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') },
@@ -89,6 +92,12 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   assert.match(await page.locator('#know').innerText(), /掌握度 80%，區間已收窄 40%/);
   assert.ok((await page.locator('.sheetbtn').first().innerHTML()).includes('5600'), 'drawings use the real length');
   assert.match(await page.locator('#docsnote').innerText(), /已附 格局／平面圖 1 份、機電圖 1 份/);
+  await page.getByRole('heading', { name: '你家尺寸的施工圖草稿' }).waitFor();
+  // 法規與施工條件：12 層、不動隔間
+  const regs = page.locator('#regs');
+  assert.match(await regs.locator('li', { hasText: '室內裝修許可' }).innerText(), /需辦理[\s\S]*12 層集合住宅[\s\S]*依據：建築物室內裝修管理辦法/);
+  assert.match(await regs.locator('li', { hasText: '防焰窗簾與地毯' }).innerText(), /需辦理[\s\S]*消防法第 11 條/);
+  assert.match(await regs.locator('li', { hasText: '撒水頭與火警設備' }).innerText(), /45 公分/);
   const total = await page.locator('#total').innerText();
   await page.getByRole('button', { name: '增加坪數' }).click();
   await page.getByRole('button', { name: '中古屋' }).click();
@@ -99,13 +108,26 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   assert.match(await page.locator('.sheetbtn svg').first().evaluate((el) => getComputedStyle(el).filter), /blur/);
   await snap('4-estimate'); await noOverflow('4');
   await page.locator('.sheetbtn').first().click();                             // 未解鎖：點圖只會跳付費
-  await page.getByRole('heading', { name: '解鎖施工圖包' }).waitFor();
+  await page.getByRole('heading', { name: '解鎖你家尺寸的施工圖草稿' }).waitFor();
   await page.getByRole('button', { name: '模擬付款並解鎖' }).click();
-  await page.getByRole('heading', { name: '施工圖包（已解鎖）' }).waitFor();
+  await page.getByRole('heading', { name: '你家尺寸的施工圖草稿（已解鎖）' }).waitFor();
   assert.equal(await page.locator('.sheetbtn svg').first().evaluate((el) => getComputedStyle(el).filter), 'none');
   await page.locator('.sheetbtn').first().click();
   await page.locator('#viewer svg').waitFor();
   await snap('4-unlocked');
+  await page.locator('#viewer').getByRole('button', { name: '關閉' }).click();
+
+  // 什麼都沒給的人：圖只是範例，不賣；先請他補尺寸或平面圖
+  await page.getByRole('button', { name: '重新開始' }).click();
+  await page.locator('#skip').click();
+  await page.getByRole('button', { name: '先跳過，生成 3D' }).click();
+  assert.match(await page.locator('#assume').innerText(), /以 8 坪（預設）、新成屋（預設）估算/);
+  await page.getByRole('button', { name: '看估價與施工圖' }).click();
+  await page.getByRole('heading', { name: '施工圖範例' }).waitFor();
+  assert.equal(await page.getByRole('button', { name: /解鎖/ }).count(), 0, 'nothing to buy without the home');
+  assert.match(await page.locator('#regs').innerText(), /還不知道建物總樓層/);
+  await page.locator('#needhome').click();
+  await page.getByRole('heading', { name: '多告訴我一點你家' }).waitFor();
   await page.close();
 }
 await browser.close();

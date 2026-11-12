@@ -1,6 +1,6 @@
 // UI for the 快速找風格 prototype: 滑卡（Pinterest 靈感圖）→ 3D 成品 → 估價與施工圖.
 // Decision logic lives in ./lib (pure, unit-tested); this file owns state, rendering and browser APIs.
-import { STYLES, SWIPE_ORDER, emptyScores, applySwipe, pickStyle } from './lib/taste.js';
+import { STYLES, SWIPE_ORDER, emptyScores, applySwipe, pickStyle, topStyles } from './lib/taste.js';
 import { designEstimate, resolvePing } from './lib/estimate.js';
 import { STATES, ruleFindings } from './lib/rules.js';
 import { AGES, parseHome } from './lib/intake.js';
@@ -8,7 +8,7 @@ import { drawingSet } from './lib/drawings.js';
 import { roomSize } from './lib/layout.js';
 import { MASCOT, roomSVG } from './lib/art.js';
 import { PINS } from './lib/pins.js';
-import { contextScore, pingFromDims, tighten } from './lib/context.js';
+import { contextScore, pingFromDims, tighten, aboutThisHome } from './lib/context.js';
 import { KINDS, ACCEPT, MAX_FILES, MAX_MB, guessKind, rejectReason, summarize } from './lib/docs.js';
 
 // The 3D module (Three.js) is loaded on demand so the first screen stays light.
@@ -26,12 +26,12 @@ const EDITS = [
   ['地毯拿掉', (l) => ({ ...l, rug: null })],
   ['地板換深色', (l) => ({ ...l, floor: '#6b4a32', floorType: 'wood', floorTex: 'wood_floor' })],
 ];
-const STATE_COLOR = { ok: '#5f7a6a', conflict: '#b5653a', missing: '#c9a77c', review: '#6f8fa8', na: '#8a7f72' };
+const STATE_COLOR = { ok: '#5f7a6a', conflict: '#b5653a', missing: '#b08a4f', review: '#5f7f99', action: '#a8452a', na: '#8a7f72' };
 
 /* ================= state ================= */
 const fresh = () => ({
   step: 1, reached: 1, scores: emptyScores(), swiped: 0, liked: 0,
-  cond: { space: '客廳', style: null, ping: '', len: '', wid: '', height: '', age: '新成屋', ageSet: false },
+  cond: { space: '客廳', style: null, ping: '', len: '', wid: '', height: '', age: '新成屋', ageSet: false, floors: '', partition: '' },
   docs: [], docError: '', said: '', heard: null,
   versions: [], v: 0, view: 'A', generated: false, unlocked: false,
 });
@@ -178,7 +178,7 @@ SCREENS[2] = () => {
     h('button', { class: 'rm', 'aria-label': `移除 ${d.name}`, onclick: () => { if (d.url) URL.revokeObjectURL(d.url); S.docs.splice(i, 1); render(); } }, '×'))));
   const c = S.cond, k = knowledge(), pct = Math.round(k.score * 100);
   // 用說的（或打一句話）：聽得出來的欄位直接填進下面，其餘不動
-  const LABEL = { ping: ['坪數', '坪'], len: ['長', '公尺'], wid: ['寬', '公尺'], height: ['天花板高', '公尺'], age: ['屋況', ''] };
+  const LABEL = { ping: ['坪數', '坪'], len: ['長', '公尺'], wid: ['寬', '公尺'], height: ['天花板高', '公尺'], age: ['屋況', ''], floors: ['建物總樓層', '層'], partition: ['隔間', ''] };
   const applySaid = (text) => {
     S.said = text.trim();
     const got = parseHome(S.said);
@@ -186,7 +186,7 @@ SCREENS[2] = () => {
     if (got.age) c.ageSet = true;
     const p = pingFromDims(c.len, c.wid);
     if (p && (got.len || got.wid)) c.ping = String(p);
-    S.heard = Object.entries(got).map(([key, v]) => `${LABEL[key][0]} ${v}${LABEL[key][1] ? ' ' + LABEL[key][1] : ''}`);
+    S.heard = Object.entries(got).map(([key, v]) => `${LABEL[key][0]} ${key === 'partition' ? (v === 'yes' ? '會動' : '不動') : v}${LABEL[key][1] ? ' ' + LABEL[key][1] : ''}`);
     render();
   };
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -216,6 +216,13 @@ SCREENS[2] = () => {
         render();
       } }), h('em', {}, unit));
   app.append(h('div', { class: 'shead' }, backBtn(1), h('h1', {}, '多告訴我一點你家'), h('p', { class: 'lead' }, '都是選填。給得越多，估價區間越窄、圖面尺寸越準。')),
+    (() => {
+      const top = topStyles(S.scores), pick = (k) => h('button', { class: 'chip', 'aria-pressed': String(c.style === k), onclick: () => { setStyle(k); S.generated = false; render(); } }, STYLES[k].name);
+      return h('div', { class: 'taste', id: 'taste' },
+        h('span', {}, !top.liked ? `還沒滑到喜歡的，先用${STYLES[top.first].name}，之後可以換。`
+          : top.second ? `你喜歡的是${STYLES[top.first].name}，也有一點${STYLES[top.second].name}。要做哪一種？` : `你喜歡的是${STYLES[top.first].name}。`),
+        top.second ? h('div', { class: 'chips' }, pick(top.first), pick(top.second)) : null);
+    })(),
     h('div', { class: 'voice' }, mic, h('div', { class: 'voicebody' }, say, micLabel)),
     h('div', { class: 'meter', role: 'group', 'aria-label': '掌握度' },
       h('div', { class: 'row between' }, h('b', { id: 'score' }, `掌握度 ${pct}%`), h('span', { class: 'note' }, pct ? `估價區間收窄 ${Math.round(k.score * 50)}%` : '目前用預設值估算')),
@@ -224,6 +231,10 @@ SCREENS[2] = () => {
     h('div', { class: 'cardbox' }, h('b', {}, '空間'),
       h('div', { class: 'fields' }, field('ping', '坪數', '坪'), field('len', '長', '公尺'), field('wid', '寬', '公尺'), field('height', '天花板高', '公尺')),
       h('div', { class: 'inline' }, h('span', { class: 'note' }, '屋況'), ...AGES.map((a) => h('button', { class: 'chip', 'aria-pressed': String(c.ageSet && c.age === a), onclick: () => { c.age = a; c.ageSet = true; render(); } }, a)))),
+    h('div', { class: 'cardbox' }, h('b', {}, '建物與工程'), h('span', { class: 'note' }, '用來評估消防法規與室內裝修許可。'),
+      h('div', { class: 'fields' }, field('floors', '建物總樓層', '層', { step: 1 })),
+      h('div', { class: 'inline', role: 'group', 'aria-label': '會動隔間嗎' }, h('span', { class: 'note' }, '會動隔間或加廁所浴室嗎'),
+        ...[['yes', '會'], ['no', '不會']].map(([v, label]) => h('button', { class: 'chip', id: 'part-' + v, 'aria-pressed': String(c.partition === v), onclick: () => { c.partition = c.partition === v ? '' : v; render(); } }, label)))),
     h('div', { class: 'cardbox' }, h('b', {}, '圖面'), input, drop,
       S.docError ? h('p', { class: 'err', role: 'alert' }, S.docError) : h('span', { hidden: true }),
       S.docs.length ? list : h('span', { hidden: true }),
@@ -252,6 +263,10 @@ SCREENS[3] = () => {
       h('p', { class: 'note', id: 'ctx' }, `這個房間：${size.w} × ${size.d} 公尺、高 ${size.h} 公尺（${est.ping} 坪${est.assumedPing ? '，預設' : ''}）・掌握度 ${Math.round(knowledge().score * 100)}%。`,
         size.clamped ? '這個尺寸放不下一張沙發或超過 60 公尺，3D 取了最接近的大小。' : '', ' ', h('button', { class: 'link', onclick: () => go(2) }, c.len && c.wid ? '修改尺寸' : '填你家的尺寸')),
       h('p', { class: 'pricetag' }, '預估', h('b', { id: 'teaser' }, `${est.low}–${est.high} 萬`)),
+      h('p', { class: 'note', id: 'assume' }, `以 ${est.ping} 坪${est.assumedPing ? '（預設）' : ''}、${c.age}${c.ageSet ? '' : '（預設）'}估算。`,
+        est.assumedPing || !c.ageSet ? '坪數和屋況會讓金額差很多，' : '', h('button', { class: 'link', onclick: () => go(2) }, est.assumedPing || !c.ageSet ? '填我家的' : '修改')),
+      ...ruleFindings({ ...c, ping: est.ping }, current, summarize(S.docs)).filter((f) => f.state === 'conflict')
+        .map((f) => h('p', { class: 'warn', role: 'status' }, h('b', {}, `${f.title}：`), f.detail)),
       cta('看估價與施工圖', () => go(4)))));
   stage.append(h('span', { class: 'hint' }, '拖曳旋轉'));
   load3D().then((m) => { if (S.step === 3 && stage.isConnected) { live = m.mountRoom3D(stage, current, S.view, size); window.__room = live; } })
@@ -284,23 +299,35 @@ SCREENS[4] = () => {
     h('p', { class: 'note' }, '2025 參考行情，中等建材、不動格局；不含家電與設計監工費。'));
 
   const sheets = drawingSet(c, current, est, new Date().toISOString().slice(0, 10));
+  const docs = summarize(S.docs);
+  const findings = ruleFindings({ ...c, ping: est.ping }, current, docs);
+  const mine = aboutThisHome(c, docs);   // 沒有這個家的長寬或平面圖，畫的只是範例空間：不賣
   const open = (s) => {
+    if (!mine) return go(2);
     if (!S.unlocked) return $('#unlock').showModal();
     $('#viewerBody').replaceChildren(fromHTML(s.svg)); $('#viewer').showModal();
   };
-  const docs = summarize(S.docs);
-  const findings = ruleFindings({ ...c, ping: est.ping }, current, docs);
   const drawings = h('div', { class: 'cardbox' + (S.unlocked ? '' : ' locked'), id: 'drawings' },
-    h('div', { class: 'unlockrow' }, h('h2', {}, S.unlocked ? '施工圖包（已解鎖）' : '施工圖包'),
-      S.unlocked ? null : h('span', { class: 'note' }, '6 張・付費後清晰可放大')),
-    h('p', { class: 'note', id: 'docsnote' }, docs.total ? `已附 ${docs.text}。圖面尺寸${c.len && c.wid ? '用你給的長寬' : '依坪數換算'}，格局仍是示意，尚未依你的圖繪製。` : `圖面尺寸${c.len && c.wid ? '用你給的長寬' : '依坪數換算'}，格局是示意。`),
-    h('div', { class: 'sheets' }, ...sheets.map((s) => h('button', { class: 'sheetbtn', 'aria-label': `${s.title}${S.unlocked ? '，點擊放大' : '（未解鎖）'}`, onclick: () => open(s) },
-      fromHTML(s.svg), h('span', { class: 'tag' }, s.title), S.unlocked ? null : h('span', { class: 'lock', 'aria-hidden': 'true' }, '🔒')))),
-    h('details', { class: 'more' }, h('summary', {}, '施工前要確認的事'),
-      h('ul', { class: 'cons' }, ...findings.filter((f) => f.state !== 'ok').map((f) => h('li', {}, h('i', { style: `background:${STATE_COLOR[f.state]}` }), h('span', {}, h('b', {}, `${f.title}（${STATES[f.state]}）`), '　', f.detail))))));
+    h('div', { class: 'unlockrow' }, h('h2', {}, !mine ? '施工圖範例' : S.unlocked ? '你家尺寸的施工圖草稿（已解鎖）' : '你家尺寸的施工圖草稿'),
+      !mine || S.unlocked ? null : h('span', { class: 'note' }, '6 張・付費後清晰可放大')),
+    h('p', { class: 'note', id: 'docsnote' }, !mine ? '這是範例空間的圖，不是你家的。補上長寬或平面圖後，才會產生你家尺寸的圖並開放解鎖。'
+      : `${docs.total ? `已附 ${docs.text}。` : ''}空間、家具、燈位與插座都依${c.len && c.wid ? '你給的長寬' : '坪數換算的尺寸'}配置。解鎖後由我們的設計師與施工團隊覆核，確認後才作為施工依據。`),
+    h('div', { class: 'sheets' }, ...sheets.map((s) => h('button', { class: 'sheetbtn', 'aria-label': `${s.title}${!mine ? '（範例）' : S.unlocked ? '，點擊放大' : '（未解鎖）'}`, onclick: () => open(s) },
+      fromHTML(s.svg), h('span', { class: 'tag' }, s.title), S.unlocked ? null : h('span', { class: 'lock', 'aria-hidden': 'true' }, '🔒')))));
+  // 法規與施工條件評估：依台灣法規整理的提醒；由我們的設計與施工團隊逐項確認
+  const item = (f) => h('li', {}, h('span', { class: 'state', style: `background:${STATE_COLOR[f.state]}` }, STATES[f.state]),
+    h('div', {}, h('b', {}, f.title), h('p', {}, f.detail), f.source ? h('small', {}, `依據：${f.source}`) : null));
+  const legal = findings.filter((f) => f.source), site = findings.filter((f) => !f.source && f.state !== 'ok');
+  const regs = h('div', { class: 'cardbox', id: 'regs' },
+    h('h2', {}, '法規與施工條件評估'),
+    h('p', { class: 'note' }, c.floors ? `依 ${c.floors} 層建物${c.partition ? (c.partition === 'yes' ? '、會動隔間' : '、不動隔間') : ''}評估。` : '還不知道建物總樓層，以下多數項目無法判斷。', ' ',
+      h('button', { class: 'link', onclick: () => go(2) }, c.floors && c.partition ? '修改' : '補樓層與隔間')),
+    h('ul', { class: 'regs' }, ...legal.map(item), ...site.map(item)),
+    h('p', { class: 'note' }, '這是依台灣消防與建築法規整理的提醒，不是合格判定；實際適用條文與申請，由我們的設計師與施工團隊在覆核時逐項確認。'));
   app.append(h('div', { class: 'shead' }, backBtn(3), h('h1', {}, '估價與施工圖')),
     h('div', { class: 'two' }, money, drawings),
-    ...(S.unlocked ? [] : [cta('解鎖施工圖包　NT$ 1,990', () => $('#unlock').showModal(), 'accent')]));
+    regs,
+    ...(S.unlocked ? [] : [mine ? cta('解鎖我家的施工圖草稿　NT$ 1,990', () => $('#unlock').showModal(), 'accent') : cta('先補我家的尺寸或平面圖', () => go(2), 'accent', { id: 'needhome' })]));
 };
 $('#payCancel').addEventListener('click', () => $('#unlock').close());
 $('#payOk').addEventListener('click', () => { $('#unlock').close(); S.unlocked = true; if (S.step === 4) render(); });

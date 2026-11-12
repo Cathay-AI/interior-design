@@ -10,7 +10,7 @@ export function pingFromDims(len, wid) {
 }
 
 /**
- * @param {{ping?:string, len?:string, wid?:string, height?:string, ageSet?:boolean}} cond
+ * @param {{ping?:string, len?:string, wid?:string, height?:string, ageSet?:boolean, floors?:string, partition?:string}} cond
  * @param {{plan?:number, mep?:number}} docs
  * @returns {{score:number, items:{key:string, label:string, done:boolean, weight:number}[]}} score 0–1
  */
@@ -20,8 +20,9 @@ export function contextScore(cond, docs = {}) {
     { key: 'size', label: dims ? '空間長寬' : '坪數', done: dims || Boolean(num(cond.ping)), weight: dims ? 0.3 : 0.2 },
     { key: 'height', label: '天花板高度', done: Boolean(num(cond.height)), weight: 0.1 },
     { key: 'age', label: '屋況', done: Boolean(cond.ageSet), weight: 0.1 },
-    { key: 'plan', label: '格局／平面圖', done: Boolean(docs.plan), weight: 0.3 },
-    { key: 'mep', label: '機電圖', done: Boolean(docs.mep), weight: 0.2 },
+    { key: 'building', label: '樓層與隔間', done: Boolean(num(cond.floors) && cond.partition), weight: 0.1 },
+    { key: 'plan', label: '格局／平面圖', done: Boolean(docs.plan), weight: 0.25 },
+    { key: 'mep', label: '機電圖', done: Boolean(docs.mep), weight: 0.15 },
   ];
   const score = Math.round(items.reduce((a, i) => a + (i.done ? i.weight : 0), 0) * 100) / 100;
   return { score, items };
@@ -42,4 +43,13 @@ export function tighten(est, score) {
   });
   const sum = (k) => Math.round(items.reduce((a, i) => a + i[k], 0));
   return { ...est, items, low: sum('low'), high: sum('high'), narrowed };
+}
+
+/**
+ * 施工圖能不能開放付費解鎖：至少要有這個家的長寬，或一張格局／平面圖。
+ * 兩者都沒有時，畫出來的只是範例空間，不該賣。
+ * @param {{len?:string, wid?:string}} cond @param {{plan?:number}} docs
+ */
+export function aboutThisHome(cond, docs = {}) {
+  return Boolean((num(cond.len) && num(cond.wid)) || docs.plan);
 }
