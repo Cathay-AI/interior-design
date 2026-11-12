@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { contextScore, pingFromDims, tighten, aboutThisHome } from '../lib/context.js';
+import { contextScore, pingFromDims, tighten, aboutThisHome, missingForHome } from '../lib/context.js';
 import { designEstimate } from '../lib/estimate.js';
 import { STYLES } from '../lib/taste.js';
 
@@ -10,14 +10,16 @@ test('長寬換算坪數', () => {
   assert.equal(pingFromDims('abc', '4'), null);
 });
 
-test('什麼都沒給是 0；給得越多越高；全給是 1', () => {
+test('什麼都沒給是 0；給得越多越高；全給是 1；上傳的圖不計分', () => {
   assert.equal(contextScore({}).score, 0);
   const some = contextScore({ ping: '8', ageSet: true }).score;
-  const more = contextScore({ len: '5.6', wid: '4.7', height: '2.8', ageSet: true }, { plan: 1 }).score;
+  const more = contextScore({ len: '5.6', wid: '4.7', height: '2.8', ageSet: true }).score;
   assert.ok(0 < some && some < more && more < 1);
-  assert.equal(contextScore({ len: '5.6', wid: '4.7', height: '2.8', ageSet: true, floors: '12', partition: 'no' }, { plan: 1, mep: 1 }).score, 1);
+  const all = { len: '5.6', wid: '4.7', height: '2.8', ageSet: true, floors: '12', partition: 'no' };
+  assert.equal(contextScore(all).score, 1);
   assert.ok(contextScore({ floors: '12' }).score === 0 && contextScore({ floors: '12', partition: 'yes' }).score > 0, '樓層和隔間都講了才算');
   assert.ok(contextScore({ len: '5', wid: '4' }).score > contextScore({ ping: '6' }).score, '實際長寬比只給坪數更有把握');
+  assert.equal(contextScore({ ping: '8' }, { plan: 3, mep: 2 }).score, contextScore({ ping: '8' }).score, '圖還不會被判讀，附了也不會讓估價變準');
 });
 
 test('掌握度越高估價區間越窄，中點不動，0 分時不變', () => {
@@ -30,10 +32,12 @@ test('掌握度越高估價區間越窄，中點不動，0 分時不變', () => 
   for (const i of full.items) assert.ok(i.low <= i.high);
 });
 
-test('沒有這個家的長寬或平面圖，就不開放解鎖施工圖', () => {
+test('沒有手動填的長寬，就只是範例；上傳平面圖不算，並說得出還缺什麼', () => {
   assert.equal(aboutThisHome({}), false);
-  assert.equal(aboutThisHome({ ping: '8', height: '2.8' }, { mep: 1 }), false, '只有坪數或機電圖還不夠');
+  assert.equal(aboutThisHome({ ping: '8', height: '2.8' }), false);
   assert.equal(aboutThisHome({ len: '5.6', wid: '' }), false);
   assert.equal(aboutThisHome({ len: '5.6', wid: '4.7' }), true);
-  assert.equal(aboutThisHome({}, { plan: 1 }), true);
+  assert.deepEqual(missingForHome({}), ['長', '寬']);
+  assert.deepEqual(missingForHome({ len: '5.6' }), ['寬']);
+  assert.deepEqual(missingForHome({ len: '5.6', wid: '4.7' }), []);
 });

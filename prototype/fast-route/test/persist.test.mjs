@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { serialize, restore, toShare, fromShare } from '../lib/persist.js';
 import { emptyScores, applySwipe, STYLES } from '../lib/taste.js';
 
-const blank = () => ({ step: 1, reached: 1, scores: emptyScores(), swiped: 0, liked: 0, docs: [], docError: '', said: '', heard: null,
+const blank = () => ({ step: 1, reached: 1, scores: emptyScores(), swiped: 0, liked: 0, docs: [], docError: '', said: '', heard: null, history: [], reasons: [],
   cond: { space: '客廳', style: null, ping: '', len: '', wid: '', height: '', age: '新成屋', ageSet: false, floors: '', partition: '' },
   versions: [], v: 0, view: 'A', generated: false, unlocked: false });
 

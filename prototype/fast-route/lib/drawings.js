@@ -43,7 +43,7 @@ ${body}
 ${text(W - 226, H - 85, title, 'class="big"')}
 ${text(W - 226, H - 55, '專案：' + project)}
 ${text(W - 226, H - 25, '圖號 ' + no)}${text(W - 116, H - 31, '比例 ' + scale)}${text(W - 116, H - 19, '日期 ' + date)}</g>
-${text(24, H - 22, '草稿・待設計師與施工團隊覆核後方可作為施工依據', 'style="font-size:9px;fill:#6b6b68"')}
+${text(24, H - 22, 'AI 初稿・需現場丈量，經專業團隊確認後才是可施工的圖', 'style="font-size:9px;fill:#6b6b68"')}
 </g></svg>`;
 }
 

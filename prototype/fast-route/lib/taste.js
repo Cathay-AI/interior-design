@@ -106,3 +106,12 @@ export function topStyles(scores, order = SWIPE_ORDER) {
   const ranked = [...order].sort((a, b) => scores[b] - scores[a] || order.indexOf(a) - order.indexOf(b));
   return { first: ranked[0], second: scores[ranked[1]] > 0 ? ranked[1] : null, liked: scores[ranked[0]] > 0 };
 }
+
+/** 撤回一次滑卡（applySwipe 的反向）。 */
+export function undoSwipe(scores, key, liked) {
+  if (!(key in scores)) throw new Error(`unknown style ${key}`);
+  return { ...scores, [key]: scores[key] - (liked ? 2 : -1) };
+}
+
+/** 選填的「喜歡它的什麼」。留給設計師參考，不影響 3D。 */
+export const REASONS = ['採光', '配色', '材質', '家具', '收納', '氛圍'];
