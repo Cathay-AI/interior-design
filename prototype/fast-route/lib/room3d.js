@@ -36,7 +36,7 @@ const loadHDRI = () => (hdri ??= new EXRLoader().loadAsync(new URL('../assets/en
 export const preload = (look) => { loadAssets(look).catch(() => {}); loadHDRI().catch(() => {}); };
 
 export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM) {
-  const f = Math.max(size.w / DEFAULT_ROOM.w, size.d / DEFAULT_ROOM.d, size.h / DEFAULT_ROOM.h, 0.85);
+  const f = Math.max(size.w / DEFAULT_ROOM.w, size.d / DEFAULT_ROOM.d, size.h / DEFAULT_ROOM.h, 0.7);
   const viewPos = (v) => new T.Vector3(...VIEWS[v]).multiplyScalar(f);
   const renderer = new T.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   renderer.outputColorSpace = T.SRGBColorSpace;
@@ -55,7 +55,7 @@ export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM) {
   let room = null, env = null, ready = false;
   const stage = new T.Scene();
   stage.background = new T.Color(BACKDROP);
-  const camera = new T.PerspectiveCamera(32, 1, 0.1, 60);
+  const camera = new T.PerspectiveCamera(32, 1, 0.1, 60 * f);
   camera.position.copy(viewPos(view));
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.target.set(...TARGET).multiplyScalar(f);
