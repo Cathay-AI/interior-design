@@ -2,4 +2,4 @@ dist/
 node_modules/
 .vercel/
 .DS_Store
-tools/out/
+prototype/fast-route/tools/out/
