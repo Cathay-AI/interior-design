@@ -1,4 +1,4 @@
-// End-to-end check of the flow on desktop and phone widths: 首頁 → 滑卡 → 3D → 估價與施工圖.
+// End-to-end check of the flow on desktop and phone widths: 滑卡 → 3D → 估價與施工圖.
 // Usage: node e2e/flow.e2e.mjs [baseUrl] [screenshotDir]
 import { chromium } from 'playwright';
 import { strict as assert } from 'node:assert';
@@ -11,6 +11,8 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   const page = await browser.newPage({ viewport });
   page.on('pageerror', (e) => errors.push(`${name}: ${e.message}`));
   page.on('response', (r) => { if (r.status() >= 400) errors.push(`${name}: ${r.status()} ${r.url()}`); });
+  // the wall hot-links Pinterest's image host; serve a stand-in so the test does not depend on it
+  await page.route('https://i.pinimg.com/**', (route) => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="50"><rect width="40" height="50" fill="#b9a58c"/></svg>' }));
   const snap = async (n) => { if (!shots) return; await page.waitForTimeout(450); await page.screenshot({ path: `${shots}/${name}-${n}.png` }); };
   const noOverflow = async (at) => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -18,32 +20,29 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   };
   await page.goto(base);
 
-  // 1 首頁：成果牆，圖片都載得到
-  await page.getByRole('heading', { name: '滑幾張圖，看見你家的 3D' }).waitFor();
-  assert.equal(await page.locator('.wall img').count(), 12);
-  await page.waitForFunction(() => document.querySelector('.wall img').naturalWidth > 0);
-  await snap('1-home'); await noOverflow('1');
-  await page.getByRole('button', { name: '開始' }).click();
-
-  // 2 滑卡：按鈕、鍵盤、拖曳三種方式
+  // 1 滑卡：按鈕、鍵盤、拖曳三種方式；卡片是 Pinterest 的圖並附來源
   await page.locator('.card').first().waitFor();
-  assert.match(await page.locator('.count').innerText(), /1 \/ 6/);
-  await snap('2-swipe'); await noOverflow('2');
+  assert.match(await page.locator('.count').innerText(), /1 \/ 18/);
+  assert.match(await page.locator('.card img').last().getAttribute('src'), /^https:\/\/i\.pinimg\.com\//);
+  assert.match(await page.locator('.card a').last().getAttribute('href'), /^https:\/\/www\.pinterest\.com\//);
+  await snap('1-swipe'); await noOverflow('1');
   await page.getByRole('button', { name: '不喜歡', exact: true }).click();   // 溫暖木質 ✕
-  await page.waitForFunction(() => document.querySelector('.count').textContent.startsWith('2'));
+  await page.waitForFunction(() => document.querySelector('.count').textContent.startsWith('2 '));
   await page.keyboard.press('ArrowLeft');                                      // 深色現代 ✕
-  await page.waitForFunction(() => document.querySelector('.count').textContent.startsWith('3'));
+  await page.waitForFunction(() => document.querySelector('.count').textContent.startsWith('3 '));
+  assert.equal(await page.locator('.card').last().getAttribute('data-style'), 'nordic');
   const box = await page.locator('.card').last().boundingBox();               // 日光北歐：拖曳右滑
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2 + 220, box.y + box.height / 2, { steps: 6 });
   await page.mouse.up();
-  await page.waitForFunction(() => document.querySelector('.count').textContent.startsWith('4'));
+  await page.waitForFunction(() => document.querySelector('.count').textContent.startsWith('4 '));
   await page.getByRole('button', { name: '夠了，直接看 3D' }).click();
 
-  // 3 3D 成品：喜歡的那一種，靜止時不重畫
+  // 2 3D 成品：喜歡的那一種，靜止時不重畫
   await page.getByRole('heading', { name: '客廳・日光北歐' }).waitFor();
-  await page.locator('.scene canvas').waitFor({ timeout: 20000 });
+  await page.locator('.scene[data-ready] canvas').waitFor({ timeout: 30000 }); // furniture models and materials are in
+  assert.equal(await page.evaluate(() => window.__room.stats().ready), true);
   await page.waitForTimeout(1500);
   const idle = await page.evaluate(() => window.__room.stats().frames);
   await page.waitForTimeout(700);
@@ -54,13 +53,11 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.getByRole('button', { name: '地毯拿掉' }).click();
   await page.getByRole('button', { name: '版本 2' }).waitFor();
   assert.notEqual(await page.locator('#teaser').innerText(), before, 'editing the design changes the estimate');
-  await page.locator('.scene canvas').waitFor();
-  await snap('3-3d'); await noOverflow('3');
-  await page.getByRole('button', { name: '寫實圖' }).click();
-  await page.locator('.scene img.photo').waitFor();
+  await page.locator('.scene[data-ready] canvas').waitFor({ timeout: 30000 });
+  await snap('2-3d'); await noOverflow('2');
   await page.getByRole('button', { name: '看估價與施工圖' }).click();
 
-  // 4 估價與施工圖：不問預算；坪數、屋況會改變金額；圖要付費才清楚
+  // 3 估價與施工圖：不問預算；坪數、屋況會改變金額；圖要付費才清楚
   await page.getByRole('heading', { name: '估價與施工圖' }).waitFor();
   assert.equal(await page.getByText('預算').count(), 0, 'never asks for a budget');
   assert.match(await page.locator('#ping').innerText(), /8 坪（預設）/);
@@ -72,7 +69,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.locator('.items').getByText('中古屋基礎工程').waitFor();
   assert.equal(await page.locator('.sheetbtn').count(), 6);
   assert.match(await page.locator('.sheetbtn svg').first().evaluate((el) => getComputedStyle(el).filter), /blur/);
-  await snap('4-estimate'); await noOverflow('4');
+  await snap('3-estimate'); await noOverflow('3');
   await page.locator('.sheetbtn').first().click();                             // 未解鎖：點圖只會跳付費
   await page.getByRole('heading', { name: '解鎖施工圖包' }).waitFor();
   await page.getByRole('button', { name: '模擬付款並解鎖' }).click();
@@ -80,7 +77,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   assert.equal(await page.locator('.sheetbtn svg').first().evaluate((el) => getComputedStyle(el).filter), 'none');
   await page.locator('.sheetbtn').first().click();
   await page.locator('#viewer svg').waitFor();
-  await snap('4-unlocked');
+  await snap('3-unlocked');
   await page.close();
 }
 await browser.close();
