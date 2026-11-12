@@ -32,3 +32,13 @@ test('sheets follow the design and the estimate', () => {
   assert.ok(set()[5].svg.includes(`${est.low} – ${est.high}`));
   assert.ok(set(STYLES.warm, { ...cond, space: '<b>' })[0].svg.includes('&lt;b&gt;'), 'text is escaped');
 });
+
+test('屋主給了實際長寬高，圖面就標實際尺寸', () => {
+  const dm = roomDims(8, { len: '6.2', wid: '4.3', height: '3' });
+  assert.deepEqual([dm.w, dm.d, dm.h, dm.measured], [6200, 4300, 3000, true]);
+  assert.equal(roomDims(8).measured, false);
+  const c = { ...cond, len: '6.2', wid: '4.3', height: '3' };
+  const sheets = set(STYLES.warm, c);
+  assert.ok(sheets[0].svg.includes('6200') && sheets[0].svg.includes('4300'));
+  assert.ok(sheets[3].svg.includes('3000'));
+});

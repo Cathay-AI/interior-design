@@ -8,11 +8,15 @@ const px = (x) => +(OX + x * S).toFixed(1), pz = (z) => +(OZ + z * S).toFixed(1)
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const PING_M2 = 3.3058;
 
-/** 圖面尺寸跟著坪數等比例縮放（mm，取 10 的倍數）。 */
-export function roomDims(ping) {
+/**
+ * 圖面尺寸（mm，取 10 的倍數）。屋主給了實際長寬就直接用；只有坪數時依坪數等比例縮放。
+ * @param {number} ping @param {{len?:number|string, wid?:number|string, height?:number|string}} real
+ */
+export function roomDims(ping, real = {}) {
   const k = Math.sqrt((ping * PING_M2) / (ROOM.w * ROOM.d));
   const mm = (m) => Math.round((m * k * 1000) / 10) * 10;
-  return { k, w: mm(ROOM.w), d: mm(ROOM.d), h: 2800, mm };
+  const given = (v) => { const n = Number.parseFloat(v); return Number.isFinite(n) && n > 0 ? Math.round(n * 100) * 10 : null; };
+  return { k, w: given(real.len) ?? mm(ROOM.w), d: given(real.wid) ?? mm(ROOM.d), h: given(real.height) ?? 2800, mm, measured: Boolean(given(real.len) && given(real.wid)) };
 }
 
 const text = (x, y, s, o = '') => `<text x="${x}" y="${y}" ${o}>${esc(s)}</text>`;
@@ -101,7 +105,7 @@ function lightingSheet(meta, dm) {
 <g class="thin">${wire(c1)}<path class="dash" d="M${px(c2[0][0])} ${pz(c2[0][1])}L${px(c2[1][0])} ${pz(c2[1][1])}L${px(c2[2][0])} ${pz(c2[2][1])}L${px(ROOM.w / 2) - 8} ${pz(ROOM.d / 2 - 1.2)}"/><path class="dash" d="M${px(LAYOUT.pendant.x)} ${pz(LAYOUT.pendant.z)}Q${px(0.8)} ${pz(1.9)} ${px(ROOM.w / 2) - 8} ${pz(ROOM.d / 2 - 1.3)}"/></g>
 ${at(ROOM.w / 2 - 0.08, ROOM.d / 2 - 1.2, SYM.sw)}${at(ROOM.w / 2 - 0.08, ROOM.d / 2 - 1.35, SYM.sw)}
 ${text(px(ROOM.w / 2) - 62, pz(ROOM.d / 2 - 1.45), 'S1 S2 S3')}${downs.map(([x, z], i) => text(px(x) + 9, pz(z) - 8, `L${i + 1}`)).join('')}${text(px(LAYOUT.pendant.x) + 12, pz(LAYOUT.pendant.z) - 10, 'P1')}</g>`
-    + text(px(-ROOM.w / 2) + 6, pz(ROOM.d / 2) - 8, '天花板高度 CH=2600，窗簾盒深 180')
+    + text(px(-ROOM.w / 2) + 6, pz(ROOM.d / 2) - 8, `天花板高度 CH=${dm.h - 200}，窗簾盒深 180`)
     + legend([[SYM.down, '嵌燈 Ø95　9W 3000K ×5'], [SYM.pendant, '吊燈　E27 ×1'], [SYM.strip, '層板 LED 燈條 2700K'], [SYM.floor, '立燈（插座迴路）'], [SYM.sw, '單切開關 H=1200']].map(([s, l]) => [`<g class="red">${s}</g>`, l])));
 }
 function powerSheet(meta, dm) {
@@ -128,7 +132,7 @@ ${rect(WINDOW.x0, WINDOW.y0, WINDOW.x1, WINDOW.y1)}<path d="M${ex((WINDOW.x0 + W
 ${rect(sb.x - sb.sx / 2, 0.11, sb.x + sb.sx / 2, 0.47)}<path d="M${ex(sb.x)} ${ey(0.11)}V${ey(0.47)}M${ex(sb.x - sb.sx / 4)} ${ey(0.11)}V${ey(0.47)}M${ex(sb.x + sb.sx / 4)} ${ey(0.11)}V${ey(0.47)}"/></g>`
     + dimH(ex(c0), ex(c0 + bay), ey(ROOM.h) - 16, String(dm.mm(bay))) + dimH(ex(c0 + bay), ex(c0 + bay * 2), ey(ROOM.h) - 16, String(dm.mm(bay))) + dimH(ex(c0 + bay * 2), ex(CABINET.x1), ey(ROOM.h) - 16, String(dm.mm(bay)))
     + dimH(ex(WINDOW.x0), ex(WINDOW.x1), ey(ROOM.h) - 16, String(dm.mm(WINDOW.x1 - WINDOW.x0))) + dimH(ex(-ROOM.w / 2), ex(ROOM.w / 2), ey(ROOM.h) - 40, String(dm.w))
-    + dimV(ey(ROOM.h), ey(0), ex(-ROOM.w / 2) - 30, '2800') + dimV(ey(1.8), ey(0.88), ex(c0 + bay) - 8, '920') + dimV(ey(0.88), ey(0.08), ex(c0 + bay) - 8, '800')
+    + dimV(ey(ROOM.h), ey(0), ex(-ROOM.w / 2) - 30, String(dm.h)) + dimV(ey(1.8), ey(0.88), ex(c0 + bay) - 8, '920') + dimV(ey(0.88), ey(0.08), ex(c0 + bay) - 8, '800')
     + text(ex(c0 + bay) + 6, ey(1.5), '開放層格', 'style="font-size:9px"') + text(ex(c0 + bay) + 6, ey(1.86), 'LED 燈條', 'style="font-size:8px"')
     + text(ex(c0) + 6, ey(0.3), `門片：${meta.cabinet}`, 'style="font-size:9px"') + text(ex(c0) + 6, ey(0.02) + 12, '踢腳 H80 內縮 30')
     + text(ex(WINDOW.x0) + 8, ey(WINDOW.y1) + 16, '既有鋁窗（不更動）') + text(ex(sb.x - sb.sx / 2), ey(0.5) - 4, `低櫃 W${dm.mm(sb.sx)}×D400×H470`, 'style="font-size:9px"'));
@@ -166,7 +170,7 @@ function costSheet(meta, est) {
  * @returns {{no:string, title:string, svg:string}[]} six sheets
  */
 export function drawingSet(cond, look, est, date) {
-  const dm = roomDims(est.ping);
+  const dm = roomDims(est.ping, cond);
   const meta = { project: `${cond.space}・${look.name}`, date, age: cond.age, ping: est.ping, floorType: look.floorType ?? 'wood',
     floorName: look.floorType === 'concrete' ? '礦物塗料地坪' : '超耐磨木地板', cabinet: look.cabinetWood ? '木皮板' : '烤漆板' };
   return [

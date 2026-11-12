@@ -5,7 +5,7 @@ import { ruleFindings, countByState, STATES } from '../lib/rules.js';
 const light = { wall: '#f3ece0' };
 const dark = { wall: '#45403a' };
 
-test('每一項都只會是四種狀態之一', () => {
+test('每一項都只會是五種狀態之一', () => {
   for (const f of ruleFindings({ space: '客廳', ping: '8', age: '新成屋' }, light)) assert.ok(f.state in STATES);
 });
 
@@ -28,4 +28,15 @@ test('老屋：消防與機電待補資料；新成屋：不適用', () => {
 
 test('統計各狀態數量', () => {
   assert.deepEqual(countByState([{ state: 'ok' }, { state: 'ok' }, { state: 'na' }]), { ok: 2, na: 1 });
+});
+
+test('附了圖面：缺資料變成待判讀，但不會變成已檢查', () => {
+  const cond = { space: '客廳', ping: '8', age: '老屋' };
+  const none = ruleFindings(cond, light), both = ruleFindings(cond, light, { plan: 1, mep: 2 });
+  assert.equal(none.filter((f) => f.state === 'review').length, 0);
+  assert.equal(both.find((f) => f.title === '插座與電源').state, 'review');
+  assert.equal(both.find((f) => f.title.startsWith('消防')).state, 'review');
+  assert.equal(both.find((f) => f.title.includes('室內裝修許可')).state, 'review');
+  assert.equal(both.filter((f) => f.state === 'ok').length, none.filter((f) => f.state === 'ok').length, 'uploading never marks anything as checked');
+  assert.equal(ruleFindings(cond, light, { plan: 1 }).find((f) => f.title === '插座與電源').state, 'missing');
 });
