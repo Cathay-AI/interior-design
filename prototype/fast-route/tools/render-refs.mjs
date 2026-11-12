@@ -35,4 +35,13 @@ try {
     execFileSync('python3', [root + 'tools/compose_refs.py', `${base}-pt.png`, `${base}-raster.png`, `${root}assets/refs/${s}-${shot}.jpg`], { stdio: 'inherit' });
     console.log(`${s}-${shot} ${((Date.now() - t0) / 1000).toFixed(0)}s`);
   }
+  // two extra crops per style so the inspiration wall has varied proportions
+  execFileSync('python3', ['-c', `
+from PIL import Image
+import sys
+for k in sys.argv[2:]:
+    r = sys.argv[1] + 'assets/refs/' + k
+    Image.open(r + '-hero.jpg').crop((0, 170, 540, 980)).save(r + '-detail.jpg', quality=84, optimize=True, progressive=True)
+    Image.open(r + '-wide.jpg').crop((520, 90, 1200, 770)).save(r + '-corner.jpg', quality=84, optimize=True, progressive=True)
+`, root, ...styles], { stdio: 'inherit' });
 } finally { await browser.close(); server.kill(); }

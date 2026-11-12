@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>回家之前・滑出你家的樣子</title>
-<meta name="description" content="滑幾張圖，看見你家的 3D、預估花費與施工圖。">
+<meta name="description" content="點幾張喜歡的圖，看見你家的 3D、預估花費與施工圖。">
 <script type="importmap">{"imports":{"three":"./vendor/three.module.min.js","three/addons/":"./vendor/addons/"}}</script>
 <style>
 :root{
@@ -52,31 +52,24 @@ footer{max-width:1160px;width:100%;margin:0 auto;padding:0 20px 20px;font-size:1
 .chip[aria-pressed="true"]{background:var(--ink);color:#fff}
 .chip.ghost{background:none;border:1px solid var(--line);color:#5a5047}
 
-/* 1 首頁：成果牆 */
-.hero{display:grid;gap:14px;justify-items:start}
-.hero h1{font-size:clamp(30px,5.4vw,52px);line-height:1.18;letter-spacing:-.02em}
-.wall{columns:3;column-gap:12px}
-.wall figure{break-inside:avoid;margin:0 0 12px;border-radius:16px;overflow:hidden;background:var(--card);position:relative}
-.wall img{width:100%;height:auto}
-.wall figcaption{position:absolute;left:10px;bottom:10px;font-size:13px;font-weight:600;background:rgba(251,249,244,.92);border-radius:999px;padding:4px 10px}
+/* 1 靈感牆（瀑布流） */
+main[data-step="1"]{max-width:1500px;padding-top:16px;padding-bottom:110px}
+.feed{columns:5 220px;column-gap:14px}
+.feed figure{break-inside:avoid;margin:0 0 14px}
+.pin{position:relative;display:block;width:100%;padding:0;border-radius:16px;overflow:hidden;background:var(--card);transition:transform .15s}
+.pin img{width:100%;height:auto;transition:filter .2s}
+.pin:hover img{filter:brightness(.92)}
+.pin:active{transform:scale(.98)}
+.pin .heart{position:absolute;right:10px;top:10px;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:18px;background:rgba(251,249,244,.9);color:#b9afa2;transition:transform .18s,background .18s,color .18s}
+.pin[aria-pressed="true"]{box-shadow:0 0 0 3px var(--accent)}
+.pin[aria-pressed="true"] .heart{background:var(--accent);color:#fff;transform:scale(1.12)}
+.feed figcaption{padding:6px 6px 0;font-size:14px;font-weight:600;display:flex;gap:8px;align-items:baseline;white-space:nowrap;overflow:hidden}
+.feed figcaption small{font-weight:400;color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis}
+.feedbar{position:fixed;left:0;right:0;margin:0 auto;width:fit-content;bottom:calc(16px + env(safe-area-inset-bottom));z-index:8;display:flex;align-items:center;gap:14px;padding:8px 8px 8px 20px;border-radius:999px;background:rgba(251,249,244,.94);backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(43,38,33,.22);border:1px solid var(--line);max-width:calc(100vw - 24px)}
+.feedbar .cta{min-width:0;min-height:46px;padding:0 22px;font-size:16px;position:static;margin:0;box-shadow:none;white-space:nowrap}
+.feedbar .count{font-size:14px;color:#5a5047;white-space:nowrap}
 
-/* 2 滑卡 */
-main[data-step="2"]{max-width:520px;align-items:center}
-.deck{position:relative;width:min(100%,calc((100dvh - 290px)*.8));aspect-ratio:4/5;touch-action:pan-y}
-.card{position:absolute;inset:0;border-radius:24px;overflow:hidden;background:var(--card);box-shadow:0 14px 40px rgba(43,38,33,.22);user-select:none;-webkit-user-select:none;cursor:grab;will-change:transform}
-.card img{width:100%;height:100%;object-fit:cover;pointer-events:none}
-.card .meta{position:absolute;left:0;right:0;bottom:0;padding:44px 18px 16px;color:#fff;background:linear-gradient(transparent,rgba(20,16,12,.72));display:grid;gap:6px}
-.card .meta b{font-size:24px}
-.card .tags{display:flex;gap:6px;flex-wrap:wrap;font-size:13px}.card .tags span{background:rgba(255,255,255,.2);border-radius:999px;padding:2px 10px;backdrop-filter:blur(4px)}
-.stamp{position:absolute;top:22px;font-size:26px;font-weight:800;letter-spacing:.04em;padding:4px 14px;border:4px solid;border-radius:12px;opacity:0;background:rgba(255,255,255,.12)}
-.stamp.like{left:18px;color:#7fd6a0;transform:rotate(-12deg)}.stamp.nope{right:18px;color:#ff9d8a;transform:rotate(12deg)}
-.swipebar{display:flex;align-items:center;justify-content:center;gap:28px}
-.round{width:68px;height:68px;border-radius:50%;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;font-size:30px;box-shadow:0 6px 18px rgba(43,38,33,.12);transition:transform .12s}
-.round:active{transform:scale(.92)}.round.nope{color:#b3523a}.round.like{color:#fff;background:var(--accent);border-color:var(--accent)}
-.count{font-size:14px;color:var(--muted);min-width:3em;text-align:center}
-.link{font-size:14px;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
-
-/* 3 3D */
+/* 2 3D */
 .result{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,1fr);gap:28px;align-items:start}
 .stagewrap{display:grid;gap:12px}
 .scene{position:relative;aspect-ratio:4/3;max-height:calc(100dvh - 190px);width:100%;border-radius:24px;overflow:hidden;background:#ebe4d8;touch-action:none;cursor:grab}
@@ -95,7 +88,7 @@ main[data-step="2"]{max-width:520px;align-items:center}
 .gen .mascot{width:110px;height:110px;animation:bob 1s ease-in-out infinite alternate}
 @keyframes bob{to{transform:translateY(-8px)}}
 
-/* 4 估價與施工圖 */
+/* 3 估價與施工圖 */
 .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:20px;align-items:start}
 .cardbox{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:22px;display:grid;gap:12px}
 .big{font-size:clamp(34px,6vw,46px);font-weight:700;color:var(--accent);letter-spacing:-.01em}
@@ -137,8 +130,8 @@ dialog.viewer{max-width:min(96vw,1100px);width:100%}dialog.viewer svg{width:100%
   #steps .done{background:var(--ink)}#steps .now{background:var(--accent)}
   main{padding:20px 16px 24px;gap:16px}
   .cta{align-self:stretch;position:sticky;bottom:calc(12px + env(safe-area-inset-bottom));z-index:5;box-shadow:0 8px 24px rgba(43,38,33,.25)}
-  .hero{justify-items:stretch}
-  .wall{columns:2;column-gap:8px}.wall figure{margin-bottom:8px;border-radius:12px}
+  main[data-step="1"]{padding:10px 10px 100px}
+  .feed{columns:2;column-gap:10px}.feed figure{margin-bottom:10px}
   .result,.two{grid-template-columns:1fr;gap:16px}
   .scene{aspect-ratio:1;border-radius:20px}
   .sheets{grid-template-columns:repeat(2,1fr)}
