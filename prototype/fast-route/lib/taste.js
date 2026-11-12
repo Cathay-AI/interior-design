@@ -5,12 +5,12 @@
 
 /** x: 冷(-1) ↔ 暖(+1); y: 簡約(-1) ↔ 豐富(+1) */
 export const STYLES = {
-  warm:   { name: '溫暖木質', wall: '#f1e6d6', floor: '#c9a77c', sofa: '#5f7a6a', rug: '#b5653a', accent: '#8f4c2a', win: '#cfe3ea', x: 0.65, y: -0.25, tags: ['溫暖木質', '自然光', '低裝飾'] },
-  nordic: { name: '日光北歐', wall: '#f7f5f0', floor: '#e6d7bd', sofa: '#a9b0b3', rug: '#ddd3c4', accent: '#7e9fb4', win: '#d8ecf3', x: -0.55, y: -0.35, tags: ['明亮淺色', '簡潔線條', '冷調點綴'] },
-  retro:  { name: '暖調復古', wall: '#c97b54', floor: '#7a4a2c', sofa: '#8f4c2a', rug: '#e3c99a', accent: '#d9a441', win: '#f2d9a7', x: 0.8, y: 0.75, tags: ['濃郁色彩', '木作家具', '懷舊'] },
-  dark:   { name: '深色現代', wall: '#45403a', floor: '#5a4f45', sofa: '#2b2621', rug: '#8a7f72', accent: '#c9a77c', win: '#9fb3bf', x: -0.6, y: 0.35, tags: ['深色牆面', '俐落', '金屬點綴'] },
-  muji:   { name: '無印日式', wall: '#efe9dd', floor: '#d9bf93', sofa: '#cfc2ad', rug: '#efe7db', accent: '#7fa08c', win: '#dfeee8', x: 0.35, y: -0.7, tags: ['淺木色', '米白', '收納'] },
-  indus:  { name: '工業風', wall: '#a8a39b', floor: '#6e6a64', sofa: '#5a3f2e', rug: '#4d443b', accent: '#2b2621', win: '#c5d2d8', x: -0.25, y: 0.7, tags: ['水泥灰', '黑鐵', '皮革'] },
+  warm:   { name: '溫暖木質', wall: '#f1e6d6', floor: '#c9a77c', sofa: '#5f7a6a', rug: '#b5653a', accent: '#8f4c2a', win: '#cfe3ea', x: 0.65, y: -0.25, tags: ['溫暖木質', '自然光', '低裝飾'], floorType: 'wood', cabinet: '#b98f62', cabinetWood: true, woodAccent: '#8a5a36', fabric: 'linen', legs: 'wood', tableType: 'round-wood', pendant: 'dome', chairFabric: '#d8cdb9', frame: '#3a3530' },
+  nordic: { name: '日光北歐', wall: '#f7f5f0', floor: '#e6d7bd', sofa: '#a9b0b3', rug: '#ddd3c4', accent: '#7e9fb4', win: '#d8ecf3', x: -0.55, y: -0.35, tags: ['明亮淺色', '簡潔線條', '冷調點綴'], floorType: 'wood', cabinet: '#f4f2ed', cabinetWood: false, woodAccent: '#d8c3a0', fabric: 'linen', legs: 'wood', tableType: 'oval-white', pendant: 'globe', chairFabric: '#7e9fb4', frame: '#f1efea', ceramic: '#f6f4ef' },
+  retro:  { name: '暖調復古', wall: '#c97b54', floor: '#7a4a2c', sofa: '#8f4c2a', rug: '#e3c99a', accent: '#d9a441', win: '#f2d9a7', x: 0.8, y: 0.75, tags: ['濃郁色彩', '木作家具', '懷舊'], floorType: 'wood', cabinet: '#6b3f24', cabinetWood: true, woodAccent: '#8a5230', fabric: 'velvet', legs: 'wood', tableType: 'round-wood', pendant: 'cone', chairFabric: '#3f5a52', frame: '#3a2a20', handles: true, skirting: '#5a3a26', ceramic: '#e7d6b4' },
+  dark:   { name: '深色現代', wall: '#45403a', floor: '#5a4f45', sofa: '#2b2621', rug: '#8a7f72', accent: '#c9a77c', win: '#9fb3bf', x: -0.6, y: 0.35, tags: ['深色牆面', '俐落', '金屬點綴'], floorType: 'wood', cabinet: '#2f2b28', cabinetWood: false, woodAccent: '#6a5140', fabric: 'linen', legs: 'metal', tableType: 'marble', pendant: 'disc', chairFabric: '#8a7f72', frame: '#1f1c1a', handles: true, skirting: '#2a2623', ceramic: '#d9d2c6' },
+  muji:   { name: '無印日式', wall: '#efe9dd', floor: '#d9bf93', sofa: '#cfc2ad', rug: '#efe7db', accent: '#7fa08c', win: '#dfeee8', x: 0.35, y: -0.7, tags: ['淺木色', '米白', '收納'], floorType: 'wood', cabinet: '#e0c79d', cabinetWood: true, woodAccent: '#cfae7c', fabric: 'linen', legs: 'block', tableType: 'low-wood', pendant: 'paper', chairFabric: '#e6dccb', frame: '#e9e4da', ceramic: '#f2ede2' },
+  indus:  { name: '工業風', wall: '#a8a39b', floor: '#6e6a64', sofa: '#5a3f2e', rug: '#4d443b', accent: '#2b2621', win: '#c5d2d8', x: -0.25, y: 0.7, tags: ['水泥灰', '黑鐵', '皮革'], floorType: 'concrete', wallType: 'concrete', cabinet: '#3a3836', cabinetWood: false, woodAccent: '#7a5536', fabric: 'leather', legs: 'metal', tableType: 'slab-steel', pendant: 'cone', chairFabric: '#3b3835', frame: '#1c1b1a', skirting: '#4a4744' },
 };
 
 /** 看屋的二選一題組：每題刻意放差異大的兩種風格。 */
@@ -81,4 +81,18 @@ export function directions(scores, styles = STYLES) {
 /** Human-readable summary like 「偏暖、簡約」. */
 export function describe({ x, y }) {
   return `${x >= 0 ? '偏暖' : '偏冷'}、${y <= 0 ? '簡約' : '豐富'}`;
+}
+
+/** 滑卡的順序：相鄰兩張刻意差異大，前幾張就能分出口味。 */
+export const SWIPE_ORDER = ['warm', 'dark', 'nordic', 'indus', 'muji', 'retro'];
+
+/** Record one swipe (交友軟體式): 喜歡 +2、不喜歡 −1. Returns a new score object. */
+export function applySwipe(scores, key, liked) {
+  if (!(key in scores)) throw new Error(`unknown style ${key}`);
+  return { ...scores, [key]: scores[key] + (liked ? 2 : -1) };
+}
+
+/** The style to build in 3D: highest score; ties (including "no swipes yet") keep SWIPE_ORDER. */
+export function pickStyle(scores, order = SWIPE_ORDER) {
+  return [...order].sort((a, b) => scores[b] - scores[a] || order.indexOf(a) - order.indexOf(b))[0];
 }

@@ -1,0 +1,42 @@
+<!doctype html><meta charset="utf-8"><title>photoreal still (dev tool)</title>
+<!-- Dev tool: path-traces one still of the room. Driven by tools/render-refs.mjs; not part of the shipped site. -->
+<script type="importmap">{"imports":{"three":"../vendor/three.module.min.js","three/addons/":"../vendor/addons/","three/examples/jsm/":"../vendor/addons/","three-gpu-pathtracer":"../node_modules/three-gpu-pathtracer/build/index.module.js","three-mesh-bvh":"../node_modules/three-mesh-bvh/build/index.module.js"}}</script>
+<style>body{margin:0;background:#222}</style>
+<script type="module">
+import * as T from 'three';
+import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
+import { WebGLPathTracer } from 'three-gpu-pathtracer';
+import { STYLES } from '../lib/taste.js';
+import { buildScene } from '../lib/scene.js';
+import { SHOTS } from './shots.js';
+
+const q = new URLSearchParams(location.search);
+const shot = SHOTS[q.get('shot') || 'hero'], w = +(q.get('w') || shot.w), h = +(q.get('h') || shot.h);
+const renderer = new T.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
+renderer.setPixelRatio(q.has('raster') ? 2 : 1); renderer.setSize(w, h);
+renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = +(q.get('exp') || shot.exposure || 1);
+document.body.append(renderer.domElement);
+
+const raster = q.has('raster');
+const { scene } = buildScene(STYLES[q.get('s') || 'warm'], { closed: true, pathtrace: !raster });
+const env = await new EXRLoader().loadAsync('../assets/env/apartment.exr');
+env.mapping = T.EquirectangularReflectionMapping;
+scene.environment = env; scene.environmentIntensity = 0.35; scene.background = new T.Color('#cfdde6');
+const camera = new T.PerspectiveCamera(shot.fov, w / h, 0.05, 50);
+camera.position.set(...shot.from); camera.lookAt(...shot.to); camera.updateMatrixWorld();
+
+if (raster) { // clean guide image: same camera, ordinary rasteriser, supersampled
+  const pm = new T.PMREMGenerator(renderer); scene.environment = pm.fromEquirectangular(env).texture; scene.environmentIntensity = 0.5;
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
+  renderer.render(scene, camera); window.__samples = 1; window.__done = true;
+  throw new Error('raster done');
+}
+const pt = new WebGLPathTracer(renderer);
+pt.bounces = 6; pt.filterGlossyFactor = 0.6; pt.dynamicLowRes = false; pt.renderDelay = 0; pt.fadeDuration = 0; pt.minSamples = 1;
+pt.tiles.set(+(q.get('tiles') || 1), +(q.get('tiles') || 1));
+pt.setScene(scene, camera);
+const target = +(q.get('samples') || 200);
+window.__samples = 0; window.__done = false;
+const loop = () => { pt.renderSample(); window.__samples = Math.floor(pt.samples); if (pt.samples >= target) { window.__done = true; return; } requestAnimationFrame(loop); };
+loop();
+</script>
