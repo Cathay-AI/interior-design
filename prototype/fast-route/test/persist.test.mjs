@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { serialize, restore } from '../lib/persist.js';
+import { serialize, restore, toShare, fromShare } from '../lib/persist.js';
 import { emptyScores, applySwipe, STYLES } from '../lib/taste.js';
 
 const blank = () => ({ step: 1, reached: 1, scores: emptyScores(), swiped: 0, liked: 0, docs: [], docError: '', said: '', heard: null,
@@ -28,4 +28,26 @@ test('沒存過、壞掉或對不上的資料，一律從頭開始', () => {
     assert.equal(restore(bad, b), b, String(bad).slice(0, 30));
   }
   assert.equal(restore(serialize(blank()), b).step, 1);
+});
+
+const known = { styles: Object.keys(STYLES), edits: 4, ages: ['新成屋', '中古屋', '老屋'] };
+
+test('分享連結：風格、修改與條件來回一致，不帶解鎖狀態與檔案', () => {
+  const S = { ...blank(), unlocked: true, docs: [{ name: 'a.pdf' }],
+    cond: { ...blank().cond, style: 'indus', len: '5.6', wid: '4.7', ping: '8', age: '中古屋', ageSet: true, floors: '12', partition: 'no' },
+    versions: [{ look: {}, edits: [] }, { look: {}, edits: [2, 0] }], v: 1 };
+  const hash = toShare(S);
+  assert.match(hash, /^r=[A-Za-z0-9_-]+$/);
+  assert.deepEqual(fromShare('#' + hash, known), { style: 'indus', edits: [2, 0],
+    cond: { ping: '8', len: '5.6', wid: '4.7', floors: '12', age: '中古屋', ageSet: true, partition: 'no' } });
+  assert.ok(!atob(hash.slice(2).replace(/-/g, '+').replace(/_/g, '/')).includes('unlocked'));
+});
+
+test('分享連結：亂填或被改過的內容一律不接受', () => {
+  const enc = (o) => 'r=' + btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  for (const bad of ['', '#', '#r=', '#r=%%%', '#x=abc', enc({ s: 'nope', e: [] }), enc({ s: 'warm', e: [9] }), enc({ s: 'warm', e: 'x' }),
+    enc({ s: 'warm', e: [], c: { ping: '<script>' } }), enc({ s: 'warm', e: [], c: { age: '豪宅' } }), enc({ s: 'warm', e: [], c: { partition: 'maybe' } })]) {
+    assert.equal(fromShare(bad, known), null, bad.slice(0, 24));
+  }
+  assert.deepEqual(fromShare(enc({ s: 'warm', e: [] }), known), { style: 'warm', edits: [], cond: {} });
 });

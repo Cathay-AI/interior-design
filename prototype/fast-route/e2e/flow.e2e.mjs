@@ -149,6 +149,37 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.getByRole('heading', { name: '多告訴我一點你家' }).waitFor();
   await page.close();
 }
+{ // 分享連結：別人打開就看到同一個設計與條件
+  const ctx = await browser.newContext({ viewport: { width: 1366, height: 860 } });
+  await ctx.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const page = await ctx.newPage();
+  page.on('pageerror', (e) => errors.push(`share: ${e.message}`));
+  await page.route('https://i.pinimg.com/**', (route) => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="5"/>' }));
+  await page.goto(base);
+  await page.locator('.round.like').click();                                    // 溫暖木質 ♥
+  await page.waitForFunction(() => document.querySelector('.count').textContent.startsWith('2 '));
+  await page.locator('#skip').click();
+  await page.fill('#f-len', '6.2'); await page.locator('#f-len').blur();
+  await page.fill('#f-wid', '4.3'); await page.locator('#f-wid').blur();
+  await page.getByRole('button', { name: '老屋' }).click();
+  await page.getByRole('button', { name: '生成 3D', exact: true }).click();
+  await page.getByRole('button', { name: '地毯拿掉' }).click();
+  await page.getByRole('button', { name: '版本 2' }).waitFor();
+  const price = await page.locator('#teaser').innerText();
+  await page.locator('#share').click();
+  await page.getByText('已複製連結').waitFor();
+  const url = await page.evaluate(() => navigator.clipboard.readText());
+  assert.match(url, /#r=[A-Za-z0-9_-]+$/);
+  const other = await (await browser.newContext({ viewport: { width: 1366, height: 860 } })).newPage();   // 另一個人、乾淨的瀏覽器
+  await other.goto(url);
+  await other.getByRole('heading', { name: '客廳・溫暖木質' }).waitFor({ timeout: 30000 });
+  assert.equal(await other.locator('#teaser').innerText(), price, 'same design and conditions give the same estimate');
+  assert.match(await other.locator('#ctx').innerText(), /6.2 × 4.3 公尺/);
+  assert.match(await other.locator('#assume').innerText(), /老屋估算/);
+  assert.equal(await other.getByRole('button', { name: '版本 2' }).getAttribute('aria-pressed'), 'true');
+  assert.equal(new URL(other.url()).hash, '', 'the hash is consumed so a reload keeps the local copy');
+  await ctx.close();
+}
 { // 隱私說明與使用說明頁存在，並說明語音與第三方
   const page = await browser.newPage();
   for (const [path, must] of [['privacy/', /語音輸入[\s\S]*瀏覽器供應商/], ['terms/', /不是合格判定/]]) {

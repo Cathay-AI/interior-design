@@ -9,7 +9,7 @@ import { roomSize } from './lib/layout.js';
 import { MASCOT, roomSVG } from './lib/art.js';
 import { PINS } from './lib/pins.js';
 import { contextScore, pingFromDims, tighten, aboutThisHome } from './lib/context.js';
-import { KEY, serialize, restore } from './lib/persist.js';
+import { KEY, serialize, restore, toShare, fromShare } from './lib/persist.js';
 import { KINDS, ACCEPT, MAX_FILES, MAX_MB, guessKind, rejectReason, summarize } from './lib/docs.js';
 
 // The 3D module (Three.js) is loaded on demand so the first screen stays light.
@@ -79,11 +79,21 @@ function render() {
 }
 $('#restart').addEventListener('click', () => { S.docs.forEach((d) => d.url && URL.revokeObjectURL(d.url)); try { localStorage.removeItem(KEY); } catch { /* ignore */ } S = fresh(); go(1); });
 
-const setStyle = (key) => { S.cond.style = key; S.versions = [{ label: '版本 1', look: { ...STYLES[key] } }]; S.v = 0; };
+const setStyle = (key) => { S.cond.style = key; S.versions = [{ label: '版本 1', look: { ...STYLES[key] }, edits: [] }]; S.v = 0; };
 const look = () => S.versions[S.v].look;
 // 估價：依設計逐項估，再依掌握度收窄區間
 const knowledge = () => contextScore(S.cond, summarize(S.docs));
 const estimateNow = () => tighten(designEstimate(S.cond, look()), knowledge().score);
+// 分享：把目前的風格、修改與條件編進網址，對方打開就看到同一個結果（不含上傳的檔案與解鎖）
+const shareBtn = () => {
+  const btn = h('button', { class: 'link', id: 'share', onclick: async () => {
+    const url = `${location.origin}${location.pathname}#${toShare(S)}`;
+    try { await navigator.clipboard.writeText(url); btn.textContent = '已複製連結'; }
+    catch { prompt('複製這個連結', url); }
+    setTimeout(() => { btn.textContent = '複製分享連結'; }, 2400);
+  } }, '複製分享連結');
+  return btn;
+};
 const backBtn = (n) => h('button', { class: 'back', onclick: () => go(n) }, '‹ 上一步');
 
 /* ================= screens ================= */
@@ -149,7 +159,8 @@ SCREENS[1] = () => {
   document.addEventListener('keydown', onKey);
   // warm the next few images so a swipe never reveals an empty card
   const preload = () => DECK.slice(S.swiped + 3, S.swiped + 6).forEach((p) => { const i = new Image(); i.referrerPolicy = 'no-referrer'; i.src = p.src2x; });
-  draw(); preload();
+  draw();
+  (window.requestIdleCallback ?? setTimeout)(preload);   // 等第一張顯示後才去暖後面幾張
   deck.addEventListener('transitionend', preload);
   app.append(h('h1', { class: 'sr' }, '滑卡挑風格'), deck,
     h('div', { class: 'swipebar' },
@@ -262,7 +273,7 @@ SCREENS[3] = () => {
   const stage = h('div', { class: 'scene', role: 'img', 'aria-label': '3D 空間，可拖曳旋轉' });
   const views = h('div', { class: 'seg', role: 'group', 'aria-label': '視角' }, ...['A', 'B', 'C'].map((v) => h('button', { 'aria-pressed': String(S.view === v), 'aria-label': '視角 ' + v,
     onclick: () => { S.view = v; live?.setView(v); [...views.children].forEach((b) => b.setAttribute('aria-pressed', String(b.textContent === v))); } }, v)));
-  const edit = (fn) => { S.versions.push({ label: `版本 ${S.versions.length + 1}`, look: fn({ ...look() }) }); S.v = S.versions.length - 1; render(); };
+  const edit = (fn, i) => { S.versions.push({ label: `版本 ${S.versions.length + 1}`, look: fn({ ...look() }), edits: [...(S.versions[S.v].edits ?? []), i] }); S.v = S.versions.length - 1; render(); };
   app.append(h('div', { class: 'result' },
     h('div', { class: 'stagewrap' }, stage, h('div', { class: 'stagebar' }, views)),
     h('div', { class: 'panel' },
@@ -270,7 +281,7 @@ SCREENS[3] = () => {
       h('div', { class: 'tweak' }, h('b', {}, '換風格'),
         h('div', { class: 'chips' }, ...SWIPE_ORDER.map((k) => h('button', { class: 'chip', 'aria-pressed': String(c.style === k), onclick: () => { setStyle(k); render(); } }, STYLES[k].name)))),
       h('div', { class: 'tweak' }, h('b', {}, '改細節'),
-        h('div', { class: 'chips' }, ...EDITS.map(([label, fn]) => h('button', { class: 'chip', onclick: () => edit(fn) }, label))),
+        h('div', { class: 'chips' }, ...EDITS.map(([label, fn], i) => h('button', { class: 'chip', onclick: () => edit(fn, i) }, label))),
         S.versions.length > 1 ? h('div', { class: 'chips versions' }, ...S.versions.map((v, i) => h('button', { class: 'chip ghost', 'aria-pressed': String(i === S.v), onclick: () => { S.v = i; render(); } }, v.label))) : null),
       h('p', { class: 'note', id: 'ctx' }, `這個房間：${size.w} × ${size.d} 公尺、高 ${size.h} 公尺（${est.ping} 坪${est.assumedPing ? '，預設' : ''}）・掌握度 ${Math.round(knowledge().score * 100)}%。`,
         size.clamped ? '這個尺寸放不下一張沙發或超過 60 公尺，3D 取了最接近的大小。' : '', ' ', h('button', { class: 'link', onclick: () => go(2) }, c.len && c.wid ? '修改尺寸' : '填你家的尺寸')),
@@ -279,7 +290,7 @@ SCREENS[3] = () => {
         est.assumedPing || !c.ageSet ? '坪數和屋況會讓金額差很多，' : '', h('button', { class: 'link', onclick: () => go(2) }, est.assumedPing || !c.ageSet ? '填我家的' : '修改')),
       ...ruleFindings({ ...c, ping: est.ping }, current, summarize(S.docs)).filter((f) => f.state === 'conflict')
         .map((f) => h('p', { class: 'warn', role: 'status' }, h('b', {}, `${f.title}：`), f.detail)),
-      cta('看估價與施工圖', () => go(4)))));
+      cta('看估價與施工圖', () => go(4)), shareBtn())));
   stage.append(h('span', { class: 'hint' }, '拖曳旋轉'));
   load3D().then((m) => { if (S.step === 3 && stage.isConnected) { live = m.mountRoom3D(stage, current, S.view, size); window.__room = live; } })
     .catch(() => { stage.append(fromHTML(roomSVG(current, { label: '空間示意' }))); stage.querySelector('.hint').textContent = '這台裝置無法顯示 3D，改用示意圖'; });
@@ -341,7 +352,7 @@ SCREENS[4] = () => {
       h('button', { class: 'link', onclick: () => go(2) }, c.floors && c.partition ? '修改' : '補樓層與隔間')),
     h('ul', { class: 'regs' }, ...legal.map(item), ...site.map(item)),
     h('p', { class: 'note' }, '這是依台灣消防與建築法規整理的提醒，不是合格判定；實際適用條文與申請，由我們的設計師與施工團隊在覆核時逐項確認。'));
-  app.append(h('div', { class: 'shead' }, backBtn(3), h('h1', {}, '估價與施工圖')),
+  app.append(h('div', { class: 'shead' }, backBtn(3), h('h1', {}, '估價與施工圖'), shareBtn()),
     h('div', { class: 'two' }, money, drawings),
     regs,
     ...(S.unlocked ? [] : [mine ? cta('解鎖我家的施工圖草稿　NT$ 1,990', () => $('#unlock').showModal(), 'accent') : cta('先補我家的尺寸或平面圖', () => go(2), 'accent', { id: 'needhome' })]));
@@ -349,4 +360,16 @@ SCREENS[4] = () => {
 $('#payCancel').addEventListener('click', () => $('#unlock').close());
 $('#payOk').addEventListener('click', () => { $('#unlock').close(); S.unlocked = true; if (S.step === 4) render(); });
 
+// 從分享連結打開：直接帶到那個設計的 3D（不覆蓋對方沒給的欄位）
+const shared = fromShare(location.hash, { styles: Object.keys(STYLES), edits: EDITS.length, ages: AGES });
+if (shared) {
+  S = fresh();
+  Object.assign(S.cond, shared.cond);
+  setStyle(shared.style);
+  let cur = { ...STYLES[shared.style] };
+  shared.edits.forEach((i, n) => { cur = EDITS[i][1]({ ...cur }); S.versions.push({ label: `版本 ${n + 2}`, look: cur, edits: shared.edits.slice(0, n + 1) }); });
+  S.v = S.versions.length - 1;
+  S.step = 3; S.reached = 4; S.swiped = 0;
+  history.replaceState(null, '', location.pathname);
+}
 render();

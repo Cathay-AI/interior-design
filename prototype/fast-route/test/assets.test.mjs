@@ -28,3 +28,11 @@ test('the inspiration wall covers every style and every pin has a source', async
     assert.ok(p.w > 0 && p.h > 0);
   }
 });
+
+test('index.html preloads the first swipe card, and every module app.js imports', async () => {
+  const { PINS } = await import('../lib/pins.js');
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.ok(html.includes(`rel="preload" as="image" href="${PINS[0].src}"`), 'first card image');
+  const app = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+  for (const [, lib] of app.matchAll(/from '\.\/lib\/([a-z-]+)\.js'/g)) assert.ok(html.includes(`modulepreload" href="./lib/${lib}.js"`), `modulepreload ${lib}`);
+});
