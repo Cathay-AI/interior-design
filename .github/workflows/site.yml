@@ -1,0 +1,34 @@
+name: site
+
+# Tests the 快速找風格 prototype. Vercel's Git integration builds and deploys it (see vercel.json).
+on:
+  pull_request:
+    paths: ["prototype/**", "scripts/build-site.sh", "vercel.json", ".github/workflows/site.yml"]
+  push:
+    branches: [main]
+    paths: ["prototype/**", "scripts/build-site.sh", "vercel.json", ".github/workflows/site.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Unit tests
+        working-directory: prototype/fast-route
+        run: npm test
+      - name: Build site
+        run: sh scripts/build-site.sh
+      - name: End-to-end (desktop + phone)
+        run: |
+          npm install --no-save playwright@1.49.1
+          npx playwright install --with-deps chromium
+          python3 -m http.server 5173 --bind 127.0.0.1 --directory dist &
+          sleep 1
+          node prototype/fast-route/e2e/flow.e2e.mjs http://127.0.0.1:5173/

@@ -18,3 +18,9 @@ python3 -m http.server 8000 --bind 127.0.0.1 --directory docs/proposal
 ```
 
 Public hosting contains only presentation files. Private product specifications stay private. [Public source](https://github.com/Cathay-AI/interior-design-proposal).
+
+## Deck v3 and fast-route prototype
+
+- `deck-v3/index.html`: 34-page HTML deck (background, market, needs, product experience, competitors, positioning, execution incl. work split, timeline, partner proposal). Arrow keys / swipe, chapter jump, `N` notes, `F` fullscreen, print to PDF.
+- `../../prototype/fast-route/`: RWD prototype of the 快速找風格 route (entry with three routes, taste map, layout, confirm, result with 3D view, rough estimate, rule check, versions). See its README.
+- The prototype is deployed on Vercel (`vercel.json` + `scripts/build-site.sh`); the deck is published on GitHub Pages at https://cathay-ai.github.io/interior-design/ (`.github/workflows/pages.yml`).

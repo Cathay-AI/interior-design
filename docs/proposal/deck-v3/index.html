@@ -1,0 +1,1257 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interior Design Agent 產品簡報</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&display=swap"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+*{margin:0;box-sizing:border-box}
+html,body{height:100%;background:#1d1915;color:#2b2621;font-family:'Noto Sans TC',system-ui,sans-serif}
+h1{line-height:1.1}h2{line-height:1.15}h3{line-height:1.2}p{line-height:1.4}
+ul,ol{padding-left:1.2em}
+#stage{position:fixed;inset:0 0 56px 0;overflow:hidden}
+#deck{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:0 0}
+.slide{position:absolute;inset:0;width:1920px;height:1080px;overflow:hidden}
+.slide:not(.active){display:none!important}
+.slide aside{display:none}
+#bar{position:fixed;left:0;right:0;bottom:0;height:56px;display:flex;align-items:center;gap:12px;padding:0 16px;background:#14110e;color:#d8cdbf;font-size:14px}
+#bar button,#bar select{background:#2b2621;color:#f5f0e8;border:1px solid #4d443b;border-radius:8px;height:36px;padding:0 12px;font:inherit;cursor:pointer}
+#bar button:hover{border-color:#c9a77c}
+#count{min-width:64px;text-align:center;font-variant-numeric:tabular-nums}
+#progress{position:fixed;left:0;bottom:56px;height:3px;background:#b5653a;transition:width .2s}
+#spacer{flex:1}
+#notes{position:fixed;right:16px;bottom:72px;width:min(480px,calc(100vw - 32px));max-height:40vh;overflow:auto;background:#f5f0e8;color:#2b2621;border-radius:12px;padding:16px 18px;font-size:15px;line-height:1.7;box-shadow:0 10px 30px rgba(0,0,0,.4);display:none}
+#notes.open{display:block}
+#notes b{display:block;font-size:12px;letter-spacing:.1em;color:#a3552d;margin-bottom:6px}
+@media (max-width:640px){#bar{gap:6px;padding:0 8px}#chapter{max-width:42vw}.wide{display:none}}
+@media print{
+  @page{size:1920px 1080px;margin:0}
+  html,body{background:none}
+  #bar,#progress,#notes{display:none!important}
+  #stage{position:static}
+  #deck{position:static;transform:none!important;width:auto;height:auto}
+  .slide{position:relative;display:flex!important;break-after:page;page-break-after:always}
+}
+</style>
+</head>
+<body>
+<div id="stage"><div id="deck">
+<section class="slide" id="cover" data-index="1" data-chapter="開場與目錄" data-transition="fade" style="background:#2b2621;color:#f5f0e8;font-family:'Noto Sans TC', sans-serif;padding:128px;display:flex;flex-direction:column;justify-content:center;gap:36px">
+<svg aria-label="明亮的等角視角客廳插圖：木地板、窗光、鼠尾草綠沙發、陶土色地毯、吊燈與植栽" viewBox="0 0 800 800" style="position:absolute;right:40px;top:120px;width:840px;height:840px" xmlns="http://www.w3.org/2000/svg">
+<circle cx="400" cy="420" r="380" fill="#3a322b"/>
+<path d="M100 527 L400 354 L400 54 L100 227 Z" fill="#efe7db"/>
+<path d="M400 354 L700 527 L700 227 L400 54 Z" fill="#e2d6c4"/>
+<path d="M400 700 L700 527 L400 354 L100 527 Z" fill="#c9a77c"/>
+<path d="M475 277 L610 355 L610 205 L475 127 Z" fill="#9cc3d5"/>
+<path d="M542 166 L542 316 M475 202 L610 280" stroke="#f5f0e8" stroke-width="5"/>
+<path d="M475 277 L610 355 L540 610 L380 520 Z" fill="#fff3d6" opacity="0.35"/>
+<path d="M400 640 L540 560 L400 480 L260 560 Z" fill="#b5653a"/>
+<path d="M400 618 L502 560 L400 502 L298 560 Z" fill="none" stroke="#e3c99a" stroke-width="3"/>
+<path d="M150 300 L260 236 L260 226 L150 290 Z" fill="#8f6f52"/>
+<path d="M165 288 L177 281 L177 249 L165 256 Z" fill="#b5653a"/><path d="M181 279 L191 273 L191 245 L181 251 Z" fill="#5f7a6a"/><path d="M195 271 L207 264 L207 236 L195 243 Z" fill="#e3c99a"/>
+<path d="M190 425 L325 347 L325 287 L190 365 Z" fill="#3f5649"/>
+<path d="M190 425 L325 347 L386 382 L251 460 Z" fill="#5f7a6a"/>
+<path d="M251 510 L386 432 L386 382 L251 460 Z" fill="#4a6455"/>
+<path d="M386 432 L325 397 L325 347 L386 382 Z" fill="#3f5649"/>
+<path d="M420 550 L470 521 L420 492 L370 521 Z" fill="#8f4c2a"/>
+<path d="M370 521 L420 550 L420 570 L370 541 Z" fill="#6e3a20"/><path d="M420 550 L470 521 L470 541 L420 570 Z" fill="#7a4326"/>
+<circle cx="360" cy="300" r="95" fill="#e3c99a" opacity="0.18"/>
+<line x1="360" y1="120" x2="360" y2="240" stroke="#5a5047" stroke-width="3"/>
+<path d="M326 272 L394 272 L360 238 Z" fill="#e3c99a"/>
+<path d="M604 500 L612 545 L648 545 L656 500 Z" fill="#a3552d"/>
+<ellipse cx="614" cy="460" rx="18" ry="44" fill="#5f7a6a" transform="rotate(-25 614 460)"/>
+<ellipse cx="646" cy="455" rx="18" ry="48" fill="#7fa08c" transform="rotate(20 646 455)"/>
+<ellipse cx="630" cy="445" rx="16" ry="50" fill="#4a6455"/>
+</svg>
+<div style="position:absolute;left:1080px;top:150px;width:420px;display:flex;align-items:center;gap:16px;background:#fbf8f3;color:#2b2621;padding:22px 28px;border-radius:20px">
+<svg class="x-icon" viewBox="0 0 24 24" style="width:40px;height:40px;color:#b5653a;flex:none" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.5A8 8 0 1 1 21 12z"/><path d="M8 12h.01M12 12h.01M16 12h.01"/></svg>
+<p style="font-size:26px;line-height:1.4">「客廳想要溫暖木質感」</p>
+</div>
+<div style="position:absolute;left:1420px;top:820px;width:380px;display:flex;flex-direction:column;gap:6px;background:#b5653a;color:#fbf7f1;padding:22px 28px;border-radius:20px">
+<p style="font-size:24px">3D 提案＋預算區間</p>
+<p style="font-family:'Noto Serif TC', serif;font-size:40px;font-weight:700">一次看懂</p>
+</div>
+<p style="font-size:28px;letter-spacing:6px;color:#c9a77c;font-weight:500">PRODUCT CONCEPT · v0.2</p>
+<h1 style="font-family:'Noto Serif TC', serif;font-size:120px;font-weight:700;line-height:1.05;width:900px">Interior<br>Design Agent</h1>
+<p style="font-size:48px;line-height:1.35;width:820px;color:#f5f0e8">說出想像，<br>看見你家的樣子。</p>
+<p style="font-size:28px;color:#b8ab9c;width:820px">手機優先・考量台灣裝修條件・3D＋粗略報價</p>
+<p style="position:absolute;left:128px;bottom:64px;width:1000px;font-size:24px;color:#8a7f72">產品構想，尚非已完成平台；插圖與介面為示意。　Cathay-AI · 2026-11</p>
+<aside>開場：一句話——屋主用語音或文字加參考圖，就能看到 3D 空間提案和粗略報價，而且考量台灣的空間、消防、機電與法規條件。右側是插畫示意，不是產品輸出。今天分七章：背景、市場、需求、產品體驗、競品、定位、執行。</aside>
+</section>
+<section class="slide" id="agenda" data-index="2" data-transition="fade" style="background:#f5f0e8;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:48px">
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">七個章節，一個故事</h2>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:24px;flex:1">
+<div style="display:flex;flex-direction:column;gap:14px;background:#fbf8f3;padding:36px;border:1px solid #e2d8c9;border-radius:20px"><div style="display:flex;justify-content:space-between;align-items:center"><p style="font-family:'Noto Serif TC', serif;font-size:64px;font-weight:700;color:#b5653a;line-height:1">01</p><svg class="x-icon" viewBox="0 0 24 24" style="width:52px;height:52px;color:#8a7f72;flex:none" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></div><h3 style="font-size:34px;font-weight:700">背景</h3><p style="font-size:24px;line-height:1.5;color:#5a5047">從建案到入住、產業角色</p></div>
+<div style="display:flex;flex-direction:column;gap:14px;background:#fbf8f3;padding:36px;border:1px solid #e2d8c9;border-radius:20px"><div style="display:flex;justify-content:space-between;align-items:center"><p style="font-family:'Noto Serif TC', serif;font-size:64px;font-weight:700;color:#b5653a;line-height:1">02</p><svg class="x-icon" viewBox="0 0 24 24" style="width:52px;height:52px;color:#8a7f72;flex:none" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18M6 16v-5M11 16V6M16 16v-8"/></svg></div><h3 style="font-size:34px;font-weight:700">市場</h3><p style="font-size:24px;line-height:1.5;color:#5a5047">老屋、交屋潮與小宅</p></div>
+<div style="display:flex;flex-direction:column;gap:14px;background:#fbf8f3;padding:36px;border:1px solid #e2d8c9;border-radius:20px"><div style="display:flex;justify-content:space-between;align-items:center"><p style="font-family:'Noto Serif TC', serif;font-size:64px;font-weight:700;color:#b5653a;line-height:1">03</p><svg class="x-icon" viewBox="0 0 24 24" style="width:52px;height:52px;color:#8a7f72;flex:none" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.5A8 8 0 1 1 21 12z"/><path d="M8 12h.01M12 12h.01M16 12h.01"/></svg></div><h3 style="font-size:34px;font-weight:700">需求</h3><p style="font-size:24px;line-height:1.5;color:#5a5047">屋主的情緒旅程與痛點</p></div>
+<div style="display:flex;flex-direction:column;gap:14px;background:#2b2621;color:#f5f0e8;padding:36px;border-radius:20px"><div style="display:flex;justify-content:space-between;align-items:center"><p style="font-family:'Noto Serif TC', serif;font-size:64px;font-weight:700;color:#e3c99a;line-height:1">04</p><svg class="x-icon" viewBox="0 0 24 24" style="width:52px;height:52px;color:#e3c99a;flex:none" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4l13 8-13 8z"/></svg></div><h3 style="font-size:34px;font-weight:700">產品體驗</h3><p style="font-size:24px;line-height:1.5;color:#d8cdbf">手機畫面故事板（重點）</p></div>
+<div style="display:flex;flex-direction:column;gap:14px;background:#fbf8f3;padding:36px;border:1px solid #e2d8c9;border-radius:20px"><div style="display:flex;justify-content:space-between;align-items:center"><p style="font-family:'Noto Serif TC', serif;font-size:64px;font-weight:700;color:#b5653a;line-height:1">05</p><svg class="x-icon" viewBox="0 0 24 24" style="width:52px;height:52px;color:#8a7f72;flex:none" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5"/></svg></div><h3 style="font-size:34px;font-weight:700">競品</h3><p style="font-size:24px;line-height:1.5;color:#5a5047">能力比較、價格與流量</p></div>
+<div style="display:flex;flex-direction:column;gap:14px;background:#fbf8f3;padding:36px;border:1px solid #e2d8c9;border-radius:20px"><div style="display:flex;justify-content:space-between;align-items:center"><p style="font-family:'Noto Serif TC', serif;font-size:64px;font-weight:700;color:#b5653a;line-height:1">06</p><svg class="x-icon" viewBox="0 0 24 24" style="width:52px;height:52px;color:#8a7f72;flex:none" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z"/></svg></div><h3 style="font-size:34px;font-weight:700">定位</h3><p style="font-size:24px;line-height:1.5;color:#5a5047">差異化與 SWOT</p></div>
+<div style="display:flex;flex-direction:column;gap:14px;background:#fbf8f3;padding:36px;border:1px solid #e2d8c9;border-radius:20px"><div style="display:flex;justify-content:space-between;align-items:center"><p style="font-family:'Noto Serif TC', serif;font-size:64px;font-weight:700;color:#b5653a;line-height:1">07</p><svg class="x-icon" viewBox="0 0 24 24" style="width:52px;height:52px;color:#8a7f72;flex:none" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0 5 5L11 20a2.8 2.8 0 0 1-4-4z"/><path d="M14.7 6.3L18 3"/></svg></div><h3 style="font-size:34px;font-weight:700">執行</h3><p style="font-size:24px;line-height:1.5;color:#5a5047">分工、接案模式、合作提案</p></div>
+<div style="display:flex;flex-direction:column;justify-content:end;gap:14px;background:#b5653a;color:#fbf7f1;padding:36px;border-radius:20px"><svg class="x-icon" viewBox="0 0 24 24" style="width:52px;height:52px;color:#fbf7f1;flex:none" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg><h3 style="font-size:34px;font-weight:700">下一步</h3><p style="font-size:24px;line-height:1.5">從 M0 對齊開始</p></div>
+</div>
+<aside>每章開頭有章節頁，頁尾右側顯示目前在第幾章。第 04 章「產品體驗」是重點：用手機畫面示意屋主會看到什麼。</aside>
+</section>
+<section class="slide" id="ch1" data-index="3" data-chapter="01 背景：裝修需求、從建案到入住的流程、產業角色與發包模式" data-transition="push" style="background:#2b2621;color:#f5f0e8;font-family:'Noto Sans TC', sans-serif;padding:128px;display:flex;flex-direction:column;justify-content:center;gap:32px">
+<p style="position:absolute;right:40px;bottom:0px;width:1000px;text-align:right;font-family:'Noto Serif TC', serif;font-size:400px;font-weight:700;line-height:1;color:#352e28">01</p>
+<svg aria-label="等角視角的兩棟住宅大樓，前方較矮的一棟以陶土色標示為屋主的家" viewBox="0 0 640 640" style="position:absolute;right:140px;top:200px;width:640px;height:640px" xmlns="http://www.w3.org/2000/svg">
+<path d="M156 500 L260 560 L260 260 L156 200 Z" fill="#5a4f45"/><path d="M260 560 L364 500 L364 200 L260 260 Z" fill="#7a6d60"/><path d="M156 200 L260 260 L364 200 L260 140 Z" fill="#c9a77c"/>
+<g stroke="#2b2621" stroke-width="3" fill="none"><path d="M156 440 L260 500 L364 440 M156 380 L260 440 L364 380 M156 320 L260 380 L364 320 M156 260 L260 320 L364 260"/></g>
+<path d="M326 540 L430 600 L430 400 L326 340 Z" fill="#a3552d"/><path d="M430 600 L534 540 L534 340 L430 400 Z" fill="#b5653a"/><path d="M326 340 L430 400 L534 340 L430 280 Z" fill="#e3c99a"/>
+<g stroke="#7a3f20" stroke-width="3" fill="none"><path d="M326 490 L430 550 L534 490 M326 440 L430 500 L534 440 M326 390 L430 450 L534 390"/></g>
+<path d="M460 485 L500 462 L500 432 L460 455 Z" fill="#fff3d6"/>
+</svg>
+<p style="font-size:28px;letter-spacing:6px;color:#c9a77c;font-weight:700">CHAPTER 01</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:140px;font-weight:700;line-height:1.05">背景</h2>
+<p style="font-size:40px;line-height:1.5;width:860px;color:#d8cdbf">一間房子，從建案到入住，<br>屋主會遇到誰？</p>
+<div style="display:flex;gap:14px;width:900px">
+<p style="font-size:24px;padding:10px 24px;border:1px solid #6e6257;border-radius:999px;color:#d8cdbf">裝修需求</p>
+<p style="font-size:24px;padding:10px 24px;border:1px solid #6e6257;border-radius:999px;color:#d8cdbf">七個階段</p>
+<p style="font-size:24px;padding:10px 24px;border:1px solid #6e6257;border-radius:999px;color:#d8cdbf">十二種角色</p></div>
+<div style="position:absolute;left:128px;bottom:72px;width:600px;display:flex;gap:12px"><div style="width:64px;height:8px;border-radius:4px;background:#e3c99a"></div><div style="width:64px;height:8px;border-radius:4px;background:#4d443b"></div><div style="width:64px;height:8px;border-radius:4px;background:#4d443b"></div><div style="width:64px;height:8px;border-radius:4px;background:#4d443b"></div><div style="width:64px;height:8px;border-radius:4px;background:#4d443b"></div><div style="width:64px;height:8px;border-radius:4px;background:#4d443b"></div><div style="width:64px;height:8px;border-radius:4px;background:#4d443b"></div></div>
+<aside>第一章：先建立共同語言——為什麼現在有大量裝修需求、從建案到入住的流程、屋主身邊的角色，以及三種找人裝修的方式。</aside>
+</section>
+<section class="slide" id="background" data-index="4" data-transition="fade" style="background:#2b2621;color:#f5f0e8;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:64px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#c9a77c;font-weight:700">01 背景</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">房子變老、變小，裝修卻變貴</h2>
+</div>
+<div style="display:flex;gap:48px;flex:1">
+<div style="flex:1;display:flex;flex-direction:column;gap:20px;border-top:2px solid #c9a77c;padding:36px 0 0">
+<div style="display:flex;align-items:baseline;gap:8px"><p style="font-family:'Noto Serif TC', serif;font-size:112px;font-weight:700;line-height:1;color:#e3c99a;white-space:nowrap">554.6</p><p style="font-family:'Noto Serif TC', serif;font-size:44px;font-weight:700;color:#e3c99a;white-space:nowrap">萬戶</p></div>
+<p style="font-size:30px;line-height:1.5">屋齡逾 30 年，占住宅存量近六成；老屋平均屋齡 34.1 年</p>
+<p style="font-size:24px;color:#a89b8c">內政部，2025 Q2</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:20px;border-top:2px solid #c9a77c;padding:36px 0 0">
+<div style="display:flex;align-items:baseline;gap:8px"><p style="font-family:'Noto Serif TC', serif;font-size:112px;font-weight:700;line-height:1;color:#e3c99a;white-space:nowrap">5,500</p><p style="font-family:'Noto Serif TC', serif;font-size:44px;font-weight:700;color:#e3c99a;white-space:nowrap">億元</p></div>
+<p style="font-size:30px;line-height:1.5">台灣裝修年產值推估（新台幣），2026 年可望續增</p>
+<p style="font-size:24px;color:#a89b8c">100室內設計依財政部數據推估，非官方統計</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:20px;border-top:2px solid #c9a77c;padding:36px 0 0">
+<div style="display:flex;align-items:baseline;gap:8px"><p style="font-family:'Noto Serif TC', serif;font-size:112px;font-weight:700;line-height:1;color:#e3c99a;white-space:nowrap">40%</p><p style="font-family:'Noto Serif TC', serif;font-size:44px;font-weight:700;color:#e3c99a;white-space:nowrap">以上</p></div>
+<p style="font-size:30px;line-height:1.5">25 坪以下小宅占交易量比例，空間規劃更吃重</p>
+<p style="font-size:24px;color:#a89b8c">內政部，經濟日報 2026-01-03 引述</p>
+</div>
+</div>
+<p style="font-size:28px;line-height:1.5;color:#d8cdbf;width:1664px">再加上預售屋交屋潮與工料雙漲：屋主更需要在花錢前，<b style="color:#f5f0e8">先看見效果、先知道大約多少錢</b>。</p>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>Interior Design Agent · 產品構想 v0.2</span><span><span style="color:#e3c99a"><b>背景</b></span>　市場　需求　體驗　競品　定位　執行</span></div>
+<aside>來源：經濟日報 2026-01-02〈全台近六成房屋屋齡逾30年〉（內政部 2025 Q2 統計）；經濟日報 2026-01-03〈裝修年產值上看5500億〉（100室內設計依財政部數據推估，屬平台推估）。產品演進：v0.1 曾以既有 skill 與專業交接為起點；v0.2 改為簡單屋主旅程與 freemium。</aside>
+</section>
+<section class="slide" id="industry" data-index="5" data-transition="fade" style="background:#f5f0e8;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:40px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">01 背景 · 產業流程</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">從建案到入住的七個階段</h2>
+</div>
+<svg aria-label="從建案到入住流程圖：1 規劃設計（建造執照）、2 預售與施工（客變）、3 完工交屋（使用執照、驗屋），屬建商主導的建築端；4 室內設計、5 裝修申請、6 施工、7 驗收入住，屬屋主主導的室內端。中古屋從第 4 階段開始。本產品切入點在客變前與找設計師前。" viewBox="0 0 1664 620" style="width:1664px;height:620px" xmlns="http://www.w3.org/2000/svg">
+<rect x="0" y="0" width="710" height="44" rx="8" fill="#e4ebe6"/>
+<rect x="716" y="0" width="948" height="44" rx="8" fill="#f3e2d4"/>
+<g font-family="Noto Sans TC, sans-serif" font-size="24" font-weight="700">
+<text x="20" y="30" fill="#4a6455">建築端：建商主導（交屋前）</text>
+<text x="736" y="30" fill="#a3552d">室內端：屋主主導（交屋後）</text>
+</g>
+<text x="980" y="78" text-anchor="middle" font-family="Noto Sans TC, sans-serif" font-size="24" fill="#5a5047">← 中古屋從這裡開始</text>
+<line x1="119" y1="140" x2="1545" y2="140" stroke="#c9bba6" stroke-width="4"/>
+<g fill="#5f7a6a"><circle cx="119" cy="140" r="46"/><circle cx="357" cy="140" r="46"/><circle cx="594" cy="140" r="46"/></g>
+<g fill="#b5653a"><circle cx="832" cy="140" r="46"/><circle cx="1070" cy="140" r="46"/><circle cx="1307" cy="140" r="46"/><circle cx="1545" cy="140" r="46"/></g>
+<g fill="none" stroke="#fbf7f1" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+<g transform="translate(119 140)"><path d="M0 -20 L-13 18 M0 -20 L13 18 M-8 4 H8"/><circle cx="0" cy="-20" r="4"/></g>
+<g transform="translate(357 140)"><path d="M-14 20 V-20 H20 M-14 -12 L-4 -20 M14 -20 V-6 M9 -6 H19 V2 H9 Z M-24 20 H-4"/></g>
+<g transform="translate(594 140)"><circle cx="-9" cy="0" r="9"/><path d="M0 0 H22 M15 0 V9 M22 0 V7"/></g>
+<g transform="translate(832 140)"><path d="M-20 4 V14 H20 V4 M-20 4 Q-20 -3 -13 -3 H13 Q20 -3 20 4 M-15 -3 V-12 H15 V-3 M-15 14 V20 M15 14 V20"/></g>
+<g transform="translate(1070 140)"><path d="M-13 -20 H6 L14 -12 V20 H-13 Z M6 -20 V-12 H14 M-6 4 L-1 9 L8 -2"/></g>
+<g transform="translate(1307 140)"><path d="M-16 18 L4 -2 M-4 -12 L8 -1 L16 -9 L4 -20 Z"/></g>
+<g transform="translate(1545 140)"><path d="M-18 20 V-4 L0 -20 L18 -4 V20 Z M-8 4 L-2 10 L8 0"/></g>
+</g>
+<g fill="#2b2621"><circle cx="153" cy="104" r="18"/><circle cx="391" cy="104" r="18"/><circle cx="628" cy="104" r="18"/><circle cx="866" cy="104" r="18"/><circle cx="1104" cy="104" r="18"/><circle cx="1341" cy="104" r="18"/><circle cx="1579" cy="104" r="18"/></g>
+<g font-family="Noto Sans TC, sans-serif" text-anchor="middle">
+<g font-size="24" font-weight="700" fill="#f5f0e8"><text x="153" y="112">1</text><text x="391" y="112">2</text><text x="628" y="112">3</text><text x="866" y="112">4</text><text x="1104" y="112">5</text><text x="1341" y="112">6</text><text x="1579" y="112">7</text></g>
+<g font-size="30" font-weight="700" fill="#2b2621"><text x="119" y="226">規劃設計</text><text x="357" y="226">預售與施工</text><text x="594" y="226">完工交屋</text><text x="832" y="226">室內設計</text><text x="1070" y="226">裝修申請</text><text x="1307" y="226">施工</text><text x="1545" y="226">驗收入住</text></g>
+<g font-size="24" font-weight="700" fill="#a3552d"><text x="119" y="264">建造執照</text><text x="357" y="264">客變（加減帳）</text><text x="594" y="264">使用執照・驗屋</text><text x="832" y="264">配置・3D・報價</text><text x="1070" y="264">管委會・許可</text><text x="1307" y="264">依工序進場</text><text x="1545" y="264">驗收・合格證明</text></g>
+<g font-size="24" fill="#5a5047">
+<text x="119" y="316">建商</text><text x="119" y="350">建築師</text><text x="119" y="384">結構／機電技師</text><text x="119" y="418">消防設備師</text>
+<text x="357" y="316">營造廠</text><text x="357" y="350">代銷</text><text x="357" y="384">屋主</text>
+<text x="594" y="316">建築師（監造）</text><text x="594" y="350">驗屋公司</text><text x="594" y="384">管委會</text>
+<text x="832" y="316">室內設計師</text><text x="832" y="350">或 統包</text><text x="832" y="384">屋主</text>
+<text x="1070" y="316">室內裝修業</text><text x="1070" y="350">審查機構</text><text x="1070" y="384">管委會／物業</text>
+<text x="1307" y="316">工班：拆除・水電</text><text x="1307" y="350">泥作・木作・油漆</text><text x="1307" y="384">系統櫃・空調</text><text x="1307" y="418">設計師監工</text>
+<text x="1545" y="316">屋主</text><text x="1545" y="350">設計師／統包</text>
+</g>
+</g>
+<g stroke="#b5653a" stroke-width="2" stroke-dasharray="6 6"><line x1="357" y1="400" x2="357" y2="490"/><line x1="832" y1="400" x2="832" y2="490"/></g>
+<rect x="222" y="490" width="270" height="120" rx="14" fill="#2b2621"/>
+<rect x="697" y="490" width="270" height="120" rx="14" fill="#2b2621"/>
+<g font-family="Noto Sans TC, sans-serif" text-anchor="middle">
+<text x="357" y="532" font-size="24" fill="#e3c99a" font-weight="700">本產品切入 ①</text><text x="357" y="576" font-size="24" fill="#f5f0e8">客變前先看 3D 與預算</text>
+<text x="832" y="532" font-size="24" fill="#e3c99a" font-weight="700">本產品切入 ②</text><text x="832" y="576" font-size="24" fill="#f5f0e8">找設計師前先有方向</text>
+</g>
+</svg>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>Interior Design Agent · 產品構想 v0.2</span><span><span style="color:#a3552d"><b>背景</b></span>　市場　需求　體驗　競品　定位　執行</span></div>
+<aside>解說：1 建商委託建築師設計，結構、機電、消防由技師／設備師簽證，取得建造執照。2 預售銷售同時由營造廠施工；施工到買方樓層前，建商開放「客變」，可改隔間、水電、建材（以加減帳結算，退料不退工），結構、外牆、陽台、衛浴廚房位置通常不能改，期限多為 1–2 個月。3 完工取得使用執照後交屋，可請驗屋公司檢查。4 屋主找室內設計師或統包：丈量、需求訪談、平面配置、3D、施工圖、報價、簽約。5 向管委會申請裝修；六層以上集合住宅等若變更分間牆、防火避難設施，需申請室內裝修審查，由登記的室內裝修業辦理。6 工班依工序進場：拆除→水電→泥作→木作→油漆→系統櫃與設備→清潔。7 驗收，需審查者取得合格證明後入住。中古屋跳過 1–3。</aside>
+</section>
+<section class="slide" id="roles" data-index="6" data-transition="fade" style="background:#efe7db;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:40px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">01 背景 · 產業角色</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">屋主身邊的十二種角色</h2>
+</div>
+<div style="display:flex;gap:32px;flex:1">
+<div style="flex:1;display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;font-weight:700;letter-spacing:4px;color:#4a6455">建築端・交屋前</p>
+<div style="display:flex;flex-direction:column;gap:6px;background:#fbf8f3;padding:20px 28px;border-left:6px solid #5f7a6a;border-radius:10px"><h3 style="font-size:28px;font-weight:700">建商／起造人</h3><p style="font-size:24px;color:#5a5047">開發、銷售，開放客變</p></div>
+<div style="display:flex;flex-direction:column;gap:6px;background:#fbf8f3;padding:20px 28px;border-left:6px solid #5f7a6a;border-radius:10px"><h3 style="font-size:28px;font-weight:700">建築師</h3><p style="font-size:24px;color:#5a5047">建築設計、申請建照使照、監造</p></div>
+<div style="display:flex;flex-direction:column;gap:6px;background:#fbf8f3;padding:20px 28px;border-left:6px solid #5f7a6a;border-radius:10px"><h3 style="font-size:28px;font-weight:700">技師／消防設備師</h3><p style="font-size:24px;color:#5a5047">結構、機電、消防設計與簽證</p></div>
+<div style="display:flex;flex-direction:column;gap:6px;background:#fbf8f3;padding:20px 28px;border-left:6px solid #5f7a6a;border-radius:10px"><h3 style="font-size:28px;font-weight:700">營造廠</h3><p style="font-size:24px;color:#5a5047">依核准圖說施工建築主體</p></div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;font-weight:700;letter-spacing:4px;color:#2b2621">屋主身邊</p>
+<div style="display:flex;flex-direction:column;gap:6px;background:#2b2621;color:#f5f0e8;padding:20px 28px;border-left:6px solid #e3c99a;border-radius:10px"><h3 style="font-size:28px;font-weight:700">屋主</h3><p style="font-size:24px;color:#d8cdbf">提出需求與預算，做最後決定</p></div>
+<div style="display:flex;flex-direction:column;gap:6px;background:#fbf8f3;padding:20px 28px;border-left:6px solid #8a7f72;border-radius:10px"><h3 style="font-size:28px;font-weight:700">管委會／物業</h3><p style="font-size:24px;color:#5a5047">裝修申請、保證金、施工時段</p></div>
+<div style="display:flex;flex-direction:column;gap:6px;background:#fbf8f3;padding:20px 28px;border-left:6px solid #8a7f72;border-radius:10px"><h3 style="font-size:28px;font-weight:700">驗屋公司</h3><p style="font-size:24px;color:#5a5047">交屋時檢查瑕疵</p></div>
+<div style="display:flex;flex-direction:column;gap:6px;background:#fbf8f3;padding:20px 28px;border-left:6px solid #8a7f72;border-radius:10px"><h3 style="font-size:28px;font-weight:700">主管機關／審查機構</h3><p style="font-size:24px;color:#5a5047">室內裝修審查與合格證明</p></div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;font-weight:700;letter-spacing:4px;color:#a3552d">室內端・交屋後</p>
+<div style="display:flex;flex-direction:column;gap:6px;background:#fbf8f3;padding:20px 28px;border-left:6px solid #b5653a;border-radius:10px"><h3 style="font-size:28px;font-weight:700">室內設計師</h3><p style="font-size:24px;color:#5a5047">丈量、配置、3D、施工圖、監工</p></div>
+<div style="display:flex;flex-direction:column;gap:6px;background:#fbf8f3;padding:20px 28px;border-left:6px solid #b5653a;border-radius:10px"><h3 style="font-size:28px;font-weight:700">統包</h3><p style="font-size:24px;color:#5a5047">設計加施工一手包，單一窗口</p></div>
+<div style="display:flex;flex-direction:column;gap:6px;background:#fbf8f3;padding:20px 28px;border-left:6px solid #b5653a;border-radius:10px"><h3 style="font-size:28px;font-weight:700">工班</h3><p style="font-size:24px;color:#5a5047">水電、泥作、木作、油漆、系統櫃</p></div>
+<div style="display:flex;flex-direction:column;gap:6px;background:#fbf8f3;padding:20px 28px;border-left:6px solid #b5653a;border-radius:10px"><h3 style="font-size:28px;font-weight:700">建材／家具廠商</h3><p style="font-size:24px;color:#5a5047">供料、設備與安裝</p></div>
+</div>
+</div>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>Interior Design Agent · 產品構想 v0.2</span><span><span style="color:#a3552d"><b>背景</b></span>　市場　需求　體驗　競品　定位　執行</span></div>
+<aside>屋主是唯一貫穿全程的人，卻是最不懂專業語言的一方：建築端說圖說與執照，室內端說工序與工項。本產品站在屋主這一側，把需求翻成看得懂的 3D、預算區間與限制，讓屋主跟設計師、統包或工班溝通更有基礎。團隊資源：Even、Josh 有工班與設計師資源，Chris 有裝修經驗。</aside>
+</section>
+<section class="slide" id="ch2" data-index="7" data-chapter="02 市場：需求驅動因素與首批目標客群" data-transition="push" style="background:#2b2621;color:#f5f0e8;font-family:'Noto Sans TC', sans-serif;padding:128px;display:flex;flex-direction:column;justify-content:center;gap:32px">
+<p style="position:absolute;right:40px;bottom:0px;width:1000px;text-align:right;font-family:'Noto Serif TC', serif;font-size:400px;font-weight:700;line-height:1;color:#352e28">02</p>
+<svg aria-label="三根逐漸升高的等角立體長條，最高一根為陶土色，代表成長中的裝修需求" viewBox="0 0 640 640" style="position:absolute;right:140px;top:200px;width:640px;height:640px" xmlns="http://www.w3.org/2000/svg">
+<path d="M91 540 L160 580 L160 440 L91 400 Z" fill="#5a4f45"/><path d="M160 580 L229 540 L229 400 L160 440 Z" fill="#7a6d60"/><path d="M91 400 L160 440 L229 400 L160 360 Z" fill="#a89b8c"/>
+<path d="M241 453 L310 493 L310 253 L241 213 Z" fill="#5a4f45"/><path d="M310 493 L379 453 L379 213 L310 253 Z" fill="#7a6d60"/><path d="M241 213 L310 253 L379 213 L310 173 Z" fill="#a89b8c"/>
+<path d="M391 367 L460 407 L460 107 L391 67 Z" fill="#a3552d"/><path d="M460 407 L529 367 L529 67 L460 107 Z" fill="#b5653a"/><path d="M391 67 L460 107 L529 67 L460 27 Z" fill="#e3c99a"/>
+<path d="M90 300 L330 140 L520 10" stroke="#e3c99a" stroke-width="5" fill="none" stroke-dasharray="12 10"/>
+</svg>
+<p style="font-size:28px;letter-spacing:6px;color:#c9a77c;font-weight:700">CHAPTER 02</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:140px;font-weight:700;line-height:1.05">市場</h2>
+<p style="font-size:40px;line-height:1.5;width:860px;color:#d8cdbf">房子變老、新屋湧現，<br>裝修需求從哪裡來？</p>
+<div style="display:flex;gap:14px;width:900px">
+<p style="font-size:24px;padding:10px 24px;border:1px solid #6e6257;border-radius:999px;color:#d8cdbf">老屋</p>
+<p style="font-size:24px;padding:10px 24px;border:1px solid #6e6257;border-radius:999px;color:#d8cdbf">交屋潮與小宅</p>
+</div>
+<div style="position:absolute;left:128px;bottom:72px;width:600px;display:flex;gap:12px"><div style="width:64px;height:8px;border-radius:4px;background:#8a7f72"></div><div style="width:64px;height:8px;border-radius:4px;background:#e3c99a"></div><div style="width:64px;height:8px;border-radius:4px;background:#4d443b"></div><div style="width:64px;height:8px;border-radius:4px;background:#4d443b"></div><div style="width:64px;height:8px;border-radius:4px;background:#4d443b"></div><div style="width:64px;height:8px;border-radius:4px;background:#4d443b"></div><div style="width:64px;height:8px;border-radius:4px;background:#4d443b"></div></div>
+<aside>第二章：老屋翻新、交屋潮、小宅化、工料雙漲四股力量，以及首批要服務的三群屋主。</aside>
+</section>
+<section class="slide" id="stats-age" data-index="8" data-transition="fade" style="background:#f5f0e8;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:36px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">02 市場 · 老屋</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">近六成住宅，已經超過 30 歲</h2>
+</div>
+<svg aria-label="左側環圈圖：全台屋齡 30 年以上住宅占 59%，共 554.6 萬戶。右側橫條圖：平均屋齡澎湖縣 44.1 年、雲林縣 40.9 年、嘉義縣 40.7 年、台北市 39.1 年、全台 34.1 年。" viewBox="0 0 1664 580" style="width:1664px;height:580px" xmlns="http://www.w3.org/2000/svg">
+<circle cx="280" cy="280" r="220" fill="none" stroke="#e2d8c9" stroke-width="72"/>
+<circle cx="280" cy="280" r="220" fill="none" stroke="#b5653a" stroke-width="72" stroke-dasharray="815.6 1382.3" transform="rotate(-90 280 280)"/>
+<g font-family="Noto Sans TC, sans-serif" text-anchor="middle">
+<text x="280" y="290" font-family="Noto Serif TC, serif" font-size="110" font-weight="700" fill="#a3552d">59%</text>
+<text x="280" y="346" font-size="28" fill="#5a5047">屋齡 30 年以上</text>
+<text x="280" y="560" font-size="28" font-weight="700" fill="#2b2621">共 554.6 萬戶</text>
+</g>
+<text x="700" y="36" font-family="Noto Sans TC, sans-serif" font-size="26" font-weight="700" fill="#8a7f72">住宅平均屋齡（年）</text>
+<g font-family="Noto Sans TC, sans-serif" font-size="28" text-anchor="end" fill="#2b2621">
+<text x="860" y="118">澎湖縣</text><text x="860" y="218">雲林縣</text><text x="860" y="318">嘉義縣</text><text x="860" y="418">台北市</text><text x="860" y="518" font-weight="700">全台平均</text>
+</g>
+<rect x="890" y="80" width="617" height="56" rx="8" fill="#a89b8c"/>
+<rect x="890" y="180" width="573" height="56" rx="8" fill="#a89b8c"/>
+<rect x="890" y="280" width="570" height="56" rx="8" fill="#a89b8c"/>
+<rect x="890" y="380" width="547" height="56" rx="8" fill="#5a4f45"/>
+<rect x="890" y="480" width="477" height="56" rx="8" fill="#b5653a"/>
+<g font-family="Noto Sans TC, sans-serif" font-size="30" font-weight="700" fill="#2b2621">
+<text x="1523" y="119">44.1</text><text x="1479" y="219">40.9</text><text x="1476" y="319">40.7</text><text x="1453" y="419">39.1</text><text x="1383" y="519" fill="#a3552d">34.1</text>
+</g>
+<text x="1453" y="456" font-family="Noto Sans TC, sans-serif" font-size="24" fill="#5a5047">老屋占比 73.8%</text>
+</svg>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>資料：內政部 2025 Q2，經濟日報 2025-09-18</span><span>背景　<span style="color:#a3552d"><b>市場</b></span>　需求　體驗　競品　定位　執行</span></div>
+<aside>全台住宅平均屋齡 34.1 年，為 2009 年有統計以來新高；屋齡 30 年以上 5,545,854 戶、占近 59%。台北市平均 39.1 年、老屋占 73.8%，是全台老屋比例最高的縣市。另：2025 Q4 全台買賣移轉的平均屋齡 31.7 年，比前一年同期多約 2 年（內政部不動產資訊平台，世界新聞網 2026-06-03）。老屋翻新正是最需要消防、機電與現況限制提醒的族群。</aside>
+</section>
+<section class="slide" id="stats-new" data-index="9" data-transition="fade" style="background:#efe7db;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:36px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">02 市場 · 新屋與生活型態</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">交屋潮、小宅化、毛孩比寶寶多</h2>
+</div>
+<svg aria-label="三張圖。左：新屋第一次登記，十年平均每年 12.81 萬棟，2024 年約 16.3 萬棟（推算）。中：方格圖顯示 25 坪以下小宅占交易量超過四成。右：2025 年至 11 月新增寵物登記 20.7 萬隻，新生兒 9.9 萬人。" viewBox="0 0 1664 590" style="width:1664px;height:590px" xmlns="http://www.w3.org/2000/svg">
+<g font-family="Noto Sans TC, sans-serif">
+<text x="0" y="34" font-size="26" font-weight="700" fill="#8a7f72">新屋第一次登記（棟／年）</text>
+<line x1="40" y1="520" x2="480" y2="520" stroke="#8a7f72" stroke-width="2"/>
+<rect x="80" y="221" width="150" height="299" rx="8" fill="#a89b8c"/>
+<rect x="290" y="140" width="150" height="380" rx="8" fill="#b5653a"/>
+<text x="155" y="204" text-anchor="middle" font-size="34" font-weight="700" fill="#2b2621">12.81 萬</text>
+<text x="365" y="122" text-anchor="middle" font-size="34" font-weight="700" fill="#a3552d">約 16.3 萬</text>
+<text x="155" y="560" text-anchor="middle" font-size="26" fill="#2b2621">十年平均</text>
+<text x="365" y="560" text-anchor="middle" font-size="26" fill="#2b2621">2024（推算）</text>
+<text x="365" y="74" text-anchor="middle" font-size="24" fill="#5a5047">高出逾 27%</text>
+<text x="600" y="34" font-size="26" font-weight="700" fill="#8a7f72">25 坪以下小宅占交易量</text>
+<rect x="620" y="80" width="420" height="252" fill="#e2d8c9"/>
+<rect x="620" y="332" width="420" height="168" fill="#b5653a"/>
+<g stroke="#efe7db" stroke-width="6">
+<line x1="662" y1="80" x2="662" y2="500"/><line x1="704" y1="80" x2="704" y2="500"/><line x1="746" y1="80" x2="746" y2="500"/><line x1="788" y1="80" x2="788" y2="500"/><line x1="830" y1="80" x2="830" y2="500"/><line x1="872" y1="80" x2="872" y2="500"/><line x1="914" y1="80" x2="914" y2="500"/><line x1="956" y1="80" x2="956" y2="500"/><line x1="998" y1="80" x2="998" y2="500"/>
+<line x1="620" y1="122" x2="1040" y2="122"/><line x1="620" y1="164" x2="1040" y2="164"/><line x1="620" y1="206" x2="1040" y2="206"/><line x1="620" y1="248" x2="1040" y2="248"/><line x1="620" y1="290" x2="1040" y2="290"/><line x1="620" y1="332" x2="1040" y2="332"/><line x1="620" y1="374" x2="1040" y2="374"/><line x1="620" y1="416" x2="1040" y2="416"/><line x1="620" y1="458" x2="1040" y2="458"/>
+</g>
+<text x="830" y="560" text-anchor="middle" font-family="Noto Serif TC, serif" font-size="44" font-weight="700" fill="#a3552d">40% 以上</text>
+<text x="1160" y="34" font-size="26" font-weight="700" fill="#8a7f72">2025 年（至 11 月）</text>
+<text x="1160" y="150" font-size="28" fill="#2b2621">新增寵物登記</text>
+<rect x="1160" y="170" width="414" height="76" rx="8" fill="#b5653a"/>
+<text x="1180" y="220" font-size="36" font-weight="700" fill="#fbf7f1">20.7 萬隻</text>
+<text x="1160" y="330" font-size="28" fill="#2b2621">新生兒</text>
+<rect x="1160" y="350" width="198" height="76" rx="8" fill="#a89b8c"/>
+<text x="1376" y="400" font-size="36" font-weight="700" fill="#2b2621">9.9 萬人</text>
+<text x="1160" y="500" font-size="26" fill="#5a5047">寵物是新生兒的 2 倍以上</text>
+<text x="1160" y="540" font-size="26" fill="#5a5047">→ 寵物友善、全齡宅設計</text>
+</g>
+</svg>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>資料：內政部統計通報（自由時報）；內政部、農業部（經濟日報 2026-01-03）</span><span>背景　<span style="color:#a3552d"><b>市場</b></span>　需求　體驗　競品　定位　執行</span></div>
+<aside>新屋：2015–2024 年第一次登記約 128.14 萬棟、平均每年 12.81 萬棟；2022–2024 三年皆高於十年平均，2024 年高出逾 27%（16.3 萬為依此推算）。小宅：25 坪以下交易量占比突破四成。家庭型態：2025 年至 11 月新生兒約 9.9 萬人，新增寵物登記逾 20.7 萬隻；100室內設計觀察到「全齡宅」「防滑地板」「浴室扶手」搜尋量創新高。意涵：大量新成屋需要第一次規劃，小坪數讓尺寸與收納更關鍵。</aside>
+</section>
+<section class="slide" id="ch3" data-index="10" data-chapter="03 需求：屋主的情緒旅程、痛點與使用者需求" data-transition="push" style="background:#2b2621;color:#f5f0e8;font-family:'Noto Sans TC', sans-serif;padding:128px;display:flex;flex-direction:column;justify-content:center;gap:32px">
+<p style="position:absolute;right:40px;bottom:0px;width:1000px;text-align:right;font-family:'Noto Serif TC', serif;font-size:400px;font-weight:700;line-height:1;color:#352e28">03</p>
+<svg aria-label="兩個對話泡泡，一個寫著問號，一個寫著刪節號，代表屋主說不清楚的需求" viewBox="0 0 640 640" style="position:absolute;right:140px;top:200px;width:640px;height:640px" xmlns="http://www.w3.org/2000/svg">
+<rect x="80" y="80" width="400" height="280" rx="48" fill="#f5f0e8"/>
+<path d="M150 350 L130 440 L230 355 Z" fill="#f5f0e8"/>
+<text x="280" y="300" text-anchor="middle" font-family="Noto Serif TC, serif" font-size="220" font-weight="700" fill="#b5653a">?</text>
+<rect x="300" y="380" width="280" height="180" rx="40" fill="#b5653a"/>
+<path d="M520 550 L560 620 L470 556 Z" fill="#b5653a"/>
+<circle cx="380" cy="470" r="18" fill="#fbf7f1"/><circle cx="440" cy="470" r="18" fill="#fbf7f1"/><circle cx="500" cy="470" r="18" fill="#fbf7f1"/>
+</svg>
+<p style="font-size:28px;letter-spacing:6px;color:#c9a77c;font-weight:700">CHAPTER 03</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:140px;font-weight:700;line-height:1.05">需求</h2>
+<p style="font-size:40px;line-height:1.5;width:860px;color:#d8cdbf">屋主心裡有畫面，<br>卻說不清楚、算不出來。</p>
+<div style="display:flex;gap:14px;width:900px">
+<p style="font-size:24px;padding:10px 24px;border:1px solid #6e6257;border-radius:999px;color:#d8cdbf">情緒旅程</p>
+<p style="font-size:24px;padding:10px 24px;border:1px solid #6e6257;border-radius:999px;color:#d8cdbf">四個需求</p>
+</div>
+<div style="position:absolute;left:128px;bottom:72px;width:600px;display:flex;gap:12px"><div style="width:64px;height:8px;border-radius:4px;background:#8a7f72"></div><div style="width:64px;height:8px;border-radius:4px;background:#8a7f72"></div><div style="width:64px;height:8px;border-radius:4px;background:#e3c99a"></div><div style="width:64px;height:8px;border-radius:4px;background:#4d443b"></div><div style="width:64px;height:8px;border-radius:4px;background:#4d443b"></div><div style="width:64px;height:8px;border-radius:4px;background:#4d443b"></div><div style="width:64px;height:8px;border-radius:4px;background:#4d443b"></div></div>
+<aside>第三章：用屋主的情緒曲線看今天的裝修旅程，再收斂成三個痛點與四個需求。</aside>
+</section>
+<section class="slide" id="pain" data-index="11" data-transition="fade" style="background:#f5f0e8;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:120px 128px 160px;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">03 需求 · 屋主情緒旅程</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:64px;font-weight:700;line-height:1.1">從興奮到崩潰，只要四步</h2>
+<div style="display:flex;gap:40px;font-size:24px;color:#5a5047"><span><span style="color:#8a7f72"><b>━━</b></span>　今天的屋主</span><span><span style="color:#b5653a"><b>━━</b></span>　有了本產品（目標）</span></div>
+</div>
+<svg aria-label="情緒曲線圖：六個階段（有想像、找靈感、想畫平面、問報價、發包施工、入住）。今天的屋主情緒從開心一路下滑，在發包施工時最低；有了本產品後，曲線維持在較高位置。" viewBox="0 0 1664 600" style="width:1664px;height:600px" xmlns="http://www.w3.org/2000/svg">
+<rect x="90" y="70" width="1574" height="250" fill="#fbf8f3"/>
+<rect x="90" y="320" width="1574" height="270" fill="#efe7db"/>
+<g font-family="Noto Sans TC, sans-serif" font-size="24" fill="#8a7f72"><text x="0" y="120">開心</text><text x="0" y="560">焦慮</text></g>
+<g font-family="Noto Sans TC, sans-serif" font-size="28" font-weight="700" fill="#2b2621" text-anchor="middle">
+<text x="200" y="40">有想像</text><text x="470" y="40">找靈感</text><text x="740" y="40">想畫平面</text><text x="1010" y="40">問報價</text><text x="1280" y="40">發包施工</text><text x="1550" y="40">入住</text>
+</g>
+<g stroke="#d6cab8" stroke-width="2" stroke-dasharray="4 8"><line x1="200" y1="60" x2="200" y2="590"/><line x1="470" y1="60" x2="470" y2="590"/><line x1="740" y1="60" x2="740" y2="590"/><line x1="1010" y1="60" x2="1010" y2="590"/><line x1="1280" y1="60" x2="1280" y2="590"/><line x1="1550" y1="60" x2="1550" y2="590"/></g>
+<path d="M200 130 C330 130 360 260 470 270 S 640 390 740 400 S 920 460 1010 470 S 1200 530 1280 530 S 1460 380 1550 360" fill="none" stroke="#8a7f72" stroke-width="7"/>
+<path d="M200 130 C330 130 360 150 470 160 S 640 190 740 190 S 920 240 1010 240 S 1200 270 1280 270 S 1460 160 1550 140" fill="none" stroke="#b5653a" stroke-width="9"/>
+<g fill="#8a7f72"><circle cx="470" cy="270" r="12"/><circle cx="740" cy="400" r="12"/><circle cx="1010" cy="470" r="12"/><circle cx="1280" cy="530" r="14"/></g>
+<g fill="#b5653a"><circle cx="200" cy="130" r="14"/><circle cx="470" cy="160" r="12"/><circle cx="740" cy="190" r="12"/><circle cx="1010" cy="240" r="12"/><circle cx="1280" cy="270" r="12"/><circle cx="1550" cy="140" r="14"/></g>
+<g font-family="Noto Sans TC, sans-serif" font-size="24" fill="#5a5047" text-anchor="middle">
+<text x="450" y="318" text-anchor="end">圖很多，不知道適不適合</text>
+<text x="720" y="448" text-anchor="end">不會畫圖，說不清楚</text>
+<text x="990" y="518" text-anchor="end">報價和想像差很多</text>
+<text x="1280" y="576" fill="#a3552d" font-weight="700">樑柱、插座、消防才發現不行</text>
+</g>
+<g font-family="Noto Sans TC, sans-serif" font-size="24" fill="#a3552d" font-weight="700" text-anchor="middle">
+<text x="740" y="160">開口說就好</text><text x="1010" y="210">先有預算區間</text><text x="1280" y="240">限制提早知道</text>
+</g>
+</svg>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>示意曲線，待 M0 使用者訪談驗證</span><span>背景　市場　<span style="color:#a3552d"><b>需求</b></span>　體驗　競品　定位　執行</span></div>
+<aside>這是假設性的情緒曲線，用來說明痛點在哪裡發生，不是調查數據。灰線：今天的屋主——一開始很興奮，找靈感時開始迷惘，被要求畫平面圖時卡關，看到報價嚇到，施工時才發現樑柱、插座、消防等限制而崩潰。陶土色線：有了本產品後，在「想畫平面」「問報價」「發包施工」三個谷底前，提前用語音輸入、預算區間與台灣限制提醒把落差補起來。建議 M0 由 Mika／Victor 做幾場屋主訪談來校正。</aside>
+</section>
+<section class="slide" id="requirements" data-index="12" data-transition="fade" style="background:#efe7db;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:56px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">03 需求 · 使用者需求</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">屋主要的，是四件事</h2>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;flex:1">
+<div style="display:flex;gap:28px;background:#fbf8f3;padding:40px;border:1px solid #e2d8c9;border-radius:16px">
+<svg class="x-icon" viewBox="0 0 24 24" style="width:56px;height:56px;color:#b5653a;flex:none" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.5A8 8 0 1 1 21 12z"/><path d="M8 12h.01M12 12h.01M16 12h.01"/></svg>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px"><h3 style="font-size:34px;font-weight:700">輕鬆表達</h3><p style="font-size:26px;line-height:1.5;color:#5a5047">用語音說、可修改逐字稿，或直接打字；加入相簿或相機的參考圖</p></div>
+</div>
+<div style="display:flex;gap:28px;background:#fbf8f3;padding:40px;border:1px solid #e2d8c9;border-radius:16px">
+<svg class="x-icon" viewBox="0 0 24 24" style="width:56px;height:56px;color:#b5653a;flex:none" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px"><h3 style="font-size:34px;font-weight:700">被正確理解</h3><p style="font-size:26px;line-height:1.5;color:#5a5047">先確認系統理解的需求，只補必要資料</p></div>
+</div>
+<div style="display:flex;gap:28px;background:#fbf8f3;padding:40px;border:1px solid #e2d8c9;border-radius:16px">
+<svg class="x-icon" viewBox="0 0 24 24" style="width:56px;height:56px;color:#b5653a;flex:none" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5"/></svg>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px"><h3 style="font-size:34px;font-weight:700">看見並判斷</h3><p style="font-size:26px;line-height:1.5;color:#5a5047">3D 空間提案、費用區間與假設，以及空間／法規／消防／機電限制</p></div>
+</div>
+<div style="display:flex;gap:28px;background:#fbf8f3;padding:40px;border:1px solid #e2d8c9;border-radius:16px">
+<svg class="x-icon" viewBox="0 0 24 24" style="width:56px;height:56px;color:#b5653a;flex:none" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px"><h3 style="font-size:34px;font-weight:700">安心決定</h3><p style="font-size:26px;line-height:1.5;color:#5a5047">跨裝置保存方案；付費前知道解鎖什麼；看有來源、經同意的案例</p></div>
+</div>
+</div>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>Interior Design Agent · 產品構想 v0.2</span><span>背景　市場　<span style="color:#a3552d"><b>需求</b></span>　體驗　競品　定位　執行</span></div>
+<aside>整理自 MVP v0.2 的 12 則 user stories。另有一則團隊需求：可以替換生成引擎與知識來源，而不改變屋主的使用流程。</aside>
+</section>
+<section class="slide" id="ch4" data-index="13" data-chapter="04 產品體驗：手機畫面故事板、結果頁、全流程與驗收" data-transition="push" style="background:#b5653a;color:#fbf7f1;font-family:'Noto Sans TC', sans-serif;padding:128px;display:flex;flex-direction:column;justify-content:center;gap:32px">
+<p style="position:absolute;right:40px;bottom:0px;width:1000px;text-align:right;font-family:'Noto Serif TC', serif;font-size:400px;font-weight:700;line-height:1;color:#a65c34">04</p>
+<svg aria-label="手機畫面中顯示等角視角的房間，旁邊浮著「3D 提案」與「預算區間」兩個標籤" viewBox="0 0 640 640" style="position:absolute;right:140px;top:200px;width:640px;height:640px" xmlns="http://www.w3.org/2000/svg">
+<rect x="190" y="30" width="300" height="590" rx="44" fill="#2b2621"/>
+<rect x="206" y="60" width="268" height="530" rx="30" fill="#fbf8f3"/>
+<path d="M240 412 L340 354 L340 214 L240 272 Z" fill="#efe7db"/>
+<path d="M340 354 L440 412 L440 272 L340 214 Z" fill="#e2d6c4"/>
+<path d="M340 470 L440 412 L340 354 L240 412 Z" fill="#c9a77c"/>
+<path d="M340 452 L392 422 L340 392 L288 422 Z" fill="#b5653a"/>
+<path d="M262 404 L310 376 L332 389 L284 417 Z" fill="#5f7a6a"/>
+<path d="M370 330 L410 353 L410 300 L370 277 Z" fill="#9cc3d5"/>
+<rect x="250" y="510" width="180" height="44" rx="22" fill="#b5653a"/>
+<rect x="420" y="110" width="200" height="64" rx="32" fill="#2b2621"/>
+<text x="520" y="152" text-anchor="middle" font-family="Noto Sans TC, sans-serif" font-size="26" font-weight="700" fill="#e3c99a">3D 提案</text>
+<rect x="30" y="430" width="200" height="64" rx="32" fill="#fbf7f1"/>
+<text x="130" y="472" text-anchor="middle" font-family="Noto Sans TC, sans-serif" font-size="26" font-weight="700" fill="#a3552d">預算區間</text>
+</svg>
+<p style="font-size:28px;letter-spacing:6px;color:#f3dcc8;font-weight:700">CHAPTER 04 · 重點</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:140px;font-weight:700;line-height:1.05">產品體驗</h2>
+<p style="font-size:40px;line-height:1.5;width:860px">屋主打開手機，<br>五步看見自己家的樣子。</p>
+<div style="display:flex;gap:14px;width:900px">
+<p style="font-size:24px;padding:10px 24px;border:1px solid #f3dcc8;border-radius:999px">畫面故事板</p>
+<p style="font-size:24px;padding:10px 24px;border:1px solid #f3dcc8;border-radius:999px">結果頁</p>
+<p style="font-size:24px;padding:10px 24px;border:1px solid #f3dcc8;border-radius:999px">全流程泳道</p></div>
+<div style="position:absolute;left:128px;bottom:72px;width:600px;display:flex;gap:12px"><div style="width:64px;height:8px;border-radius:4px;background:#d48a62"></div><div style="width:64px;height:8px;border-radius:4px;background:#d48a62"></div><div style="width:64px;height:8px;border-radius:4px;background:#d48a62"></div><div style="width:64px;height:8px;border-radius:4px;background:#fbf7f1"></div><div style="width:64px;height:8px;border-radius:4px;background:#9a5230"></div><div style="width:64px;height:8px;border-radius:4px;background:#9a5230"></div><div style="width:64px;height:8px;border-radius:4px;background:#9a5230"></div></div>
+<aside>第四章是整份簡報的重點：從屋主的手機畫面出發，看每一步看到什麼、背後系統做什麼。</aside>
+</section>
+<section class="slide" id="uxstory" data-index="14" data-transition="fade" style="background:#efe7db;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:112px 128px 160px;display:flex;flex-direction:column;gap:28px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">04 產品體驗 · 畫面故事板</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:64px;font-weight:700;line-height:1.1">五個畫面，從一句話到一個家</h2>
+</div>
+<svg aria-label="五支手機畫面示意：1 說出想像（語音逐字稿與麥克風）；2 放參考圖（四張參考圖與相簿相機按鈕）；3 確認需求（空間、風格、預算已理解，坪數待補）；4 3D 提案（等角房間與視角切換）；5 預算與限制（預算區間、動線已檢查、插座衝突、坪數待補、消防不適用，解鎖更多方案）。" viewBox="0 0 1664 630" style="width:1664px;height:630px" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="ua" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#b5653a"/></marker></defs>
+<g fill="#2b2621"><rect x="0" y="0" width="288" height="520" rx="38"/><rect x="344" y="0" width="288" height="520" rx="38"/><rect x="688" y="0" width="288" height="520" rx="38"/><rect x="1032" y="0" width="288" height="520" rx="38"/><rect x="1376" y="0" width="288" height="520" rx="38"/></g>
+<g fill="#fbf8f3"><rect x="12" y="14" width="264" height="492" rx="28"/><rect x="356" y="14" width="264" height="492" rx="28"/><rect x="700" y="14" width="264" height="492" rx="28"/><rect x="1044" y="14" width="264" height="492" rx="28"/><rect x="1388" y="14" width="264" height="492" rx="28"/></g>
+<g stroke="#b5653a" stroke-width="4" marker-end="url(#ua)"><line x1="296" y1="260" x2="336" y2="260"/><line x1="640" y1="260" x2="680" y2="260"/><line x1="984" y1="260" x2="1024" y2="260"/><line x1="1328" y1="260" x2="1368" y2="260"/></g>
+<g font-family="Noto Sans TC, sans-serif" font-size="26" font-weight="700" fill="#2b2621"><text x="36" y="66">新提案</text><text x="380" y="66">參考圖</text><text x="724" y="66">我理解的需求</text><text x="1068" y="66">3D 提案</text><text x="1412" y="66">預算與限制</text></g>
+<rect x="28" y="90" width="232" height="150" rx="18" fill="#efe7db"/>
+<g font-family="Noto Sans TC, sans-serif" font-size="24" fill="#2b2621"><text x="44" y="130">客廳想要溫暖</text><text x="44" y="166">木質感、多收納，</text><text x="44" y="202">預算大約 50 萬</text></g>
+<text x="44" y="276" font-family="Noto Sans TC, sans-serif" font-size="24" fill="#8a7f72">可編輯逐字稿</text>
+<circle cx="144" cy="380" r="72" fill="#b5653a" opacity="0.15"/><circle cx="144" cy="380" r="52" fill="#b5653a" opacity="0.3"/><circle cx="144" cy="380" r="36" fill="#b5653a"/>
+<rect x="136" y="360" width="16" height="28" rx="8" fill="#fbf7f1"/><path d="M128 382 Q144 404 160 382" fill="none" stroke="#fbf7f1" stroke-width="3"/>
+<text x="144" y="482" text-anchor="middle" font-family="Noto Sans TC, sans-serif" font-size="24" fill="#5a5047">按住說話</text>
+<rect x="372" y="88" width="108" height="108" rx="12" fill="#c9a77c"/><rect x="496" y="88" width="108" height="108" rx="12" fill="#9cc3d5"/><rect x="372" y="212" width="108" height="108" rx="12" fill="#5f7a6a"/><rect x="496" y="212" width="108" height="108" rx="12" fill="#e3c99a"/>
+<rect x="388" y="150" width="76" height="30" rx="8" fill="#8f6f52"/><path d="M550 106 L550 140 M536 150 L564 150 L550 132 Z" stroke="#2b2621" stroke-width="3" fill="#fbf8f3"/><ellipse cx="426" cy="270" rx="22" ry="36" fill="#7fa08c"/><rect x="516" y="240" width="68" height="56" rx="6" fill="#b5653a"/>
+<rect x="372" y="336" width="232" height="60" rx="12" fill="none" stroke="#b5653a" stroke-width="2" stroke-dasharray="8 6"/>
+<text x="488" y="375" text-anchor="middle" font-family="Noto Sans TC, sans-serif" font-size="24" fill="#a3552d">＋ 相簿／相機</text>
+<rect x="372" y="422" width="232" height="56" rx="28" fill="#2b2621"/><text x="488" y="458" text-anchor="middle" font-family="Noto Sans TC, sans-serif" font-size="24" fill="#fbf7f1">下一步</text>
+<g fill="#efe7db"><rect x="716" y="90" width="232" height="56" rx="12"/><rect x="716" y="158" width="232" height="56" rx="12"/><rect x="716" y="226" width="232" height="56" rx="12"/></g>
+<rect x="716" y="294" width="232" height="56" rx="12" fill="#f3e2d4" stroke="#b5653a" stroke-width="2"/>
+<g font-family="Noto Sans TC, sans-serif" font-size="24" fill="#2b2621"><text x="732" y="127">空間｜客廳</text><text x="732" y="195">風格｜溫暖木質</text><text x="732" y="263">預算｜約 50 萬</text></g>
+<text x="732" y="331" font-family="Noto Sans TC, sans-serif" font-size="24" font-weight="700" fill="#a3552d">坪數｜請補充 ›</text>
+<text x="732" y="392" font-family="Noto Sans TC, sans-serif" font-size="24" fill="#8a7f72">只問必要的</text>
+<rect x="716" y="422" width="232" height="56" rx="28" fill="#2b2621"/><text x="832" y="458" text-anchor="middle" font-family="Noto Sans TC, sans-serif" font-size="24" fill="#fbf7f1">確認，開始生成</text>
+<path d="M1076 272 L1176 214 L1176 104 L1076 162 Z" fill="#efe7db"/><path d="M1176 214 L1276 272 L1276 162 L1176 104 Z" fill="#e2d6c4"/><path d="M1176 330 L1276 272 L1176 214 L1076 272 Z" fill="#c9a77c"/>
+<path d="M1176 312 L1228 282 L1176 252 L1124 282 Z" fill="#b5653a"/><path d="M1096 266 L1144 238 L1166 251 L1118 279 Z" fill="#5f7a6a"/><path d="M1206 200 L1246 223 L1246 175 L1206 152 Z" fill="#9cc3d5"/>
+<rect x="1060" y="360" width="72" height="40" rx="20" fill="#2b2621"/><rect x="1140" y="360" width="72" height="40" rx="20" fill="#efe7db"/><rect x="1220" y="360" width="72" height="40" rx="20" fill="#efe7db"/>
+<g font-family="Noto Sans TC, sans-serif" font-size="24" text-anchor="middle"><text x="1096" y="388" fill="#fbf7f1">A</text><text x="1176" y="388" fill="#2b2621">B</text><text x="1256" y="388" fill="#2b2621">C</text></g>
+<text x="1176" y="462" text-anchor="middle" font-family="Noto Sans TC, sans-serif" font-size="24" fill="#8a7f72">預覽優先・可旋轉</text>
+<text x="1412" y="128" font-family="Noto Sans TC, sans-serif" font-size="36" font-weight="700" fill="#a3552d">約 42–55 萬</text>
+<rect x="1412" y="148" width="216" height="14" rx="7" fill="#e2d8c9"/><rect x="1468" y="148" width="110" height="14" rx="7" fill="#b5653a"/>
+<circle cx="1424" cy="210" r="10" fill="#5f7a6a"/><circle cx="1424" cy="256" r="10" fill="#c0602d"/><circle cx="1424" cy="302" r="10" fill="#c9a77c"/><circle cx="1424" cy="348" r="10" fill="#8a7f72"/>
+<g font-family="Noto Sans TC, sans-serif" font-size="24" fill="#2b2621"><text x="1444" y="219">動線　已檢查</text><text x="1444" y="265">插座　衝突</text><text x="1444" y="311">坪數　待補資料</text><text x="1444" y="357">消防　不適用</text></g>
+<rect x="1404" y="422" width="232" height="56" rx="28" fill="#b5653a"/><text x="1520" y="458" text-anchor="middle" font-family="Noto Sans TC, sans-serif" font-size="24" font-weight="700" fill="#fbf7f1">解鎖更多方案</text>
+<g font-family="Noto Sans TC, sans-serif" text-anchor="middle">
+<g font-size="28" font-weight="700" fill="#2b2621"><text x="144" y="572">1 說出想像</text><text x="488" y="572">2 放參考圖</text><text x="832" y="572">3 確認需求</text><text x="1176" y="572">4 看 3D 提案</text><text x="1520" y="572">5 預算與限制</text></g>
+<g font-size="24" fill="#5a5047"><text x="144" y="610">語音或打字</text><text x="488" y="610">相簿、相機、檔案</text><text x="832" y="610">只補必要資料</text><text x="1176" y="610">多視角、輕量載入</text><text x="1520" y="610">區間＋四態限制</text></g>
+</g>
+</svg>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>介面與數字皆為示意，非實際產品畫面</span><span>背景　市場　需求　<span style="color:#a3552d"><b>體驗</b></span>　競品　定位　執行</span></div>
+<aside>帶觀眾走一遍：1 屋主按住說「客廳想要溫暖木質感、多收納，預算大約 50 萬」，逐字稿可以改；不想說話也能打字。2 從相簿或相機加幾張喜歡的圖。3 系統列出它理解的需求，只追問必要的——例如坪數。4 生成 3D 提案，先出預覽，可切換 A/B/C 方案。5 看到預算區間，以及每個限制的狀態：已檢查、衝突、待補資料、不適用；想要更多方案再付費解鎖。畫面中的金額只是介面示意。</aside>
+</section>
+<section class="slide" id="uxresult" data-index="15" data-transition="fade" style="background:#f5f0e8;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:row;gap:96px;align-items:center">
+<svg aria-label="大尺寸手機結果頁示意：上方是等角視角的客廳 3D 提案，中間是預算區間卡片，下方是「已檢查 3、待補資料 1」限制標籤與「解鎖更多方案」按鈕，四個區塊標上編號 1 到 4。" viewBox="0 0 440 792" style="width:440px;height:792px" xmlns="http://www.w3.org/2000/svg">
+<rect x="20" y="0" width="400" height="792" rx="52" fill="#2b2621"/>
+<rect x="36" y="18" width="368" height="756" rx="40" fill="#fbf8f3"/>
+<rect x="170" y="34" width="100" height="20" rx="10" fill="#2b2621"/>
+<text x="64" y="100" font-family="Noto Sans TC, sans-serif" font-size="30" font-weight="700" fill="#2b2621">客廳提案 A</text>
+<path d="M70 353 L220 266 L220 106 L70 193 Z" fill="#efe7db"/>
+<path d="M220 266 L370 353 L370 193 L220 106 Z" fill="#e2d6c4"/>
+<path d="M220 440 L370 353 L220 266 L70 353 Z" fill="#c9a77c"/>
+<path d="M265 242 L325 277 L325 197 L265 162 Z" fill="#9cc3d5"/>
+<path d="M265 242 L325 277 L290 400 L215 360 Z" fill="#fff3d6" opacity="0.4"/>
+<path d="M220 420 L300 373 L220 326 L140 373 Z" fill="#b5653a"/>
+<path d="M115 297 L182 258 L182 222 L115 261 Z" fill="#3f5649"/>
+<path d="M115 297 L182 258 L217 278 L150 317 Z" fill="#5f7a6a"/>
+<path d="M150 347 L217 308 L217 278 L150 317 Z" fill="#4a6455"/>
+<line x1="200" y1="110" x2="200" y2="180" stroke="#5a5047" stroke-width="2"/><path d="M182 200 L218 200 L200 180 Z" fill="#e3c99a"/>
+<path d="M330 360 L336 384 L356 384 L362 360 Z" fill="#a3552d"/><ellipse cx="346" cy="336" rx="12" ry="28" fill="#5f7a6a"/>
+<rect x="60" y="476" width="320" height="124" rx="18" fill="#efe7db"/>
+<text x="84" y="516" font-family="Noto Sans TC, sans-serif" font-size="24" fill="#8a7f72">預算區間（示意）</text>
+<text x="84" y="572" font-family="Noto Sans TC, sans-serif" font-size="40" font-weight="700" fill="#a3552d">約 42–55 萬</text>
+<rect x="60" y="620" width="152" height="48" rx="24" fill="#e4ebe6"/><rect x="224" y="620" width="156" height="48" rx="24" fill="#f3e2d4"/>
+<g font-family="Noto Sans TC, sans-serif" font-size="24" text-anchor="middle"><text x="136" y="652" fill="#4a6455">已檢查 3</text><text x="302" y="652" fill="#a3552d">待補資料 1</text></g>
+<rect x="60" y="690" width="320" height="60" rx="30" fill="#b5653a"/>
+<text x="220" y="729" text-anchor="middle" font-family="Noto Sans TC, sans-serif" font-size="26" font-weight="700" fill="#fbf7f1">解鎖更多方案</text>
+<g fill="#2b2621"><circle cx="396" cy="130" r="24"/><circle cx="396" cy="500" r="24"/><circle cx="406" cy="644" r="24"/><circle cx="406" cy="720" r="24"/></g>
+<g font-family="Noto Sans TC, sans-serif" font-size="26" font-weight="700" fill="#e3c99a" text-anchor="middle"><text x="396" y="139">1</text><text x="396" y="509">2</text><text x="406" y="653">3</text><text x="406" y="729">4</text></g>
+</svg>
+<div style="flex:1;display:flex;flex-direction:column;gap:40px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">04 產品體驗 · 結果頁</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">一眼看懂：<br>方案、預算、限制</h2>
+</div>
+<div style="display:flex;gap:28px;align-items:start"><p style="width:64px;height:64px;border-radius:32px;background:#2b2621;color:#e3c99a;font-size:32px;font-weight:700;text-align:center;line-height:64px">1</p><div style="flex:1;display:flex;flex-direction:column;gap:6px"><h3 style="font-size:34px;font-weight:700">3D 空間提案</h3><p style="font-size:26px;line-height:1.5;color:#5a5047">預覽先出、按需載入；手機觸控與桌機滑鼠都能看</p></div></div>
+<div style="display:flex;gap:28px;align-items:start"><p style="width:64px;height:64px;border-radius:32px;background:#2b2621;color:#e3c99a;font-size:32px;font-weight:700;text-align:center;line-height:64px">2</p><div style="flex:1;display:flex;flex-direction:column;gap:6px"><h3 style="font-size:34px;font-weight:700">預算區間＋依據</h3><p style="font-size:26px;line-height:1.5;color:#5a5047">範圍、數量、單價依據、主要假設與排除項</p></div></div>
+<div style="display:flex;gap:28px;align-items:start"><p style="width:64px;height:64px;border-radius:32px;background:#2b2621;color:#e3c99a;font-size:32px;font-weight:700;text-align:center;line-height:64px">3</p><div style="flex:1;display:flex;flex-direction:column;gap:6px"><h3 style="font-size:34px;font-weight:700">台灣限制分四態</h3><p style="font-size:26px;line-height:1.5;color:#5a5047">已檢查／衝突／待補資料／不適用，來源可追溯</p></div></div>
+<div style="display:flex;gap:28px;align-items:start"><p style="width:64px;height:64px;border-radius:32px;background:#b5653a;color:#fbf7f1;font-size:32px;font-weight:700;text-align:center;line-height:64px">4</p><div style="flex:1;display:flex;flex-direction:column;gap:6px"><h3 style="font-size:34px;font-weight:700">付費前看得見差異</h3><p style="font-size:26px;line-height:1.5;color:#5a5047">更多方案、高畫質、匯出、更細估價（候選）</p></div></div>
+</div>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>介面與數字皆為示意</span><span>背景　市場　需求　<span style="color:#a3552d"><b>體驗</b></span>　競品　定位　執行</span></div>
+<aside>結果頁是 MVP 的核心驗收點（issue #6，Victor 主責）。四個區塊對應 MVP 驗收條件：3D 結果不能以單張圖冒充可編輯模型；報價資料不足時要先補資料或標示暫無可靠估算；未知不等於通過；取消或失敗不能誤開權益。安全相關限制不因未付費而隱藏。</aside>
+</section>
+<section class="slide" id="flowmap" data-index="16" data-transition="fade" style="background:#f5f0e8;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:120px 128px 160px;display:flex;flex-direction:column;gap:28px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">04 產品流程 · 全流程泳道</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:64px;font-weight:700;line-height:1.1">屋主看到的一條路，背後四條線協作</h2>
+</div>
+<svg aria-label="全流程泳道圖：五個階段（輸入、理解、生成、結果、決定）乘四條泳道（屋主、產品前台、服務與引擎、知識與專業），每個階段標示推進主責。" viewBox="0 0 1664 610" style="width:1664px;height:610px" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="fa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#a3552d"/></marker></defs>
+<g font-family="Noto Sans TC, sans-serif" text-anchor="middle">
+<text x="346" y="32" font-size="28" font-weight="700" fill="#a3552d">1 輸入</text><text x="346" y="66" font-size="24" fill="#5a5047">Mika</text>
+<text x="638" y="32" font-size="28" font-weight="700" fill="#a3552d">2 理解</text><text x="638" y="66" font-size="24" fill="#5a5047">Mika · Victor</text>
+<text x="930" y="32" font-size="28" font-weight="700" fill="#a3552d">3 生成</text><text x="930" y="66" font-size="24" fill="#5a5047">Chris · Even · Josh</text>
+<text x="1222" y="32" font-size="28" font-weight="700" fill="#a3552d">4 結果</text><text x="1222" y="66" font-size="24" fill="#5a5047">Victor</text>
+<text x="1514" y="32" font-size="28" font-weight="700" fill="#a3552d">5 決定</text><text x="1514" y="66" font-size="24" fill="#5a5047">Even</text>
+</g>
+<rect x="0" y="84" width="1664" height="126" fill="#fbf8f3" rx="8"/>
+<rect x="0" y="214" width="1664" height="126" fill="#efe7db" rx="8"/>
+<rect x="0" y="344" width="1664" height="126" fill="#fbf8f3" rx="8"/>
+<rect x="0" y="474" width="1664" height="126" fill="#efe7db" rx="8"/>
+<g font-family="Noto Sans TC, sans-serif" font-size="26" font-weight="700" fill="#2b2621">
+<text x="24" y="156">屋主</text><text x="24" y="286">產品前台</text><text x="24" y="416">服務與引擎</text><text x="24" y="546">知識與專業</text>
+</g>
+<g stroke="#c9bba6" stroke-width="2">
+<line x1="346" y1="185" x2="346" y2="239"/><line x1="346" y1="315" x2="346" y2="369"/>
+<line x1="638" y1="185" x2="638" y2="239"/><line x1="638" y1="315" x2="638" y2="369"/><line x1="638" y1="445" x2="638" y2="499"/>
+<line x1="930" y1="185" x2="930" y2="239"/><line x1="930" y1="315" x2="930" y2="369"/><line x1="930" y1="445" x2="930" y2="499"/>
+<line x1="1222" y1="185" x2="1222" y2="239"/><line x1="1222" y1="315" x2="1222" y2="369"/><line x1="1222" y1="445" x2="1222" y2="499"/>
+<line x1="1514" y1="185" x2="1514" y2="239"/><line x1="1514" y1="315" x2="1514" y2="369"/><line x1="1514" y1="445" x2="1514" y2="499"/>
+</g>
+<g fill="#b5653a"><rect x="220" y="109" width="252" height="76" rx="10"/><rect x="512" y="109" width="252" height="76" rx="10"/><rect x="1096" y="109" width="252" height="76" rx="10"/><rect x="1388" y="109" width="252" height="76" rx="10"/></g>
+<rect x="804" y="109" width="252" height="76" rx="10" fill="#f3e2d4" stroke="#b5653a" stroke-width="2" stroke-dasharray="8 6"/>
+<g fill="#ffffff" stroke="#c9bba6" stroke-width="2">
+<rect x="220" y="239" width="252" height="76" rx="10"/><rect x="512" y="239" width="252" height="76" rx="10"/><rect x="804" y="239" width="252" height="76" rx="10"/><rect x="1096" y="239" width="252" height="76" rx="10"/><rect x="1388" y="239" width="252" height="76" rx="10"/>
+<rect x="220" y="369" width="252" height="76" rx="10"/><rect x="512" y="369" width="252" height="76" rx="10"/><rect x="804" y="369" width="252" height="76" rx="10"/><rect x="1096" y="369" width="252" height="76" rx="10"/><rect x="1388" y="369" width="252" height="76" rx="10"/>
+</g>
+<g fill="#e4ebe6" stroke="#5f7a6a" stroke-width="2">
+<rect x="512" y="499" width="252" height="76" rx="10"/><rect x="804" y="499" width="252" height="76" rx="10"/><rect x="1096" y="499" width="252" height="76" rx="10"/><rect x="1388" y="499" width="252" height="76" rx="10"/>
+</g>
+<g stroke="#a3552d" stroke-width="3" marker-end="url(#fa)">
+<line x1="472" y1="147" x2="508" y2="147"/><line x1="764" y1="147" x2="800" y2="147"/><line x1="1056" y1="147" x2="1092" y2="147"/><line x1="1348" y1="147" x2="1384" y2="147"/>
+<line x1="472" y1="277" x2="508" y2="277"/><line x1="764" y1="277" x2="800" y2="277"/><line x1="1056" y1="277" x2="1092" y2="277"/><line x1="1348" y1="277" x2="1384" y2="277"/>
+</g>
+<g font-family="Noto Sans TC, sans-serif" font-size="24" text-anchor="middle">
+<g fill="#fbf7f1" font-weight="700"><text x="346" y="156">說／打字＋參考圖</text><text x="638" y="156">確認／補必要資料</text><text x="1222" y="156">看 3D・預算・限制</text><text x="1514" y="156">保存或升級</text></g>
+<text x="930" y="156" fill="#7a3f20">等待預覽</text>
+<g fill="#2b2621"><text x="346" y="286">錄音・逐字稿・選圖</text><text x="638" y="286">需求確認頁</text><text x="930" y="286">進度與預覽</text><text x="1222" y="286">結果頁</text><text x="1514" y="286">付費解鎖頁</text>
+<text x="346" y="416">語音轉文字 STT</text><text x="638" y="416">需求結構化</text><text x="930" y="416">3D 生成＋估價</text><text x="1222" y="416">版本與來源紀錄</text><text x="1514" y="416">權益・付款回呼</text>
+<text x="638" y="546">尺寸與地區假設</text><text x="930" y="546">台灣規則檢查</text><text x="1222" y="546">專業覆核</text><text x="1514" y="546">同意案例發布</text></g>
+</g>
+</svg>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>Interior Design Agent · 產品構想 v0.2</span><span>背景　市場　需求　<span style="color:#a3552d"><b>體驗</b></span>　競品　定位　執行</span></div>
+<aside>上排是屋主唯一需要經歷的路徑；下面三條是支撐它的系統與知識。每個階段上方是推進主責（依 GitHub issues #2–#7）：輸入與理解 Mika／Victor，生成 Chris（架構）＋Even（估價）＋Josh（台灣規則），結果頁 Victor，商業解鎖 Even。生成在背景執行，屋主先看到預覽。</aside>
+</section>
+<section class="slide" id="ch5" data-index="17" data-chapter="05 競品：四類既有方案與能力比較" data-transition="push" style="background:#2b2621;color:#f5f0e8;font-family:'Noto Sans TC', sans-serif;padding:128px;display:flex;flex-direction:column;justify-content:center;gap:32px">
+<p style="position:absolute;right:40px;bottom:0px;width:1000px;text-align:right;font-family:'Noto Serif TC', serif;font-size:400px;font-weight:700;line-height:1;color:#352e28">05</p>
+<svg aria-label="四個交疊的灰色圓圈代表四類既有方案，右下角一個陶土色實心圓代表本產品" viewBox="0 0 640 640" style="position:absolute;right:140px;top:200px;width:640px;height:640px" xmlns="http://www.w3.org/2000/svg">
+<g fill="none" stroke="#8a7f72" stroke-width="4"><circle cx="220" cy="210" r="130"/><circle cx="380" cy="210" r="130"/><circle cx="220" cy="370" r="130"/><circle cx="380" cy="370" r="130"/></g>
+<g font-family="Noto Sans TC, sans-serif" font-size="26" fill="#d8cdbf" text-anchor="middle"><text x="170" y="160">照片改造</text><text x="430" y="160">3D 工具</text><text x="170" y="440">專業軟體</text><text x="430" y="420">在地平台</text></g>
+<circle cx="530" cy="560" r="80" fill="#b5653a"/>
+<text x="530" y="570" text-anchor="middle" font-family="Noto Sans TC, sans-serif" font-size="30" font-weight="700" fill="#fbf7f1">本產品</text>
+</svg>
+<p style="font-size:28px;letter-spacing:6px;color:#c9a77c;font-weight:700">CHAPTER 05</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:140px;font-weight:700;line-height:1.05">競品</h2>
+<p style="font-size:40px;line-height:1.5;width:860px;color:#d8cdbf">市面上的工具很多，<br>為什麼還沒有人解決？</p>
+<div style="display:flex;gap:14px;width:900px">
+<p style="font-size:24px;padding:10px 24px;border:1px solid #6e6257;border-radius:999px;color:#d8cdbf">能力比較</p>
+<p style="font-size:24px;padding:10px 24px;border:1px solid #6e6257;border-radius:999px;color:#d8cdbf">價格與流量</p>
+</div>
+<div style="position:absolute;left:128px;bottom:72px;width:600px;display:flex;gap:12px"><div style="width:64px;height:8px;border-radius:4px;background:#8a7f72"></div><div style="width:64px;height:8px;border-radius:4px;background:#8a7f72"></div><div style="width:64px;height:8px;border-radius:4px;background:#8a7f72"></div><div style="width:64px;height:8px;border-radius:4px;background:#8a7f72"></div><div style="width:64px;height:8px;border-radius:4px;background:#e3c99a"></div><div style="width:64px;height:8px;border-radius:4px;background:#4d443b"></div><div style="width:64px;height:8px;border-radius:4px;background:#4d443b"></div></div>
+<aside>第五章：AI 照片改造、3D 規劃工具、專業設計軟體、台灣裝修平台，各缺一塊。</aside>
+</section>
+<section class="slide" id="matrix" data-index="18" data-transition="fade" style="background:#efe7db;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:40px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">05 競品 · 能力比較</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">沒有人同時做到「容易」與「可落地」</h2>
+</div>
+<div style="display:grid;grid-template-columns:520px 1fr 1fr 1fr 1fr">
+<div style="padding:14px 24px;border-bottom:2px solid #2b2621;display:flex;align-items:end"><p style="font-size:24px;color:#8a7f72">能力</p></div>
+<div style="padding:14px 12px;border-bottom:2px solid #2b2621;display:flex;flex-direction:column;align-items:center"><p style="font-size:24px;font-weight:700;color:#5a5047">AI 照片改造</p><p style="font-size:24px;color:#a89b8c">Interior AI 等</p></div>
+<div style="padding:14px 12px;border-bottom:2px solid #2b2621;display:flex;flex-direction:column;align-items:center"><p style="font-size:24px;font-weight:700;color:#5a5047">3D 規劃工具</p><p style="font-size:24px;color:#a89b8c">Homestyler 等</p></div>
+<div style="padding:14px 12px;border-bottom:2px solid #2b2621;display:flex;flex-direction:column;align-items:center"><p style="font-size:24px;font-weight:700;color:#5a5047">台灣裝修平台</p><p style="font-size:24px;color:#a89b8c">100室內設計 等</p></div>
+<div style="padding:14px 12px;background:#2b2621;border-radius:16px 16px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:center"><p style="font-size:26px;font-weight:700;color:#e3c99a">本產品</p><p style="font-size:24px;color:#d8cdbf">（目標）</p></div>
+<div style="padding:16px 24px;border-bottom:1px solid #d6cab8"><p style="font-size:26px;font-weight:700">不用畫圖就能開始</p></div>
+<div style="padding:16px;border-bottom:1px solid #d6cab8;display:flex;justify-content:center"><p style="font-size:28px;color:#a3552d">●</p></div>
+<div style="padding:16px;border-bottom:1px solid #d6cab8;display:flex;justify-content:center"><p style="font-size:28px;color:#a89b8c">—</p></div>
+<div style="padding:16px;border-bottom:1px solid #d6cab8;display:flex;justify-content:center"><p style="font-size:28px;color:#a3552d">●</p></div>
+<div style="padding:16px;background:#2b2621;display:flex;justify-content:center"><p style="font-size:28px;color:#e3c99a">●</p></div>
+<div style="padding:16px 24px;border-bottom:1px solid #d6cab8"><p style="font-size:26px;font-weight:700">語音輸入需求</p></div>
+<div style="padding:16px;border-bottom:1px solid #d6cab8;display:flex;justify-content:center"><p style="font-size:28px;color:#a89b8c">—</p></div>
+<div style="padding:16px;border-bottom:1px solid #d6cab8;display:flex;justify-content:center"><p style="font-size:28px;color:#a89b8c">—</p></div>
+<div style="padding:16px;border-bottom:1px solid #d6cab8;display:flex;justify-content:center"><p style="font-size:28px;color:#a89b8c">—</p></div>
+<div style="padding:16px;background:#2b2621;display:flex;justify-content:center"><p style="font-size:28px;color:#e3c99a">●</p></div>
+<div style="padding:16px 24px;border-bottom:1px solid #d6cab8"><p style="font-size:26px;font-weight:700">3D 空間成果</p></div>
+<div style="padding:16px;border-bottom:1px solid #d6cab8;display:flex;justify-content:center"><p style="font-size:28px;color:#a3552d">◐</p></div>
+<div style="padding:16px;border-bottom:1px solid #d6cab8;display:flex;justify-content:center"><p style="font-size:28px;color:#a3552d">●</p></div>
+<div style="padding:16px;border-bottom:1px solid #d6cab8;display:flex;justify-content:center"><p style="font-size:28px;color:#a3552d">◐</p></div>
+<div style="padding:16px;background:#2b2621;display:flex;justify-content:center"><p style="font-size:28px;color:#e3c99a">●</p></div>
+<div style="padding:16px 24px;border-bottom:1px solid #d6cab8"><p style="font-size:26px;font-weight:700">依需求的粗略報價</p></div>
+<div style="padding:16px;border-bottom:1px solid #d6cab8;display:flex;justify-content:center"><p style="font-size:28px;color:#a89b8c">—</p></div>
+<div style="padding:16px;border-bottom:1px solid #d6cab8;display:flex;justify-content:center"><p style="font-size:28px;color:#a89b8c">—</p></div>
+<div style="padding:16px;border-bottom:1px solid #d6cab8;display:flex;justify-content:center"><p style="font-size:28px;color:#a3552d">◐</p></div>
+<div style="padding:16px;background:#2b2621;display:flex;justify-content:center"><p style="font-size:28px;color:#e3c99a">●</p></div>
+<div style="padding:16px 24px;border-bottom:1px solid #d6cab8"><p style="font-size:26px;font-weight:700">台灣空間／消防／機電考量</p></div>
+<div style="padding:16px;border-bottom:1px solid #d6cab8;display:flex;justify-content:center"><p style="font-size:28px;color:#a89b8c">—</p></div>
+<div style="padding:16px;border-bottom:1px solid #d6cab8;display:flex;justify-content:center"><p style="font-size:28px;color:#a89b8c">—</p></div>
+<div style="padding:16px;border-bottom:1px solid #d6cab8;display:flex;justify-content:center"><p style="font-size:28px;color:#a3552d">◐</p></div>
+<div style="padding:16px;background:#2b2621;display:flex;justify-content:center"><p style="font-size:28px;color:#e3c99a">●</p></div>
+<div style="padding:16px 24px"><p style="font-size:26px;font-weight:700">手機優先</p></div>
+<div style="padding:16px;display:flex;justify-content:center"><p style="font-size:28px;color:#a3552d">●</p></div>
+<div style="padding:16px;display:flex;justify-content:center"><p style="font-size:28px;color:#a3552d">◐</p></div>
+<div style="padding:16px;display:flex;justify-content:center"><p style="font-size:28px;color:#a3552d">●</p></div>
+<div style="padding:16px;background:#2b2621;border-radius:0 0 16px 16px;display:flex;justify-content:center"><p style="font-size:28px;color:#e3c99a">●</p></div>
+</div>
+<p style="font-size:24px;color:#8a7f72">● 主打　◐ 部分或部分方案　— 未見主打　｜　本產品欄為規劃目標，尚未實作</p>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>依公開資訊整理（2026-11），功能可能變動</span><span>背景　市場　需求　體驗　<span style="color:#a3552d"><b>競品</b></span>　定位　執行</span></div>
+<aside>這張是依公開資訊的類型層級判斷，不是逐一實測。AI 照片改造的 3D 僅部分高階方案提供；3D 規劃工具多數需要依比例畫平面圖；台灣平台的估價多以坪數與等級（簡裝／精裝／豪裝）推算，在地考量以攻略內容為主。建議 M0 由 Mika／Victor 實際試用各一款補證據。</aside>
+</section>
+<section class="slide" id="pricing" data-index="19" data-transition="fade" style="background:#f5f0e8;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:36px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">05 競品 · 價格與流量</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">國際工具很便宜，在地平台流量大</h2>
+</div>
+<div style="display:flex;gap:56px;flex:1">
+<svg aria-label="國際 AI 室內設計工具入門月費橫條圖（美元）：Homestyler 4.9、Planner 5D Premium 4.99、REimagine Home 14 起、RoomGPT Basic 15、Interior AI Pro 49（年繳）、Planner 5D Professional 49.99。" viewBox="0 0 1000 560" style="width:1000px;height:560px" xmlns="http://www.w3.org/2000/svg">
+<g font-family="Noto Sans TC, sans-serif">
+<text x="0" y="30" font-size="26" font-weight="700" fill="#8a7f72">入門方案月費（US$）</text>
+<g font-size="26" text-anchor="end" fill="#2b2621"><text x="330" y="105">Homestyler</text><text x="330" y="185">Planner 5D Premium</text><text x="330" y="265">REimagine Home</text><text x="330" y="345">RoomGPT Basic</text><text x="330" y="425">Interior AI Pro</text><text x="330" y="505">Planner 5D Pro</text></g>
+<rect x="350" y="70" width="54" height="50" rx="6" fill="#a89b8c"/>
+<rect x="350" y="150" width="55" height="50" rx="6" fill="#a89b8c"/>
+<rect x="350" y="230" width="154" height="50" rx="6" fill="#a89b8c"/>
+<rect x="350" y="310" width="165" height="50" rx="6" fill="#a89b8c"/>
+<rect x="350" y="390" width="539" height="50" rx="6" fill="#5a4f45"/>
+<rect x="350" y="470" width="550" height="50" rx="6" fill="#5a4f45"/>
+<g font-size="28" font-weight="700" fill="#2b2621"><text x="418" y="106">4.9</text><text x="419" y="186">4.99</text><text x="518" y="266">14 起</text><text x="529" y="346">15</text><text x="875" y="426" text-anchor="end" fill="#fbf7f1">49</text><text x="886" y="506" text-anchor="end" fill="#fbf7f1">49.99</text></g>
+<text x="350" y="555" font-size="24" fill="#5a5047">多數入門方案低於 US$15／月 → 免費層的價格錨點</text>
+</g>
+</svg>
+<div style="flex:1;display:flex;flex-direction:column;gap:16px">
+<p style="font-size:26px;font-weight:700;color:#8a7f72">100室內設計（2024）</p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;flex:1">
+<div style="display:flex;flex-direction:column;justify-content:center;gap:6px;background:#2b2621;color:#f5f0e8;padding:28px;border-radius:16px"><p style="font-family:'Noto Serif TC', serif;font-size:56px;font-weight:700;color:#e3c99a;line-height:1.1">200萬+</p><p style="font-size:24px;color:#d8cdbf">月訪量</p></div>
+<div style="display:flex;flex-direction:column;justify-content:center;gap:6px;background:#fbf8f3;padding:28px;border:1px solid #e2d8c9;border-radius:16px"><p style="font-family:'Noto Serif TC', serif;font-size:56px;font-weight:700;color:#a3552d;line-height:1.1">1,400</p><p style="font-size:24px;color:#5a5047">設計公司進駐</p></div>
+<div style="display:flex;flex-direction:column;justify-content:center;gap:6px;background:#fbf8f3;padding:28px;border:1px solid #e2d8c9;border-radius:16px"><p style="font-family:'Noto Serif TC', serif;font-size:56px;font-weight:700;color:#a3552d;line-height:1.1">1.7萬</p><p style="font-size:24px;color:#5a5047">設計案例</p></div>
+<div style="display:flex;flex-direction:column;justify-content:center;gap:6px;background:#fbf8f3;padding:28px;border:1px solid #e2d8c9;border-radius:16px"><p style="font-family:'Noto Serif TC', serif;font-size:56px;font-weight:700;color:#a3552d;line-height:1.1">2萬</p><p style="font-size:24px;color:#5a5047">每年業主媒合</p></div>
+</div>
+<p style="font-size:24px;line-height:1.5;color:#5a5047">流量與案例都在在地平台；但估價以坪數為主，沒有依個人需求生成的 3D。</p>
+</div>
+</div>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>資料：Rework 2026 工具比較；鉅亨網 2024-04-11</span><span>背景　市場　需求　體驗　<span style="color:#a3552d"><b>競品</b></span>　定位　執行</span></div>
+<aside>價格為公開比較文章所列入門方案，可能已變動：Interior AI Pro 年繳約 US$49／月（月繳 99）；RoomGPT 首次 1 點免費；REimagine Home US$14–99／月；Homestyler Individual US$4.9／月；Planner 5D Premium US$4.99、Professional US$49.99。100室內設計另有每日約 5 萬不重複活躍用戶、30 萬張設計圖片。意涵：免費層不能太吝嗇，差異要靠在地量價與規則，而不是生圖本身。</aside>
+</section>
+<section class="slide" id="ch6" data-index="20" data-chapter="06 定位：定位圖、台灣條件差異化與 SWOT" data-transition="push" style="background:#2b2621;color:#f5f0e8;font-family:'Noto Sans TC', sans-serif;padding:128px;display:flex;flex-direction:column;justify-content:center;gap:32px">
+<p style="position:absolute;right:40px;bottom:0px;width:1000px;text-align:right;font-family:'Noto Serif TC', serif;font-size:400px;font-weight:700;line-height:1;color:#352e28">06</p>
+<svg aria-label="同心圓靶心，一支陶土色箭頭射入中心，代表清楚的定位" viewBox="0 0 640 640" style="position:absolute;right:140px;top:200px;width:640px;height:640px" xmlns="http://www.w3.org/2000/svg">
+<circle cx="300" cy="340" r="250" fill="#352e28" stroke="#6e6257" stroke-width="4"/>
+<circle cx="300" cy="340" r="175" fill="none" stroke="#8a7f72" stroke-width="4"/>
+<circle cx="300" cy="340" r="100" fill="none" stroke="#c9a77c" stroke-width="4"/>
+<circle cx="300" cy="340" r="36" fill="#b5653a"/>
+<line x1="600" y1="40" x2="320" y2="320" stroke="#e3c99a" stroke-width="8"/>
+<path d="M300 340 L346 318 L322 294 Z" fill="#e3c99a"/>
+<path d="M600 40 L630 30 L612 60 Z M580 60 L610 50 L592 80 Z" fill="#e3c99a"/>
+</svg>
+<p style="font-size:28px;letter-spacing:6px;color:#c9a77c;font-weight:700">CHAPTER 06</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:140px;font-weight:700;line-height:1.05">定位</h2>
+<p style="font-size:40px;line-height:1.5;width:860px;color:#d8cdbf">容易開始，而且可落地——<br>我們的優勢與風險。</p>
+<div style="display:flex;gap:14px;width:900px">
+<p style="font-size:24px;padding:10px 24px;border:1px solid #6e6257;border-radius:999px;color:#d8cdbf">定位圖</p>
+<p style="font-size:24px;padding:10px 24px;border:1px solid #6e6257;border-radius:999px;color:#d8cdbf">台灣條件</p><p style="font-size:24px;padding:10px 24px;border:1px solid #6e6257;border-radius:999px;color:#d8cdbf">SWOT</p>
+</div>
+<div style="position:absolute;left:128px;bottom:72px;width:600px;display:flex;gap:12px"><div style="width:64px;height:8px;border-radius:4px;background:#8a7f72"></div><div style="width:64px;height:8px;border-radius:4px;background:#8a7f72"></div><div style="width:64px;height:8px;border-radius:4px;background:#8a7f72"></div><div style="width:64px;height:8px;border-radius:4px;background:#8a7f72"></div><div style="width:64px;height:8px;border-radius:4px;background:#8a7f72"></div><div style="width:64px;height:8px;border-radius:4px;background:#e3c99a"></div><div style="width:64px;height:8px;border-radius:4px;background:#4d443b"></div></div>
+<aside>第六章：在定位圖上找到空白區，說明台灣條件的差異化、「未知不等於通過」的原則，以及 SWOT。</aside>
+</section>
+<section class="slide" id="positioning" data-index="21" data-transition="fade" style="background:#f5f0e8;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:40px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">06 定位與優劣</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">容易開始，而且可落地</h2>
+</div>
+<div style="display:flex;gap:64px;flex:1;align-items:center">
+<svg aria-label="定位圖：橫軸由只看效果到可落地，縱軸由專業門檻到屋主自助。AI 照片改造在左上，3D 規劃工具在左中，專業設計軟體在右下，台灣裝修平台在中上，本產品在右上。" viewBox="0 0 900 640" style="width:900px;height:640px" xmlns="http://www.w3.org/2000/svg">
+<rect x="80" y="20" width="800" height="560" fill="#fbf8f3" stroke="#e2d8c9" stroke-width="2" rx="12"/>
+<rect x="480" y="20" width="400" height="280" fill="#f3e2d4" rx="12"/>
+<line x1="480" y1="20" x2="480" y2="580" stroke="#c9bba6" stroke-width="2" stroke-dasharray="8 8"/>
+<line x1="80" y1="300" x2="880" y2="300" stroke="#c9bba6" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="80" y="620" font-size="24" fill="#8a7f72" font-family="Noto Sans TC, sans-serif">只看效果</text>
+<text x="880" y="620" font-size="24" fill="#8a7f72" text-anchor="end" font-family="Noto Sans TC, sans-serif">可落地：量價＋工程條件 →</text>
+<text x="40" y="40" font-size="24" fill="#8a7f72" font-family="Noto Sans TC, sans-serif" transform="rotate(-90 40 40)" text-anchor="end">屋主自助 →</text>
+<text x="40" y="580" font-size="24" fill="#8a7f72" font-family="Noto Sans TC, sans-serif" transform="rotate(-90 40 580)">專業門檻</text>
+<circle cx="190" cy="110" r="16" fill="#8a7f72"/>
+<text x="216" y="118" font-size="26" fill="#2b2621" font-family="Noto Sans TC, sans-serif">AI 照片改造</text>
+<circle cx="250" cy="360" r="16" fill="#8a7f72"/>
+<text x="276" y="368" font-size="26" fill="#2b2621" font-family="Noto Sans TC, sans-serif">3D 規劃工具</text>
+<circle cx="680" cy="500" r="16" fill="#8a7f72"/>
+<text x="656" y="508" font-size="26" fill="#2b2621" text-anchor="end" font-family="Noto Sans TC, sans-serif">專業設計軟體</text>
+<circle cx="420" cy="190" r="16" fill="#8a7f72"/>
+<text x="400" y="240" font-size="26" fill="#2b2621" text-anchor="middle" font-family="Noto Sans TC, sans-serif">台灣裝修平台</text>
+<circle cx="760" cy="90" r="26" fill="#b5653a"/>
+<text x="760" y="160" font-size="30" font-weight="700" fill="#a3552d" text-anchor="middle" font-family="Noto Sans TC, sans-serif">本產品</text>
+</svg>
+<div style="flex:1;display:flex;flex-direction:column;gap:28px">
+<p style="font-size:24px;letter-spacing:4px;color:#8a7f72;font-weight:700">定位陳述</p>
+<p style="font-family:'Noto Serif TC', serif;font-size:36px;line-height:1.6">為想裝修的<b style="color:#a3552d">台灣屋主</b>，提供手機上就能開始、看得見 <b style="color:#a3552d">3D 與預算</b>、並考量<b style="color:#a3552d">台灣工程條件</b>的 AI 空間提案。</p>
+<p style="font-size:26px;line-height:1.5;color:#5a5047">不和國際工具比生圖速度與價格；比的是「這個方案在台灣做不做得到、大概要花多少」。</p>
+</div>
+</div>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>Interior Design Agent · 產品構想 v0.2</span><span>背景　市場　需求　體驗　競品　<span style="color:#a3552d"><b>定位</b></span>　執行</span></div>
+<aside>定位圖是類型層級的相對位置，供討論用，不是量化評分。本產品的位置是目標，要靠 M2 的有來源報價與台灣條件檢查來兌現。repo 定位原文：考量台灣裝修條件、手機優先且電腦可用的 AI 空間設計服務。</aside>
+</section>
+<section class="slide" id="taiwan" data-index="22" data-transition="fade" style="background:#f5f0e8;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:56px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">06 定位與優劣 · 差異化</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">考量台灣裝修條件</h2>
+</div>
+<div style="display:flex;gap:48px;flex:1">
+<div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:24px">
+<div style="display:flex;flex-direction:column;gap:12px;background:#fbf8f3;padding:36px;border:1px solid #e2d8c9;border-radius:16px">
+<h3 style="font-size:36px;font-weight:700;color:#a3552d">物理空間</h3>
+<p style="font-size:26px;line-height:1.5;color:#5a5047">家具碰撞、門扇開啟、動線、維修空間</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;background:#fbf8f3;padding:36px;border:1px solid #e2d8c9;border-radius:16px">
+<h3 style="font-size:36px;font-weight:700;color:#a3552d">消防</h3>
+<p style="font-size:26px;line-height:1.5;color:#5a5047">既有設備與避難相關設施是否受方案影響</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;background:#fbf8f3;padding:36px;border:1px solid #e2d8c9;border-radius:16px">
+<h3 style="font-size:36px;font-weight:700;color:#a3552d">機電</h3>
+<p style="font-size:26px;line-height:1.5;color:#5a5047">插座、設備、空調、給排水介面是否缺資料或衝突</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;background:#fbf8f3;padding:36px;border:1px solid #e2d8c9;border-radius:16px">
+<h3 style="font-size:36px;font-weight:700;color:#a3552d">法規</h3>
+<p style="font-size:26px;line-height:1.5;color:#5a5047">需查明的裝修、用途與地方條件</p>
+</div>
+</div>
+<div style="width:520px;display:flex;flex-direction:column;gap:20px;background:#2b2621;color:#f5f0e8;padding:44px;border-radius:16px">
+<h3 style="font-size:32px;font-weight:700">每項結果清楚分成</h3>
+<div style="display:flex;align-items:center;gap:16px"><span style="display:inline-block;border-radius:50%;flex:none;width:20px;height:20px;background:#7fa08c"></span><p style="font-size:28px">已檢查</p></div>
+<div style="display:flex;align-items:center;gap:16px"><span style="display:inline-block;border-radius:50%;flex:none;width:20px;height:20px;background:#e08a5a"></span><p style="font-size:28px">衝突</p></div>
+<div style="display:flex;align-items:center;gap:16px"><span style="display:inline-block;border-radius:50%;flex:none;width:20px;height:20px;background:#e3c99a"></span><p style="font-size:28px">待補資料</p></div>
+<div style="display:flex;align-items:center;gap:16px"><span style="display:inline-block;border-radius:50%;flex:none;width:20px;height:20px;background:#8a7f72"></span><p style="font-size:28px">不適用</p></div>
+<p style="font-size:24px;line-height:1.5;color:#b8ab9c">來源、版本與適用條件可追溯。</p>
+</div>
+</div>
+<p style="font-size:26px;color:#5a5047;width:1664px">首版只啟用有依據、可驗證的有限檢查，由專業夥伴覆核；<b style="color:#2b2621">不宣稱全面法規符合</b>。</p>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>Interior Design Agent · 產品構想 v0.2</span><span>背景　市場　需求　體驗　競品　<span style="color:#a3552d"><b>定位</b></span>　執行</span></div>
+<aside>四類是「可以評估的方向」，不是已支援清單。首批檢查由 Even／Josh 與專業夥伴選定。社群 KB（如 HJPLUS Taiwan Architect KB）只作檢索入口，判斷要回到原始／官方來源；尚未安裝或接入。</aside>
+</section>
+<section class="slide" id="swot" data-index="23" data-transition="fade" style="background:#efe7db;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:44px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">06 定位與優劣 · SWOT</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">優勢在在地，風險在信任</h2>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;flex:1">
+<div style="display:flex;flex-direction:column;gap:14px;background:#fbf8f3;padding:36px 40px;border-top:6px solid #5f7a6a;border-radius:12px">
+<h3 style="font-size:32px;font-weight:700;color:#4a6455">S 優勢</h3>
+<ul style="font-size:24px;line-height:1.6;color:#4a4038">
+<li>台灣空間／消防／機電條件是差異化</li>
+<li>團隊有裝修經驗、工班與設計師資源</li>
+<li>免畫圖、語音輸入，門檻低；引擎可替換</li>
+</ul>
+</div>
+<div style="display:flex;flex-direction:column;gap:14px;background:#fbf8f3;padding:36px 40px;border-top:6px solid #a3552d;border-radius:12px">
+<h3 style="font-size:32px;font-weight:700;color:#a3552d">W 劣勢</h3>
+<ul style="font-size:24px;line-height:1.6;color:#4a4038">
+<li>尚未實作，生成引擎與 3D 形式未選</li>
+<li>首版規則檢查有限，量價資料待建立</li>
+<li>還沒有真實、同意展示的客戶案例</li>
+</ul>
+</div>
+<div style="display:flex;flex-direction:column;gap:14px;background:#fbf8f3;padding:36px 40px;border-top:6px solid #5f7a6a;border-radius:12px">
+<h3 style="font-size:32px;font-weight:700;color:#4a6455">O 機會</h3>
+<ul style="font-size:24px;line-height:1.6;color:#4a4038">
+<li>老屋翻新、交屋潮、小宅化帶動需求</li>
+<li>既有平台估價多以坪數為主，個人化不足</li>
+<li>生成模型持續進步，單案成本可望下降</li>
+</ul>
+</div>
+<div style="display:flex;flex-direction:column;gap:14px;background:#fbf8f3;padding:36px 40px;border-top:6px solid #a3552d;border-radius:12px">
+<h3 style="font-size:32px;font-weight:700;color:#a3552d">T 威脅</h3>
+<ul style="font-size:24px;line-height:1.6;color:#4a4038">
+<li>國際 AI 工具迭代快、價格低</li>
+<li>在地平台也可能加入 AI 生成</li>
+<li>錯誤建議的責任與信任風險；生成成本壓縮免費層</li>
+</ul>
+</div>
+</div>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>Interior Design Agent · 產品構想 v0.2</span><span>背景　市場　需求　體驗　競品　<span style="color:#a3552d"><b>定位</b></span>　執行</span></div>
+<aside>SWOT 是依 repo 現況與公開競品資訊整理的討論稿。對應的緩解：信任風險靠「已檢查／衝突／待補資料／不適用」的透明標示與專業覆核；成本風險靠記錄單案成本後再定免費額度；競爭風險靠在地量價與規則資料的累積。</aside>
+</section>
+<section class="slide" id="ch7" data-index="24" data-chapter="07 執行：商業模式、架構、里程碑、分工與待驗證" data-transition="push" style="background:#2b2621;color:#f5f0e8;font-family:'Noto Sans TC', sans-serif;padding:128px;display:flex;flex-direction:column;justify-content:center;gap:32px">
+<p style="position:absolute;right:40px;bottom:0px;width:1000px;text-align:right;font-family:'Noto Serif TC', serif;font-size:400px;font-weight:700;line-height:1;color:#352e28">07</p>
+<svg aria-label="一條蜿蜒的道路，沿途插著 M0、M2、M4、M5 四支旗子，代表分階段的里程碑" viewBox="0 0 640 640" style="position:absolute;right:140px;top:200px;width:640px;height:640px" xmlns="http://www.w3.org/2000/svg">
+<path d="M40 580 C220 580 200 430 330 430 S 470 290 560 290 S 600 140 600 90" fill="none" stroke="#5a4f45" stroke-width="40" stroke-linecap="round"/>
+<path d="M40 580 C220 580 200 430 330 430 S 470 290 560 290 S 600 140 600 90" fill="none" stroke="#c9a77c" stroke-width="4" stroke-dasharray="16 14"/>
+<g stroke="#f5f0e8" stroke-width="4"><line x1="70" y1="580" x2="70" y2="490"/><line x1="330" y1="430" x2="330" y2="340"/><line x1="540" y1="290" x2="540" y2="200"/><line x1="600" y1="90" x2="600" y2="10"/></g>
+<g fill="#b5653a"><path d="M70 490 L130 508 L70 526 Z"/><path d="M330 340 L390 358 L330 376 Z"/><path d="M540 200 L600 218 L540 236 Z"/></g>
+<path d="M600 10 L640 24 L600 38 Z" fill="#e3c99a"/>
+<g font-family="Noto Sans TC, sans-serif" font-size="26" font-weight="700" fill="#e3c99a"><text x="84" y="470">M0</text><text x="344" y="320">M2</text><text x="470" y="180">M4</text><text x="530" y="34">M5</text></g>
+</svg>
+<p style="font-size:28px;letter-spacing:6px;color:#c9a77c;font-weight:700">CHAPTER 07</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:140px;font-weight:700;line-height:1.05">執行</h2>
+<p style="font-size:40px;line-height:1.5;width:860px;color:#d8cdbf">怎麼賺錢、怎麼蓋、<br>誰負責哪一段？</p>
+<div style="display:flex;gap:14px;width:900px;flex-wrap:wrap">
+<p style="font-size:24px;padding:10px 24px;border:1px solid #6e6257;border-radius:999px;color:#d8cdbf">商業模式</p>
+<p style="font-size:24px;padding:10px 24px;border:1px solid #6e6257;border-radius:999px;color:#d8cdbf">架構</p>
+<p style="font-size:24px;padding:10px 24px;border:1px solid #6e6257;border-radius:999px;color:#d8cdbf">工作項目</p>
+<p style="font-size:24px;padding:10px 24px;border:1px solid #6e6257;border-radius:999px;color:#d8cdbf">分工 Timeline</p>
+<p style="font-size:24px;padding:10px 24px;border:1px solid #6e6257;border-radius:999px;color:#d8cdbf">合作提案</p>
+</div>
+<div style="position:absolute;left:128px;bottom:72px;width:600px;display:flex;gap:12px"><div style="width:64px;height:8px;border-radius:4px;background:#8a7f72"></div><div style="width:64px;height:8px;border-radius:4px;background:#8a7f72"></div><div style="width:64px;height:8px;border-radius:4px;background:#8a7f72"></div><div style="width:64px;height:8px;border-radius:4px;background:#8a7f72"></div><div style="width:64px;height:8px;border-radius:4px;background:#8a7f72"></div><div style="width:64px;height:8px;border-radius:4px;background:#8a7f72"></div><div style="width:64px;height:8px;border-radius:4px;background:#e3c99a"></div></div>
+<aside>第七章：免費／付費、候選架構、里程碑與依賴、團隊分工矩陣，最後是待驗證假設與下一步。</aside>
+</section>
+<section class="slide" id="business" data-index="25" data-transition="fade" style="background:#efe7db;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:56px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">07 商業模式與執行 · 商業模式</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">免費看方向，需要更多再解鎖</h2>
+</div>
+<div style="display:flex;gap:32px;flex:1">
+<div style="flex:1;display:flex;flex-direction:column;gap:24px;background:#fbf8f3;padding:48px;border:1px solid #e2d8c9;border-radius:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#8a7f72;font-weight:700">免費基本層</p>
+<h3 style="font-size:40px;font-weight:700;line-height:1.3">快速理解方向與預算</h3>
+<ul style="font-size:28px;line-height:1.7;color:#5a5047">
+<li>需求輸入（語音／文字＋參考圖）</li>
+<li>基本 3D 空間提案</li>
+<li>粗略預算區間與主要限制</li>
+</ul>
+<p style="font-size:24px;color:#8a7f72">免費額度未定，不承諾無限生成。</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:24px;background:#2b2621;color:#f5f0e8;padding:48px;border-radius:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#c9a77c;font-weight:700">付費層候選</p>
+<h3 style="font-size:40px;font-weight:700;line-height:1.3">更深、更細、可帶走</h3>
+<ul style="font-size:28px;line-height:1.7;color:#d8cdbf">
+<li>更多方案與修改、更高畫質</li>
+<li>下載與匯出、更細估價</li>
+<li>專業諮詢</li>
+</ul>
+<p style="font-size:24px;color:#b8ab9c">候選項目，尚未納入首版或定價；先以 sandbox 驗證。</p>
+</div>
+</div>
+<p style="font-size:26px;line-height:1.5;color:#5a5047;width:1664px">安全相關限制不因未付費而隱藏；付費也不等於專業認證。客戶案例只放真實且同意展示的內容，沒有就呈現空狀態。</p>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>Interior Design Agent · 產品構想 v0.2</span><span>背景　市場　需求　體驗　競品　定位　<span style="color:#a3552d"><b>執行</b></span></span></div>
+<aside>付費解鎖組合、單次或訂閱、付款供應商都還在驗證清單上。案例卡候選欄位：空間用途、風格、需求、方案圖、預算範圍／日期、服務層級與展示同意；沒有施工證據不得稱為完工案例。</aside>
+</section>
+<section class="slide" id="architecture" data-index="26" data-transition="fade" style="background:#f5f0e8;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:44px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">07 執行 · 候選架構與負責組別</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">先定體驗，保留引擎彈性</h2>
+</div>
+<div style="display:flex;gap:20px;align-items:center;flex:1">
+<div style="width:330px;display:flex;flex-direction:column;gap:12px;background:#fbf8f3;padding:30px;border:1px solid #e2d8c9;border-radius:16px">
+<p style="font-size:24px;color:#8a7f72">Intake</p>
+<h3 style="font-size:32px;font-weight:700">需求輸入</h3>
+<p style="font-size:24px;line-height:1.5;color:#5a5047">語音轉文字・圖片・簡短確認</p>
+<p style="align-self:start;font-size:24px;font-weight:700;color:#fbf7f1;background:#2b2621;padding:2px 16px;border-radius:999px;white-space:nowrap">開發組</p>
+</div>
+<svg viewBox="0 0 100 50" preserveAspectRatio="none" style="width:48px;height:24px;;flex:none" aria-hidden="true"><polygon points="0,15 60,15 60,0 100,25 60,50 60,35 0,35" fill="#b5653a"/></svg>
+<div style="width:420px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;flex-direction:column;gap:6px;background:#fbf8f3;padding:20px 28px;border:1px solid #e2d8c9;border-radius:16px">
+<p style="font-size:24px;color:#8a7f72">Generation · Viewer</p>
+<div style="display:flex;justify-content:space-between;align-items:center"><h3 style="font-size:30px;font-weight:700">3D 生成與檢視</h3><p style="font-size:24px;font-weight:700;color:#fbf7f1;background:#2b2621;padding:2px 16px;border-radius:999px;white-space:nowrap">開發組</p></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px;background:#fbf8f3;padding:20px 28px;border:1px solid #e2d8c9;border-radius:16px">
+<p style="font-size:24px;color:#8a7f72">Quote</p>
+<div style="display:flex;justify-content:space-between;align-items:center"><h3 style="font-size:30px;font-weight:700">有依據的估價</h3><p style="font-size:24px;font-weight:700;color:#fbf7f1;background:#4a6455;padding:2px 16px;border-radius:999px;white-space:nowrap">Even・Josh</p></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px;background:#fbf8f3;padding:20px 28px;border:1px solid #e2d8c9;border-radius:16px">
+<p style="font-size:24px;color:#8a7f72">Knowledge / rules</p>
+<div style="display:flex;justify-content:space-between;align-items:center"><h3 style="font-size:30px;font-weight:700">台灣規則</h3><p style="font-size:24px;font-weight:700;color:#fbf7f1;background:#4a6455;padding:2px 16px;border-radius:999px;white-space:nowrap">Mika・Josh</p></div>
+</div>
+</div>
+<svg viewBox="0 0 100 50" preserveAspectRatio="none" style="width:48px;height:24px;;flex:none" aria-hidden="true"><polygon points="0,15 60,15 60,0 100,25 60,50 60,35 0,35" fill="#b5653a"/></svg>
+<div style="width:340px;display:flex;flex-direction:column;gap:12px;background:#2b2621;color:#f5f0e8;padding:30px;border-radius:16px">
+<p style="font-size:24px;color:#c9a77c">Result</p>
+<h3 style="font-size:32px;font-weight:700">結果頁</h3>
+<p style="font-size:24px;line-height:1.5;color:#d8cdbf">3D・預算區間・限制，保留來源與版本</p>
+<p style="align-self:start;font-size:24px;font-weight:700;color:#fbf7f1;background:#4f6d8a;padding:2px 16px;border-radius:999px;white-space:nowrap">體驗：產品組</p>
+</div>
+<svg viewBox="0 0 100 50" preserveAspectRatio="none" style="width:48px;height:24px;;flex:none" aria-hidden="true"><polygon points="0,15 60,15 60,0 100,25 60,50 60,35 0,35" fill="#b5653a"/></svg>
+<div style="flex:1;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;flex-direction:column;gap:8px;background:#fbf8f3;padding:20px;border:1px dashed #b5653a;border-radius:16px">
+<p style="font-size:24px;color:#8a7f72">Entitlements</p>
+<h3 style="font-size:28px;font-weight:700">付費權益</h3>
+<p style="font-size:24px;font-weight:700;color:#4f6d8a">方案：產品組</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;background:#fbf8f3;padding:20px;border:1px dashed #b5653a;border-radius:16px">
+<p style="font-size:24px;color:#8a7f72">Cases</p>
+<h3 style="font-size:28px;font-weight:700">同意案例</h3>
+<p style="font-size:24px;font-weight:700;color:#4f6d8a">審核：產品組</p>
+</div>
+</div>
+</div>
+<div style="display:flex;gap:28px;align-items:center">
+<p style="font-size:24px;font-weight:700;color:#fbf7f1;background:#4f6d8a;padding:2px 16px;border-radius:999px">產品組</p><p style="font-size:24px;color:#5a5047">Chris・Victor・Mika</p>
+<p style="font-size:24px;font-weight:700;color:#fbf7f1;background:#2b2621;padding:2px 16px;border-radius:999px">開發組</p><p style="font-size:24px;color:#5a5047">Even・Mika・Pai（實作全部模組）</p>
+<p style="font-size:24px;font-weight:700;color:#fbf7f1;background:#4a6455;padding:2px 16px;border-radius:999px">把關組</p><p style="font-size:24px;color:#5a5047">Even・Josh・Mika（資料與規則）</p>
+</div>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>每個模組的 provider 都可替換；技術棧與引擎尚未選定</span><span>背景　市場　需求　體驗　競品　定位　<span style="color:#a3552d"><b>執行</b></span></span></div>
+<aside>來自 docs/engineering/architecture.md v0.2，狀態為候選架構、尚未實作。所有模組由開發組（Even、Mika、Pai）實作；估價的原物料報價資料由 Even、Josh 提供，台灣知識與規則中的消防法規與設計限制由 Mika 整合、Josh 覆核；結果頁的體驗、付費方案與案例審核由產品組（Chris、Victor、Mika）決定。API key 留在服務端；權益不能只由前端開關控制。效能目標（主要內容約 3 秒、點 3D 到可用約 5 秒）尚未實測。</aside>
+</section>
+<section class="slide" id="deps" data-index="27" data-transition="fade" style="background:#f5f0e8;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:32px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">07 執行 · 工作項目</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">三線並行，依序匯流到試點</h2>
+</div>
+<svg aria-label="工作項目泳道圖：三條泳道為產品組、開發組、把關組，欄位為 M0 到 M5。M0 三項並行：#2 屋主旅程（產品組）、#4 架構與部署（開發組）、#3 台灣條件與估價（把關組）。#2 與 #4 匯入 M1 的 #5 基本體驗（開發組）；#5 與 #3 匯入 M2 的 #6 結果頁（開發組，產品組共同定義體驗）；接著 M3 #7 商業 MVP（產品組）、M4 #8 跨裝置試點（產品組），最後 M5 選擇性的 #9 後續探索（把關組）。" viewBox="0 0 1664 620" style="width:1664px;height:620px" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="dpa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#b5653a"/></marker></defs>
+<rect x="0" y="76" width="1664" height="176" rx="14" fill="#e6ebf0"/>
+<rect x="0" y="258" width="1664" height="176" rx="14" fill="#e9e2d7"/>
+<rect x="0" y="440" width="1664" height="176" rx="14" fill="#e4ebe6"/>
+<g stroke="#cfc4b4" stroke-width="2" stroke-dasharray="4 8"><line x1="444" y1="64" x2="444" y2="616"/><line x1="688" y1="64" x2="688" y2="616"/><line x1="932" y1="64" x2="932" y2="616"/><line x1="1176" y1="64" x2="1176" y2="616"/><line x1="1420" y1="64" x2="1420" y2="616"/></g>
+<g font-family="Noto Sans TC, sans-serif" text-anchor="middle">
+<g font-size="28" font-weight="700" fill="#a3552d"><text x="322" y="28">M0</text><text x="566" y="28">M1</text><text x="810" y="28">M2</text><text x="1054" y="28">M3</text><text x="1298" y="28">M4</text><text x="1542" y="28" fill="#8a7f72">M5</text></g>
+<g font-size="24" fill="#5a5047"><text x="322" y="58">並行起步</text><text x="566" y="58">語音圖片到 3D</text><text x="810" y="58">報價與台灣條件</text><text x="1054" y="58">解鎖與案例</text><text x="1298" y="58">跨裝置試點</text><text x="1542" y="58" fill="#8a7f72">選擇性延伸</text></g>
+</g>
+<g font-family="Noto Sans TC, sans-serif">
+<text x="24" y="146" font-size="30" font-weight="700" fill="#4f6d8a">產品組</text><text x="24" y="182" font-size="24" fill="#5a5047">Chris・Victor</text><text x="24" y="212" font-size="24" fill="#5a5047">Mika</text>
+<text x="24" y="328" font-size="30" font-weight="700" fill="#2b2621">開發組</text><text x="24" y="364" font-size="24" fill="#5a5047">Even・Mika</text><text x="24" y="394" font-size="24" fill="#5a5047">Pai</text>
+<text x="24" y="510" font-size="30" font-weight="700" fill="#4a6455">把關組</text><text x="24" y="546" font-size="24" fill="#5a5047">Even・Josh</text><text x="24" y="576" font-size="24" fill="#5a5047">Mika</text>
+</g>
+<g fill="none" stroke="#b5653a" stroke-width="4" marker-end="url(#dpa)">
+<path d="M428 164 C452 164 436 346 456 346"/>
+<path d="M428 346 L456 346"/>
+<path d="M672 346 L700 346"/>
+<path d="M428 528 C650 528 810 528 810 408"/>
+<path d="M916 346 C940 346 924 164 944 164"/>
+<path d="M1160 164 L1188 164"/>
+</g>
+<path d="M1404 164 C1542 164 1542 300 1542 466" fill="none" stroke="#b5653a" stroke-width="4" stroke-dasharray="10 8" marker-end="url(#dpa)"/>
+<line x1="810" y1="186" x2="810" y2="288" stroke="#4f6d8a" stroke-width="3" stroke-dasharray="6 6"/>
+<rect x="716" y="142" width="188" height="44" rx="22" fill="#fbf8f3" stroke="#4f6d8a" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="810" y="172" text-anchor="middle" font-family="Noto Sans TC, sans-serif" font-size="24" font-weight="700" fill="#4f6d8a">共同定義體驗</text>
+<g stroke-width="3">
+<rect x="216" y="108" width="212" height="112" rx="14" fill="#ffffff" stroke="#4f6d8a"/>
+<rect x="948" y="108" width="212" height="112" rx="14" fill="#ffffff" stroke="#4f6d8a"/>
+<rect x="1192" y="108" width="212" height="112" rx="14" fill="#4f6d8a" stroke="#4f6d8a"/>
+<rect x="216" y="290" width="212" height="112" rx="14" fill="#2b2621" stroke="#2b2621"/>
+<rect x="460" y="290" width="212" height="112" rx="14" fill="#2b2621" stroke="#2b2621"/>
+<rect x="704" y="290" width="212" height="112" rx="14" fill="#2b2621" stroke="#b5653a"/>
+<rect x="216" y="472" width="212" height="112" rx="14" fill="#ffffff" stroke="#4a6455"/>
+<rect x="1436" y="472" width="212" height="112" rx="14" fill="#f5f0e8" stroke="#4a6455" stroke-dasharray="8 6"/>
+</g>
+<g font-family="Noto Sans TC, sans-serif" font-size="24">
+<text x="236" y="146" fill="#8a7f72">#2</text><text x="236" y="190" font-size="26" font-weight="700" fill="#2b2621">屋主旅程</text>
+<text x="968" y="146" fill="#8a7f72">#7</text><text x="968" y="190" font-size="26" font-weight="700" fill="#2b2621">商業 MVP</text>
+<text x="1212" y="146" fill="#d8e1ea">#8</text><text x="1212" y="190" font-size="26" font-weight="700" fill="#fbf7f1">跨裝置試點</text>
+<text x="236" y="328" fill="#c9a77c">#4</text><text x="236" y="372" font-size="26" font-weight="700" fill="#f5f0e8">架構與部署</text>
+<text x="480" y="328" fill="#c9a77c">#5</text><text x="480" y="372" font-size="26" font-weight="700" fill="#f5f0e8">基本體驗</text>
+<text x="724" y="328" fill="#c9a77c">#6</text><text x="724" y="372" font-size="26" font-weight="700" fill="#f5f0e8">結果頁</text>
+<text x="236" y="510" fill="#8a7f72">#3</text><text x="236" y="554" font-size="26" font-weight="700" fill="#2b2621">台灣條件與估價</text>
+<text x="1456" y="510" fill="#8a7f72">#9</text><text x="1456" y="554" font-size="26" font-weight="700" fill="#4a6455">後續探索</text>
+</g>
+</svg>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>依 roadmap v0.2 的依賴關係；泳道為新分工組別</span><span>背景　市場　需求　體驗　競品　定位　<span style="color:#a3552d"><b>執行</b></span></span></div>
+<aside>怎麼讀：橫向是里程碑 M0–M5，三條泳道是三個組，每個方塊放在負責組的泳道裡，箭頭是依賴關係（依 roadmap.md v0.2 的 Blocked by）。M0 三組並行：產品組定屋主旅程（#2）、開發組做彈性架構與部署（#4）、把關組整理台灣條件與估價基準（#3）。#2 與 #4 完成後，開發組在 M1 做基本體驗（#5）；再加上 #3 的報價資料與規則，M2 做出結果頁（#6），體驗由產品組共同定義。M3 產品組推商業 MVP（#7），M4 主導跨裝置試點與屋主驗收（#8）。M5 由把關組評估專業延伸（#9），為選擇性。GitHub issue 的 assignee 仍是 v0.2 舊版，需另外同步。</aside>
+</section>
+<section class="slide" id="worksplit" data-index="28" data-transition="fade" style="background:#efe7db;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:40px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">07 執行 · 分工模式</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">三組分工：定方向、做出來、把好關</h2>
+</div>
+<div style="display:flex;gap:24px;align-items:center">
+<div style="width:480px;display:flex;flex-direction:column;gap:28px;background:#fbf8f3;padding:44px 40px;border:1px solid #e2d8c9;border-radius:20px">
+<div style="display:flex;flex-direction:column;gap:4px"><h3 style="font-size:34px;font-weight:700">① 產品與體驗</h3><p style="font-size:24px;color:#8a7f72">決定做什麼、好不好用</p></div>
+<div style="display:flex;gap:10px;flex-wrap:wrap"><p style="font-size:24px;font-weight:700;color:#fbf7f1;background:#4f6d8a;padding:4px 22px;border-radius:999px">Chris</p><p style="font-size:24px;font-weight:700;color:#2b2621;background:#e3c99a;padding:4px 22px;border-radius:999px">Victor</p><p style="font-size:24px;font-weight:700;color:#fbf7f1;background:#b5653a;padding:4px 22px;border-radius:999px">Mika</p></div>
+<ul style="font-size:26px;line-height:1.7;color:#5a5047">
+<li>產品定位</li>
+<li>使用者體驗</li>
+<li>屋主驗收與回饋</li>
+</ul>
+</div>
+<svg viewBox="0 0 100 50" preserveAspectRatio="none" style="width:64px;height:32px;;flex:none" aria-hidden="true"><polygon points="0,15 60,15 60,0 100,25 60,50 60,35 0,35" fill="#b5653a"/></svg>
+<div style="width:480px;display:flex;flex-direction:column;gap:28px;background:#2b2621;color:#f5f0e8;padding:44px 40px;border-radius:20px">
+<div style="display:flex;flex-direction:column;gap:4px"><h3 style="font-size:34px;font-weight:700;color:#e3c99a">② 主力開發</h3><p style="font-size:24px;color:#b8ab9c">把產品實際做出來</p></div>
+<div style="display:flex;gap:10px;flex-wrap:wrap"><p style="font-size:24px;font-weight:700;color:#fbf7f1;background:#4a6455;padding:4px 22px;border-radius:999px">Even</p><p style="font-size:24px;font-weight:700;color:#fbf7f1;background:#b5653a;padding:4px 22px;border-radius:999px">Mika</p><p style="font-size:24px;font-weight:700;color:#2b2621;background:#d8cdbf;padding:4px 22px;border-radius:999px">Pai</p></div>
+<ul style="font-size:26px;line-height:1.7;color:#d8cdbf">
+<li>產品實作與上線</li>
+<li>串接報價資料與規則</li>
+<li>依驗收回饋迭代</li>
+</ul>
+</div>
+<svg viewBox="0 0 100 50" preserveAspectRatio="none" style="width:64px;height:32px;;flex:none" aria-hidden="true"><polygon points="100,15 40,15 40,0 0,25 40,50 40,35 100,35" fill="#b5653a"/></svg>
+<div style="width:480px;display:flex;flex-direction:column;gap:28px;background:#fbf8f3;padding:44px 40px;border:1px solid #e2d8c9;border-radius:20px">
+<div style="display:flex;flex-direction:column;gap:4px"><h3 style="font-size:34px;font-weight:700">③ 資料與專業把關</h3><p style="font-size:24px;color:#8a7f72">供料，並確保符合業界標準</p></div>
+<div style="display:flex;gap:10px;flex-wrap:wrap"><p style="font-size:24px;font-weight:700;color:#fbf7f1;background:#4a6455;padding:4px 22px;border-radius:999px">Even</p><p style="font-size:24px;font-weight:700;color:#fbf7f1;background:#8a6a3a;padding:4px 22px;border-radius:999px">Josh</p><p style="font-size:24px;font-weight:700;color:#fbf7f1;background:#b5653a;padding:4px 22px;border-radius:999px">Mika</p></div>
+<ul style="font-size:26px;line-height:1.7;color:#5a5047">
+<li>原物料報價資料</li>
+<li>工程圖符合業界標準</li>
+<li>產出結果的專業把關</li>
+<li>消防法規與設計限制整合</li>
+</ul>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:20px;background:#f3e2d4;border:2px dashed #b5653a;border-radius:16px;padding:20px 32px">
+<svg class="x-icon" viewBox="0 0 24 24" style="width:40px;height:40px;color:#a3552d;flex:none" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21v-1a6 6 0 0 1 12 0v1M16 4a4 4 0 0 1 0 8M22 21v-1a6 6 0 0 0-4-5.6"/></svg>
+<p style="font-size:26px;color:#7a3f20"><b>屋主驗收回饋寫回 GitHub issue</b>，進入下一輪迭代（M1 → M4）。Even、Mika 橫跨多組，負責串起資料、規則與體驗。</p>
+</div>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>全員可開發；姓名代表推進主責，不限制跨區協作</span><span>背景　市場　需求　體驗　競品　定位　<span style="color:#a3552d"><b>執行</b></span></span></div>
+<aside>分工分三組。產品與體驗（Chris、Victor、Mika）：決定產品定位、設計使用者體驗，並擔任屋主驗收、收集回饋。主力開發（Even、Mika、Pai）：把產品實作出來，串接報價資料與規則，依回饋迭代。資料與專業把關（Even、Josh）：提供原物料報價資料，並確認產出的工程圖符合業界標準、可以把關。Mika 另負責整合消防法規，以及建築與室內設計評估的限制條件，把規則轉成產品能檢查的項目。Even 同時在開發與專業把關兩組，Mika 橫跨三組，是串起資料、規則與體驗的關鍵；需留意 Mika 的負荷。驗收回饋寫回 GitHub issue，進下一輪迭代。</aside>
+</section>
+<section class="slide" id="raci" data-index="29" data-transition="fade" style="background:#f5f0e8;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:32px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">07 執行 · 角色矩陣</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">每個工作項目，一組主責</h2>
+</div>
+<div style="display:grid;grid-template-columns:1fr 300px 300px 300px;align-items:center">
+<div style="padding:10px 20px;border-bottom:2px solid #2b2621;height:96px;display:flex;align-items:end"><p style="font-size:24px;color:#8a7f72">工作項目</p></div>
+<div style="padding:10px;border-bottom:2px solid #2b2621;height:96px;display:flex;flex-direction:column;align-items:center;justify-content:end;gap:2px"><p style="font-size:26px;font-weight:700;color:#4f6d8a">產品與體驗</p><p style="font-size:24px;color:#8a7f72">Chris・Victor・Mika</p></div>
+<div style="padding:10px;border-bottom:2px solid #2b2621;height:96px;display:flex;flex-direction:column;align-items:center;justify-content:end;gap:2px"><p style="font-size:26px;font-weight:700;color:#2b2621">主力開發</p><p style="font-size:24px;color:#8a7f72">Even・Mika・Pai</p></div>
+<div style="padding:10px;border-bottom:2px solid #2b2621;height:96px;display:flex;flex-direction:column;align-items:center;justify-content:end;gap:2px"><p style="font-size:26px;font-weight:700;color:#4a6455">資料與專業把關</p><p style="font-size:24px;color:#8a7f72">Even・Josh・Mika</p></div>
+<div style="padding:9px 20px;border-bottom:1px solid #e2d8c9"><p style="font-size:24px"><b>#2</b>　屋主旅程</p></div>
+<div style="padding:9px;border-bottom:1px solid #e2d8c9;display:flex;justify-content:center"><p style="font-size:24px;font-weight:700;color:#fbf7f1;background:#4f6d8a;padding:2px 18px;border-radius:999px">主責</p></div>
+<div style="padding:9px;border-bottom:1px solid #e2d8c9;display:flex;justify-content:center"><p style="font-size:24px;color:#a89b8c">○</p></div>
+<div style="padding:9px;border-bottom:1px solid #e2d8c9;height:54px"></div>
+<div style="padding:9px 20px;border-bottom:1px solid #e2d8c9"><p style="font-size:24px"><b>#3</b>　台灣條件與估價基準</p></div>
+<div style="padding:9px;border-bottom:1px solid #e2d8c9;height:54px"></div>
+<div style="padding:9px;border-bottom:1px solid #e2d8c9;display:flex;justify-content:center"><p style="font-size:24px;color:#a89b8c">○</p></div>
+<div style="padding:9px;border-bottom:1px solid #e2d8c9;display:flex;justify-content:center"><p style="font-size:24px;font-weight:700;color:#fbf7f1;background:#4a6455;padding:2px 18px;border-radius:999px">主責</p></div>
+<div style="padding:9px 20px;border-bottom:1px solid #e2d8c9"><p style="font-size:24px"><b>#4</b>　彈性架構與部署</p></div>
+<div style="padding:9px;border-bottom:1px solid #e2d8c9;display:flex;justify-content:center"><p style="font-size:24px;color:#a89b8c">○</p></div>
+<div style="padding:9px;border-bottom:1px solid #e2d8c9;display:flex;justify-content:center"><p style="font-size:24px;font-weight:700;color:#fbf7f1;background:#2b2621;padding:2px 18px;border-radius:999px">主責</p></div>
+<div style="padding:9px;border-bottom:1px solid #e2d8c9;height:54px"></div>
+<div style="padding:9px 20px;border-bottom:1px solid #e2d8c9"><p style="font-size:24px"><b>#5</b>　基本體驗：輸入與 3D 提案</p></div>
+<div style="padding:9px;border-bottom:1px solid #e2d8c9;display:flex;justify-content:center"><p style="font-size:24px;color:#a89b8c">○</p></div>
+<div style="padding:9px;border-bottom:1px solid #e2d8c9;display:flex;justify-content:center"><p style="font-size:24px;font-weight:700;color:#fbf7f1;background:#2b2621;padding:2px 18px;border-radius:999px">主責</p></div>
+<div style="padding:9px;border-bottom:1px solid #e2d8c9;height:54px"></div>
+<div style="padding:9px 20px;border-bottom:1px solid #e2d8c9"><p style="font-size:24px"><b>#6</b>　結果頁：報價與台灣限制</p></div>
+<div style="padding:9px;border-bottom:1px solid #e2d8c9;display:flex;justify-content:center"><p style="font-size:24px;color:#4f6d8a;border:2px solid #4f6d8a;padding:0 16px;border-radius:999px">共同</p></div>
+<div style="padding:9px;border-bottom:1px solid #e2d8c9;display:flex;justify-content:center"><p style="font-size:24px;font-weight:700;color:#fbf7f1;background:#2b2621;padding:2px 18px;border-radius:999px">主責</p></div>
+<div style="padding:9px;border-bottom:1px solid #e2d8c9;display:flex;justify-content:center"><p style="font-size:24px;color:#a89b8c">○</p></div>
+<div style="padding:9px 20px;border-bottom:1px solid #e2d8c9"><p style="font-size:24px"><b>#7</b>　商業 MVP：付費解鎖與案例</p></div>
+<div style="padding:9px;border-bottom:1px solid #e2d8c9;display:flex;justify-content:center"><p style="font-size:24px;font-weight:700;color:#fbf7f1;background:#4f6d8a;padding:2px 18px;border-radius:999px">主責</p></div>
+<div style="padding:9px;border-bottom:1px solid #e2d8c9;display:flex;justify-content:center"><p style="font-size:24px;color:#a89b8c">○</p></div>
+<div style="padding:9px;border-bottom:1px solid #e2d8c9;height:54px"></div>
+<div style="padding:9px 20px;border-bottom:1px solid #e2d8c9"><p style="font-size:24px"><b>#8</b>　跨裝置試點與屋主驗收</p></div>
+<div style="padding:9px;border-bottom:1px solid #e2d8c9;display:flex;justify-content:center"><p style="font-size:24px;font-weight:700;color:#fbf7f1;background:#4f6d8a;padding:2px 18px;border-radius:999px">主責</p></div>
+<div style="padding:9px;border-bottom:1px solid #e2d8c9;display:flex;justify-content:center"><p style="font-size:24px;color:#a89b8c">○</p></div>
+<div style="padding:9px;border-bottom:1px solid #e2d8c9;display:flex;justify-content:center"><p style="font-size:24px;color:#a89b8c">○</p></div>
+<div style="padding:9px 20px"><p style="font-size:24px"><b>#9</b>　後續探索：專業深化、工程資料</p></div>
+<div style="padding:9px;display:flex;justify-content:center"><p style="font-size:24px;color:#a89b8c">○</p></div>
+<div style="padding:9px;height:54px"></div>
+<div style="padding:9px;display:flex;justify-content:center"><p style="font-size:24px;font-weight:700;color:#fbf7f1;background:#4a6455;padding:2px 18px;border-radius:999px">主責</p></div>
+</div>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>主責＝推進　共同＝共同主責　○＝協作　｜　組內再指定一位推進人</span><span>背景　市場　需求　體驗　競品　定位　<span style="color:#a3552d"><b>執行</b></span></span></div>
+<aside>依新分工把 roadmap v0.2 的 8 個工作項目對到三組。產品組（Chris、Victor、Mika）主責屋主旅程、商業方案與試點驗收，並與開發組共同負責結果頁。開發組（Even、Mika、Pai）主責架構部署、基本體驗與結果頁實作。把關組（Even、Josh、Mika）主責台灣條件與估價基準（原物料報價、工程圖標準、消防法規與設計限制），以及後續專業深化。建議每項在組內再指定一位推進人，GitHub assignee 也要同步更新。</aside>
+</section>
+<section class="slide" id="timeline" data-index="30" data-transition="fade" style="background:#efe7db;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:36px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">07 執行 · 分工 Timeline</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">每個里程碑，三組各做什麼</h2>
+</div>
+<div style="display:grid;grid-template-columns:250px 1fr 1fr 1fr 1fr 1fr 1fr;gap:14px 12px;align-items:stretch">
+<div style="height:80px"></div>
+<div style="display:flex;flex-direction:column;gap:2px;border-bottom:4px solid #2b2621;padding:0 4px 10px"><p style="font-family:'Noto Serif TC', serif;font-size:36px;font-weight:700;color:#a3552d">M0</p><p style="font-size:24px;color:#5a5047">對齊</p></div>
+<div style="display:flex;flex-direction:column;gap:2px;border-bottom:4px solid #2b2621;padding:0 4px 10px"><p style="font-family:'Noto Serif TC', serif;font-size:36px;font-weight:700;color:#a3552d">M1</p><p style="font-size:24px;color:#5a5047">語音圖片到 3D</p></div>
+<div style="display:flex;flex-direction:column;gap:2px;border-bottom:4px solid #2b2621;padding:0 4px 10px"><p style="font-family:'Noto Serif TC', serif;font-size:36px;font-weight:700;color:#a3552d">M2</p><p style="font-size:24px;color:#5a5047">報價與台灣條件</p></div>
+<div style="display:flex;flex-direction:column;gap:2px;border-bottom:4px solid #2b2621;padding:0 4px 10px"><p style="font-family:'Noto Serif TC', serif;font-size:36px;font-weight:700;color:#a3552d">M3</p><p style="font-size:24px;color:#5a5047">解鎖與案例</p></div>
+<div style="display:flex;flex-direction:column;gap:2px;border-bottom:4px solid #2b2621;padding:0 4px 10px"><p style="font-family:'Noto Serif TC', serif;font-size:36px;font-weight:700;color:#a3552d">M4</p><p style="font-size:24px;color:#5a5047">跨裝置試點</p></div>
+<div style="display:flex;flex-direction:column;gap:2px;border-bottom:4px dashed #8a7f72;padding:0 4px 10px"><p style="font-family:'Noto Serif TC', serif;font-size:36px;font-weight:700;color:#8a7f72">M5</p><p style="font-size:24px;color:#8a7f72">專業延伸</p></div>
+<div style="display:flex;flex-direction:column;justify-content:center;gap:4px"><p style="font-size:28px;font-weight:700;color:#4f6d8a">產品與體驗</p><p style="font-size:24px;color:#8a7f72">Chris・Victor・Mika</p></div>
+<div style="display:flex;align-items:center;background:#4f6d8a;padding:16px;border-radius:12px"><p style="font-size:24px;line-height:1.4;color:#fbf7f1">旅程與免費／付費界線</p></div>
+<div style="grid-column:span 2;display:flex;align-items:center;background:#4f6d8a;padding:16px;border-radius:12px"><p style="font-size:24px;line-height:1.4;color:#fbf7f1">體驗設計、結果頁定義，每輪屋主驗收</p></div>
+<div style="display:flex;align-items:center;background:#4f6d8a;padding:16px;border-radius:12px"><p style="font-size:24px;line-height:1.4;color:#fbf7f1">付費方案、案例審核</p></div>
+<div style="display:flex;align-items:center;background:#2f4a63;padding:16px;border-radius:12px"><p style="font-size:24px;line-height:1.4;color:#fbf7f1;font-weight:700">屋主試點驗收</p></div>
+<div style="height:96px"></div>
+<div style="display:flex;flex-direction:column;justify-content:center;gap:4px"><p style="font-size:28px;font-weight:700;color:#2b2621">主力開發</p><p style="font-size:24px;color:#8a7f72">Even・Mika・Pai</p></div>
+<div style="display:flex;align-items:center;background:#2b2621;padding:16px;border-radius:12px"><p style="font-size:24px;line-height:1.4;color:#f5f0e8">技術選型比較</p></div>
+<div style="display:flex;align-items:center;background:#2b2621;padding:16px;border-radius:12px"><p style="font-size:24px;line-height:1.4;color:#f5f0e8">語音、圖片到 3D</p></div>
+<div style="display:flex;align-items:center;background:#2b2621;padding:16px;border-radius:12px"><p style="font-size:24px;line-height:1.4;color:#f5f0e8">串接報價與限制</p></div>
+<div style="display:flex;align-items:center;background:#2b2621;padding:16px;border-radius:12px"><p style="font-size:24px;line-height:1.4;color:#f5f0e8">付費解鎖、案例頁</p></div>
+<div style="display:flex;align-items:center;background:#2b2621;padding:16px;border-radius:12px"><p style="font-size:24px;line-height:1.4;color:#f5f0e8">跨裝置修正</p></div>
+<div style="height:96px"></div>
+<div style="display:flex;flex-direction:column;justify-content:center;gap:4px"><p style="font-size:28px;font-weight:700;color:#4a6455">資料與專業把關</p><p style="font-size:24px;color:#8a7f72">Even・Josh・Mika</p></div>
+<div style="display:flex;align-items:center;background:#4a6455;padding:16px;border-radius:12px"><p style="font-size:24px;line-height:1.4;color:#fbf7f1">首批工項與規則範圍</p></div>
+<div style="grid-column:span 2;display:flex;align-items:center;background:#4a6455;padding:16px;border-radius:12px"><p style="font-size:24px;line-height:1.4;color:#fbf7f1">原物料報價資料、消防法規與設計限制整合</p></div>
+<div style="display:flex;align-items:center;background:#4a6455;padding:16px;border-radius:12px"><p style="font-size:24px;line-height:1.4;color:#fbf7f1">工程圖標準、專業覆核</p></div>
+<div style="height:96px"></div>
+<div style="display:flex;align-items:center;background:#efe7db;border:2px dashed #4a6455;padding:16px;border-radius:12px"><p style="font-size:24px;line-height:1.4;color:#4a6455">專業服務延伸</p></div>
+</div>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>依里程碑排序，不預填日期；M0 對齊後再排時程</span><span>背景　市場　需求　體驗　競品　定位　<span style="color:#a3552d"><b>執行</b></span></span></div>
+<aside>這張是新分工下的時間軸，以 M0–M5 里程碑排序，日期待 M0 對齊後再訂。M0：產品組定屋主旅程與免費／付費界線，開發組做技術選型比較，把關組選定首批工項與規則範圍。M1–M2：開發組做出語音、圖片到 3D，再串接報價與限制；把關組同時提供原物料報價資料，Mika 整合消防法規與建築／室內設計限制；產品組設計體驗與結果頁，並在每輪做屋主驗收。M3：付費解鎖與案例頁上線，把關組確認工程圖符合業界標準。M4：跨裝置試點，產品組主導屋主驗收、開發組修正。M5 為選擇性的專業服務延伸，由把關組評估。</aside>
+</section>
+<section class="slide" id="market-model" data-index="31" data-transition="fade" style="background:#f5f0e8;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:36px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">07 執行 · 市場接案模式</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">裝修的錢怎麼流：四種接案模式</h2>
+</div>
+<div style="display:flex;gap:48px">
+<div style="width:620px;display:flex;flex-direction:column;gap:16px;background:#2b2621;color:#f5f0e8;padding:36px 40px;border-radius:20px">
+<p style="font-size:26px;font-weight:700;color:#e3c99a">工程費參考行情（每坪）</p>
+<svg aria-label="工程費每坪參考行情區間：新成屋 3 到 5 萬、中古屋 5 到 9 萬、老屋 10 到 20 萬元。" viewBox="0 0 540 330" style="width:540px;height:330px" xmlns="http://www.w3.org/2000/svg">
+<g stroke="#4d443b" stroke-width="2"><line x1="120" y1="20" x2="120" y2="300"/><line x1="240" y1="20" x2="240" y2="300"/><line x1="360" y1="20" x2="360" y2="300"/><line x1="480" y1="20" x2="480" y2="300"/></g>
+<g font-family="Noto Sans TC, sans-serif" font-size="24" fill="#a89b8c" text-anchor="middle"><text x="120" y="328">5萬</text><text x="240" y="328">10萬</text><text x="360" y="328">15萬</text><text x="480" y="328">20萬</text></g>
+<g font-family="Noto Sans TC, sans-serif" font-size="26" fill="#f5f0e8"><text x="0" y="68">新成屋</text><text x="0" y="158">中古屋</text><text x="0" y="248">老屋</text></g>
+<rect x="72" y="80" width="48" height="36" rx="18" fill="#c9a77c"/>
+<rect x="120" y="170" width="96" height="36" rx="18" fill="#d48a62"/>
+<rect x="240" y="260" width="240" height="36" rx="18" fill="#b5653a"/>
+<g font-family="Noto Sans TC, sans-serif" font-size="26" font-weight="700" fill="#e3c99a"><text x="132" y="108">3–5 萬</text><text x="228" y="198">5–9 萬</text><text x="250" y="250">10–20 萬</text></g>
+</svg>
+<p style="font-size:24px;line-height:1.5;color:#b8ab9c">屋齡越老，工程越貴、越需要現況與法規判斷</p>
+</div>
+<div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:20px">
+<div style="display:flex;flex-direction:column;gap:10px;background:#fbf8f3;padding:28px;border:1px solid #e2d8c9;border-radius:16px"><h3 style="font-size:30px;font-weight:700">設計師＋工班</h3><p style="font-family:'Noto Serif TC', serif;font-size:36px;font-weight:700;color:#a3552d">4,500–12,000／坪</p><p style="font-size:24px;line-height:1.5;color:#5a5047">設計費；另收監工費約工程款 5–10%</p></div>
+<div style="display:flex;flex-direction:column;gap:10px;background:#fbf8f3;padding:28px;border:1px solid #e2d8c9;border-radius:16px"><h3 style="font-size:30px;font-weight:700">統包</h3><p style="font-family:'Noto Serif TC', serif;font-size:36px;font-weight:700;color:#a3552d">工程款 5–20%</p><p style="font-size:24px;line-height:1.5;color:#5a5047">設計費改以總工程款比例計，一個窗口</p></div>
+<div style="display:flex;flex-direction:column;gap:10px;background:#fbf8f3;padding:28px;border:1px solid #e2d8c9;border-radius:16px"><h3 style="font-size:30px;font-weight:700">媒合平台</h3><p style="font-family:'Noto Serif TC', serif;font-size:36px;font-weight:700;color:#a3552d">年媒合 2 萬筆</p><p style="font-size:24px;line-height:1.5;color:#5a5047">100室內設計：1,400 家設計公司進駐</p></div>
+<div style="display:flex;flex-direction:column;gap:10px;background:#fbf8f3;padding:28px;border:1px solid #e2d8c9;border-radius:16px"><h3 style="font-size:30px;font-weight:700">建商客變</h3><p style="font-family:'Noto Serif TC', serif;font-size:36px;font-weight:700;color:#a3552d">交屋前 1–2 個月</p><p style="font-size:24px;line-height:1.5;color:#5a5047">加減帳結算，退料不退工</p></div>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:20px;background:#efe7db;border-radius:16px;padding:18px 28px">
+<svg class="x-icon" viewBox="0 0 24 24" style="width:36px;height:36px;color:#a3552d;flex:none" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/></svg>
+<p style="font-size:24px;color:#5a5047"><b style="color:#2b2621">資金端</b>：銀行裝潢貸款利率約 2.45% 起；政府修繕住宅貸款利息補貼，最高 80 萬元</p>
+</div>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>資料：PRO360 價格指南（2025）、鉅亨網（2024）、Money101（2024）；行情僅供參考</span><span>背景　市場　需求　體驗　競品　定位　<span style="color:#a3552d"><b>執行</b></span></span></div>
+<aside>市場上屋主花錢的四種方式。設計師＋工班：設計費每坪約 4,500–12,000 元（PRO360 整理 2024–2026 平台報價），監工費約工程款 5–10%。統包：設計費常改以總工程款 5–20% 計。媒合平台：100室內設計每年媒合約 2 萬筆業主、1,400 家設計公司進駐（2024），收費細節未公開。建商客變：交屋前開放，期限多為 1–2 個月，加減帳結算、退料不退工。工程費參考：新成屋每坪 3–5 萬、中古屋 5–9 萬、老屋 10–20 萬（來源內數字不一致，僅供量級參考）。資金端：銀行裝潢貸款利率約 2.45% 起（2024 年資料），政府修繕住宅貸款利息補貼最高 80 萬。意涵：我們的 3D＋粗報價，正好落在每種模式「簽約前」最需要的溝通環節。</aside>
+</section>
+<section class="slide" id="partners" data-index="32" data-transition="fade" style="background:#efe7db;color:#2b2621;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:36px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#a3552d;font-weight:700">07 執行 · 合作機會</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">沿著屋主旅程，找到合作夥伴</h2>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:16px">
+<div style="display:flex;flex-direction:column;gap:6px;border-bottom:4px solid #b5653a;padding:0 4px 12px"><p style="font-size:24px;color:#8a7f72">預售・客變</p><p style="font-size:24px;color:#8a7f72">交屋</p></div>
+<div style="display:flex;flex-direction:column;gap:6px;border-bottom:4px solid #b5653a;padding:0 4px 12px"><p style="font-size:24px;color:#8a7f72">找設計師</p><p style="font-size:24px;color:#8a7f72">比較方案</p></div>
+<div style="display:flex;flex-direction:column;gap:6px;border-bottom:4px solid #b5653a;padding:0 4px 12px"><p style="font-size:24px;color:#8a7f72">發包・施工</p><p style="font-size:24px;color:#8a7f72">選建材家具</p></div>
+<div style="display:flex;flex-direction:column;gap:6px;border-bottom:4px solid #b5653a;padding:0 4px 12px"><p style="font-size:24px;color:#8a7f72">籌措資金</p><p style="font-size:24px;color:#8a7f72">（全程）</p></div>
+<div style="display:flex;flex-direction:column;gap:6px;border-bottom:4px solid #b5653a;padding:0 4px 12px"><p style="font-size:24px;color:#8a7f72">入住後</p><p style="font-size:24px;color:#8a7f72">修繕・翻新</p></div>
+<div style="display:flex;flex-direction:column;gap:14px;background:#2b2621;color:#f5f0e8;padding:28px;border-radius:16px">
+<p style="font-size:24px;font-weight:700;color:#2b2621;background:#e3c99a;padding:2px 14px;border-radius:999px;align-self:start">優先 ★★★</p>
+<h3 style="font-size:32px;font-weight:700">建商</h3>
+<p style="font-size:24px;line-height:1.5;color:#d8cdbf">我們給：客變前 3D 與加減帳試算</p>
+<p style="font-size:24px;line-height:1.5;color:#d8cdbf">對方得：少溝通往返、交屋滿意</p>
+<p style="font-size:24px;line-height:1.5;color:#e3c99a">收費：每戶授權或建案年費</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:14px;background:#fbf8f3;padding:28px;border:1px solid #e2d8c9;border-radius:16px">
+<p style="font-size:24px;font-weight:700;color:#7a3f20;background:#f3e2d4;padding:2px 14px;border-radius:999px;align-self:start">優先 ★★</p>
+<h3 style="font-size:32px;font-weight:700">設計公司・統包</h3>
+<p style="font-size:24px;line-height:1.5;color:#5a5047">我們給：需求清楚、有預算的屋主</p>
+<p style="font-size:24px;line-height:1.5;color:#5a5047">對方得：提案前置作業變少</p>
+<p style="font-size:24px;line-height:1.5;color:#a3552d">收費：轉介費或成交分潤</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:14px;background:#fbf8f3;padding:28px;border:1px solid #e2d8c9;border-radius:16px">
+<p style="font-size:24px;font-weight:700;color:#5a5047;background:#e2d8c9;padding:2px 14px;border-radius:999px;align-self:start">優先 ★</p>
+<h3 style="font-size:32px;font-weight:700">建材・家具</h3>
+<p style="font-size:24px;line-height:1.5;color:#5a5047">我們給：方案中的真實品項</p>
+<p style="font-size:24px;line-height:1.5;color:#5a5047">對方得：在決策當下被看見</p>
+<p style="font-size:24px;line-height:1.5;color:#a3552d">收費：上架費或導購分潤</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:14px;background:#fbf8f3;padding:28px;border:1px solid #e2d8c9;border-radius:16px">
+<p style="font-size:24px;font-weight:700;color:#7a3f20;background:#f3e2d4;padding:2px 14px;border-radius:999px;align-self:start">優先 ★★</p>
+<h3 style="font-size:32px;font-weight:700">銀行</h3>
+<p style="font-size:24px;line-height:1.5;color:#5a5047">我們給：有依據的預算區間</p>
+<p style="font-size:24px;line-height:1.5;color:#5a5047">對方得：裝修貸款的自然情境</p>
+<p style="font-size:24px;line-height:1.5;color:#a3552d">收費：合作推廣或導流</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:14px;background:#fbf8f3;padding:28px;border:1px solid #e2d8c9;border-radius:16px">
+<p style="font-size:24px;font-weight:700;color:#5a5047;background:#e2d8c9;padding:2px 14px;border-radius:999px;align-self:start">優先 ★</p>
+<h3 style="font-size:32px;font-weight:700">物業・平台</h3>
+<p style="font-size:24px;line-height:1.5;color:#5a5047">我們給：老屋翻新與修繕提案</p>
+<p style="font-size:24px;line-height:1.5;color:#5a5047">對方得：住戶服務加值</p>
+<p style="font-size:24px;line-height:1.5;color:#a3552d">收費：服務分潤；平台屬競合</p>
+</div>
+</div>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>合作與收費方式皆為候選，待 M3 後依試點證據驗證</span><span>背景　市場　需求　體驗　競品　定位　<span style="color:#a3552d"><b>執行</b></span></span></div>
+<aside>這張把可能的 B2B 夥伴放在屋主旅程上。建商優先度最高：客變期有明確痛點（買方看不懂圖、加減帳來回溝通）、一個建案就有大量戶數，而且可以 B2B 收費。設計公司與統包：我們把需求清楚、預算有底的屋主轉介過去，收轉介費或分潤；也呼應原始會議討論過的 B2B 與統包方向。銀行：預算區間是裝修貸款的自然入口。建材家具與物業是後續延伸；媒合平台（如 100室內設計）同時是競爭者也可能是通路，屬競合關係。所有收費方式都是候選，需在試點後驗證。</aside>
+</section>
+<section class="slide" id="proposal" data-index="33" data-transition="fade" style="background:#2b2621;color:#f5f0e8;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:40px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;color:#c9a77c;font-weight:700">07 執行 · 商業提案構想</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:72px;font-weight:700;line-height:1.1">與國泰建設試點：一個建案、三個接觸點</h2>
+</div>
+<div style="display:flex;gap:28px">
+<div style="width:440px;display:flex;flex-direction:column;gap:22px;border-top:2px solid #c9a77c;padding:28px 0 0">
+<p style="font-size:26px;font-weight:700;color:#e3c99a">為什麼是建商</p>
+<div style="display:flex;flex-direction:column;gap:4px"><p style="font-family:'Noto Serif TC', serif;font-size:56px;font-weight:700;color:#e3c99a;line-height:1.1">242.89 億</p><p style="font-size:24px;color:#b8ab9c">國泰建設 2025 年營收</p></div>
+<p style="font-size:26px;line-height:1.5;color:#d8cdbf">從預售、交屋到物業管理，都有接觸屋主的時點</p>
+<p style="font-size:26px;line-height:1.5;color:#d8cdbf">客變溝通成本高，痛點明確</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:16px">
+<p style="font-size:26px;font-weight:700;color:#e3c99a">提案：三個接觸點</p>
+<div style="display:flex;gap:20px;align-items:start;background:#3a322b;padding:22px 26px;border-radius:14px"><p style="width:48px;height:48px;border-radius:24px;background:#b5653a;color:#fbf7f1;font-size:26px;font-weight:700;text-align:center;line-height:48px">1</p><div style="flex:1;display:flex;flex-direction:column;gap:4px"><h3 style="font-size:30px;font-weight:700">客變期</h3><p style="font-size:24px;line-height:1.5;color:#d8cdbf">買方自己看 3D、試算加減帳</p></div></div>
+<div style="display:flex;gap:20px;align-items:start;background:#3a322b;padding:22px 26px;border-radius:14px"><p style="width:48px;height:48px;border-radius:24px;background:#b5653a;color:#fbf7f1;font-size:26px;font-weight:700;text-align:center;line-height:48px">2</p><div style="flex:1;display:flex;flex-direction:column;gap:4px"><h3 style="font-size:30px;font-weight:700">交屋時</h3><p style="font-size:24px;line-height:1.5;color:#d8cdbf">裝修提案，轉介設計師或統包</p></div></div>
+<div style="display:flex;gap:20px;align-items:start;background:#3a322b;padding:22px 26px;border-radius:14px"><p style="width:48px;height:48px;border-radius:24px;background:#b5653a;color:#fbf7f1;font-size:26px;font-weight:700;text-align:center;line-height:48px">3</p><div style="flex:1;display:flex;flex-direction:column;gap:4px"><h3 style="font-size:30px;font-weight:700">入住後</h3><p style="font-size:24px;line-height:1.5;color:#d8cdbf">透過物業，提供修繕與翻新提案</p></div></div>
+</div>
+<div style="width:480px;display:flex;flex-direction:column;gap:18px;background:#f5f0e8;color:#2b2621;padding:30px 32px;border-radius:18px">
+<p style="font-size:26px;font-weight:700;color:#a3552d">試點設計（草案）</p>
+<div style="display:flex;flex-direction:column;gap:4px"><p style="font-size:24px;color:#8a7f72">範圍</p><p style="font-size:26px;font-weight:700">1 個建案、1–2 種房型</p></div>
+<div style="display:flex;flex-direction:column;gap:4px"><p style="font-size:24px;color:#8a7f72">成功指標</p><p style="font-size:24px;line-height:1.5">客變往返次數、客變單完成時間、買方滿意度、轉介成交</p></div>
+<div style="display:flex;flex-direction:column;gap:4px"><p style="font-size:24px;color:#8a7f72">需要對方提供</p><p style="font-size:24px;line-height:1.5">平面圖、標準建材、客變規則、住戶同意</p></div>
+<div style="display:flex;flex-direction:column;gap:4px"><p style="font-size:24px;color:#8a7f72">收費候選</p><p style="font-size:24px;line-height:1.5">每戶授權、建案年費、轉介分潤</p></div>
+</div>
+</div>
+<div style="position:absolute;left:128px;bottom:64px;width:1664px;display:flex;justify-content:space-between;font-size:24px;color:#8a7f72"><span>構想階段，尚未接洽；建議 M2 結果頁可用後再提案　營收：nStock（2026-11）</span><span>背景　市場　需求　體驗　競品　定位　<span style="color:#e3c99a"><b>執行</b></span></span></div>
+<aside>這是商業提案構想，尚未與國泰建設接洽。為什麼找建商：國泰建設 2025 年營收約 242.89 億元，從預售、交屋到物業管理（旗下有公寓大廈管理維護子公司）都有接觸屋主的時點，而客變期的溝通成本高。提案三個接觸點：1 客變期讓買方自己看 3D、試算加減帳；2 交屋時提供裝修提案並轉介設計師或統包；3 入住後透過物業提供修繕與翻新提案。試點建議 1 個建案、1–2 種房型，用客變往返次數、客變單完成時間、買方滿意度與轉介成交當指標；需要建商提供平面圖、標準建材、客變規則，並取得住戶同意。時機上建議 M2 結果頁可用後再提案。提醒：國泰建設與國泰金控是不同公司，若透過集團關係接洽，需先確認內部合作窗口與利害關係人規範。</aside>
+</section>
+<section class="slide" id="next" data-index="34" data-transition="fade" style="background:#2b2621;color:#f5f0e8;font-family:'Noto Sans TC', sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;justify-content:center;gap:56px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:28px;letter-spacing:6px;color:#c9a77c;font-weight:500">下一步</p>
+<h2 style="font-family:'Noto Serif TC', serif;font-size:96px;font-weight:700;line-height:1.1">從 M0 對齊開始</h2>
+</div>
+<div style="display:flex;flex-direction:column;gap:0;width:1400px">
+<div style="display:flex;gap:40px;padding:28px 0;border-top:1px solid #4d443b"><p style="width:80px;font-family:'Noto Serif TC', serif;font-size:40px;color:#e3c99a;font-weight:700">01</p><p style="flex:1;font-size:36px;line-height:1.4">定義簡單旅程，以及免費／付費的界線</p></div>
+<div style="display:flex;gap:40px;padding:28px 0;border-top:1px solid #4d443b"><p style="width:80px;font-family:'Noto Serif TC', serif;font-size:40px;color:#e3c99a;font-weight:700">02</p><p style="flex:1;font-size:36px;line-height:1.4">選定首批可驗證的檢查，與量價資料來源</p></div>
+<div style="display:flex;gap:40px;padding:28px 0;border-top:1px solid #4d443b;border-bottom:1px solid #4d443b"><p style="width:80px;font-family:'Noto Serif TC', serif;font-size:40px;color:#e3c99a;font-weight:700">03</p><p style="flex:1;font-size:36px;line-height:1.4">用共同驗收案例，比較生成、STT、部署與金流候選</p></div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1664px;font-size:24px;color:#8a7f72">產品構想，尚未實作；不綁定生成引擎。客戶案例需有真實專案與展示同意。</p>
+<aside>收尾：請大家對 M0 三件事提出意見與資源。可以提問：哪個房間類型最適合當首個試點？誰能提供第一批可同意展示的真實案例？</aside>
+</section>
+</div></div>
+<div id="progress"></div>
+<div id="notes" aria-live="polite"><b>講者備註</b><div id="notesText"></div></div>
+<nav id="bar" aria-label="簡報控制">
+<button id="prev" aria-label="上一頁">←</button>
+<span id="count">1 / 1</span>
+<button id="next" aria-label="下一頁">→</button>
+<select id="chapter" aria-label="跳到章節"></select>
+<span id="spacer"></span>
+<button id="notesBtn" class="wide" title="N">備註</button>
+<button id="fsBtn" class="wide" title="F">全螢幕</button>
+<button id="printBtn" class="wide">列印 / PDF</button>
+</nav>
+<script>
+(function(){
+  var slides=[].slice.call(document.querySelectorAll('.slide'));
+  var deck=document.getElementById('deck'),stage=document.getElementById('stage');
+  var count=document.getElementById('count'),prog=document.getElementById('progress');
+  var chapter=document.getElementById('chapter'),notes=document.getElementById('notes'),notesText=document.getElementById('notesText');
+  var i=0;
+  slides.forEach(function(s,k){var c=s.getAttribute('data-chapter');if(c){var o=document.createElement('option');o.value=k;o.textContent=c.split('：')[0];chapter.appendChild(o);}});
+  function fit(){var r=stage.getBoundingClientRect();var sc=Math.min(r.width/1920,r.height/1080);deck.style.transform='scale('+sc+') translate(-50%,-50%)';}
+  function show(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach(function(s,k){s.classList.toggle('active',k===i);});
+    count.textContent=(i+1)+' / '+slides.length;
+    prog.style.width=((i+1)/slides.length*100)+'%';
+    var a=slides[i].querySelector('aside');notesText.textContent=a?a.textContent:'（本頁無備註）';
+    var best=0;[].forEach.call(chapter.options,function(o){if(+o.value<=i)best=o.index;});chapter.selectedIndex=best;
+    if(location.hash!=='#'+(i+1))history.replaceState(null,'','#'+(i+1));
+  }
+  document.getElementById('prev').onclick=function(){show(i-1)};
+  document.getElementById('next').onclick=function(){show(i+1)};
+  chapter.onchange=function(){show(+chapter.value)};
+  document.getElementById('notesBtn').onclick=function(){notes.classList.toggle('open')};
+  document.getElementById('fsBtn').onclick=function(){if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen()};
+  document.getElementById('printBtn').onclick=function(){window.print()};
+  document.addEventListener('keydown',function(e){
+    if(e.target.tagName==='SELECT')return;
+    var k=e.key;
+    if(k==='ArrowRight'||k==='PageDown'||k===' '){e.preventDefault();show(i+1)}
+    else if(k==='ArrowLeft'||k==='PageUp'){e.preventDefault();show(i-1)}
+    else if(k==='Home')show(0);else if(k==='End')show(slides.length-1);
+    else if(k==='n'||k==='N')notes.classList.toggle('open');
+    else if(k==='f'||k==='F')document.getElementById('fsBtn').click();
+  });
+  var x0=null;stage.addEventListener('touchstart',function(e){x0=e.touches[0].clientX},{passive:true});
+  stage.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTouches[0].clientX-x0;if(Math.abs(dx)>40)show(i+(dx<0?1:-1));x0=null});
+  window.addEventListener('resize',fit);
+  window.addEventListener('hashchange',function(){var n=parseInt(location.hash.slice(1),10);if(n)show(n-1)});
+  fit();show((parseInt(location.hash.slice(1),10)||1)-1);
+})();
+</script>
+</body>
+</html>
