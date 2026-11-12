@@ -6,8 +6,13 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
-import { ROOM, WINDOW, CABINET, LAYOUT } from './layout.js';
-export { ROOM, WINDOW, CABINET, LAYOUT };
+import { ROOM as DEFAULT_ROOM, roomLayout } from './layout.js';
+
+// The room being built. buildScene sets these from the requested size before it places anything
+// (building is synchronous, so the helpers below can read them).
+let ROOM, WINDOW, CABINET, LAYOUT;
+const useRoom = (size) => { ({ room: ROOM, window: WINDOW, cabinet: CABINET, layout: LAYOUT } = roomLayout(size)); };
+useRoom(DEFAULT_ROOM);
 
 /* ---------------- deterministic noise + colour helpers ---------------- */
 let seed = 1;
@@ -231,13 +236,15 @@ export async function loadAssets(look) {
 /* ---------------- the room ---------------- */
 /**
  * @param {object} look one entry of STYLES (colours and material kinds)
- * @param {{closed?:boolean, pathtrace?:boolean, assets?:object}} opts
+ * @param {{closed?:boolean, pathtrace?:boolean, assets?:object, size?:{w:number,d:number,h:number}}} opts
+ *   size: room size in metres (see roomSize in layout.js); furniture stays wall-anchored.
  *   closed: four walls + ceiling (camera inside, for stills); otherwise a cut-away for orbiting.
  *   pathtrace: lighting tuned for the path tracer (area lights instead of fill tricks).
  *   assets: result of loadAssets(look). Without it the room falls back to hand-built furniture and painted textures.
  */
-export function buildScene(look, { closed = false, pathtrace = false, assets: A = null } = {}) {
+export function buildScene(look, { closed = false, pathtrace = false, assets: A = null, size = DEFAULT_ROOM } = {}) {
   seed = 97;
+  useRoom(size);
   const scene = new T.Scene();
   const owned = new Set();
   const tex = (t) => { owned.add(t); return t; };
@@ -326,9 +333,10 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
     add(new T.PlaneGeometry(x1 - x0, y1 - y0), new T.MeshPhysicalMaterial({ color: '#ffffff', roughness: 0.02, transparent: true, opacity: 0.12, metalness: 0, envMapIntensity: 1.4 }),
       [(x0 + x1) / 2, (y0 + y1) / 2, fz], { cast: false, receive: false });
   }
-  const vw = 9, vh = closed ? 5.5 : 2.9;
+  // the view outside: kept just larger than the opening so it never shows past the wall in the cut-away
+  const vw = closed ? 9 : x1 - x0 + 1.0, vh = closed ? 5.5 : y1 - y0 + 0.9;
   add(new T.PlaneGeometry(vw, vh), std({ color: '#000', emissive: '#ffffff', emissiveMap: tex(viewTexture()), emissiveIntensity: pathtrace ? 2.2 : 1 }),
-    [0.8, closed ? 1.6 : 1.2, -d / 2 - 1.4], { cast: false, receive: false });
+    [(x0 + x1) / 2, closed ? 1.6 : (y0 + y1) / 2, -d / 2 - (closed ? 1.4 : 0.5)], { cast: false, receive: false });
 
   /* sheer curtains, bunched at both sides, on a slim track */
   const sheer = std({ color: '#fbfaf6', roughness: 1, transparent: true, opacity: 0.62, side: T.DoubleSide });
@@ -455,7 +463,8 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
   sun.target.position.set(-0.6, 0, 0.6);
   sun.castShadow = !pathtrace;
   sun.shadow.mapSize.set(2048, 2048);
-  Object.assign(sun.shadow.camera, { left: -4.2, right: 4.2, top: 4.2, bottom: -4.2, near: 2, far: 18 });
+  const reach = Math.max(ROOM.w, ROOM.d) * 0.9;
+  Object.assign(sun.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 2, far: 22 });
   sun.shadow.bias = -0.0003; sun.shadow.normalBias = 0.025; sun.shadow.radius = 4;
   scene.add(sun, sun.target);
   // skylight coming through the window (an area light the path tracer samples directly)

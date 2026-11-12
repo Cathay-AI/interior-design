@@ -5,5 +5,5 @@
 <script type="module">
 import {STYLES} from '../lib/taste.js'; import {mountRoom3D} from '../lib/room3d.js';
 const q=new URLSearchParams(location.search);
-window.__room=mountRoom3D(document.getElementById('s'),STYLES[q.get('s')||'warm'],q.get('v')||'A');
+window.__room=mountRoom3D(document.getElementById('s'),STYLES[q.get('s')||'warm'],q.get('v')||'A', q.get('w') ? {w:+q.get('w'), d:+q.get('d'), h:+(q.get('h')||2.8)} : undefined);
 </script>

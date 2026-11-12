@@ -43,8 +43,11 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.getByRole('heading', { name: '多告訴我一點你家' }).waitFor();
   assert.match(await page.locator('#score').innerText(), /掌握度 0%/);
   await page.getByRole('button', { name: '先跳過，生成 3D' }).waitFor();
-  await page.fill('#f-len', '5.6'); await page.locator('#f-len').blur();
-  await page.fill('#f-wid', '4.7'); await page.locator('#f-wid').blur();
+  // 用一句話（語音辨識的結果走同一條路）：聽得出來的欄位自動填好
+  await page.fill('#say', '客廳長五米六、寬四米七'); await page.locator('#say').blur();
+  await page.getByText('聽到：長 5.6 公尺、寬 4.7 公尺').waitFor();
+  assert.equal(await page.inputValue('#f-len'), '5.6');
+  assert.equal(await page.inputValue('#f-wid'), '4.7');
   await page.waitForFunction(() => document.querySelector('#f-ping').value === '8');   // 長×寬 換算坪數
   assert.match(await page.locator('#score').innerText(), /掌握度 30%/);
   await page.setInputFiles('#docFile', [
@@ -74,7 +77,8 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.getByRole('button', { name: '版本 2' }).waitFor();
   assert.notEqual(await page.locator('#teaser').innerText(), before, 'editing the design changes the estimate');
   await page.locator('.scene[data-ready] canvas').waitFor({ timeout: 30000 });
-  assert.match(await page.locator('#ctx').innerText(), /掌握度 80%・8 坪・5.6×4.7 公尺/);
+  assert.match(await page.locator('#ctx').innerText(), /這個房間：5.6 × 4.7 公尺、高 2.8 公尺（8 坪）・掌握度 80%/);
+  assert.deepEqual(await page.evaluate(() => window.__room.stats().size), { w: 5.6, d: 4.7, h: 2.8, clamped: false }, '3D room uses the real size');
   await snap('3-3d'); await noOverflow('3');
   await page.getByRole('button', { name: '看估價與施工圖' }).click();
 

@@ -53,3 +53,43 @@ export function inferStyle(text) {
   }
   return best;
 }
+
+/* ---------- 我家的條件：一句話（語音或打字）→ 坪數、長寬高、屋況 ---------- */
+const CN = { 零: 0, 〇: 0, 一: 1, 二: 2, 兩: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
+/** 「八」「十二」「二十五」「五點六」「三米二」之類的口語數字 → 阿拉伯數字字串；語音辨識常這樣輸出。 */
+export function normalizeNumbers(text) {
+  const int = (s) => {
+    if (!s.includes('十')) return [...s].map((c) => CN[c]).join('');
+    const [a, b] = s.split('十');
+    return String((a ? CN[a] : 1) * 10 + (b ? CN[b] : 0));
+  };
+  return text
+    .replace(/[零〇一二兩三四五六七八九十]+(?:點[零〇一二兩三四五六七八九]+)?/g, (m) => {
+      const [i, f] = m.split('點');
+      return int(i) + (f ? '.' + [...f].map((c) => CN[c]).join('') : '');
+    })
+    .replace(/(\d+)\s*(?:米|公尺|m)\s*(\d)(?!\d|\s*(?:坪|米|公尺|公分|cm|m))/gi, '$1.$2公尺')   // 「5米6」= 5.6 公尺
+    .replace(/(\d+(?:\.\d+)?)\s*(?:公分|cm)/gi, (_, v) => `${Number(v) / 100}公尺`);
+}
+
+/**
+ * @param {string} text 例：「客廳大概八坪，長五米六、寬四米七，天花板兩米八，中古屋」
+ * @returns {Partial<{ping:string, len:string, wid:string, height:string, age:string}>} 只回傳聽得出來的欄位
+ */
+export function parseHome(text) {
+  const t = normalizeNumbers(text), out = {};
+  const N = '(\\d+(?:\\.\\d+)?)', U = '\\s*(?:米|公尺|m)?';
+  const grab = (re) => { const m = t.match(re); return m ? num(m[1]) : ''; };
+  const ping = grab(new RegExp(N + '\\s*坪'));
+  if (ping) out.ping = ping;
+  const pair = t.match(new RegExp(N + U + '\\s*(?:乘以|乘|x|X|×|\\*)\\s*' + N));
+  const len = grab(new RegExp('長(?:度)?(?:大概|大約|約|是|有)?\\s*' + N)) || (pair ? num(pair[1]) : '');
+  const wid = grab(new RegExp('寬(?:度)?(?:大概|大約|約|是|有)?\\s*' + N)) || (pair ? num(pair[2]) : '');
+  if (len) out.len = len;
+  if (wid) out.wid = wid;
+  const height = grab(new RegExp('(?:天花板|挑高|樓高|屋高|高度|淨高)(?:高)?(?:大概|大約|約|是|有)?\\s*' + N));
+  if (height) out.height = height;
+  const age = AGES.find((a) => t.includes(a)) ?? (/新房|新屋|預售/.test(t) ? '新成屋' : /二手/.test(t) ? '中古屋' : /老房|老公寓/.test(t) ? '老屋' : null);
+  if (age) out.age = age;
+  return out;
+}

@@ -26,3 +26,21 @@ test('從一句話猜風格', () => {
 test('猜不到就回 null，不亂猜', () => {
   assert.equal(inferStyle('預算 50 萬'), null);
 });
+
+test('口語數字與單位：八坪、五米六、兩百八十公分', async () => {
+  const { normalizeNumbers } = await import('../lib/intake.js');
+  assert.equal(normalizeNumbers('八坪'), '8坪');
+  assert.equal(normalizeNumbers('二十五坪'), '25坪');
+  assert.equal(normalizeNumbers('十二坪'), '12坪');
+  assert.equal(normalizeNumbers('長五點六公尺'), '長5.6公尺');
+  assert.equal(normalizeNumbers('長5米6'), '長5.6公尺');
+  assert.equal(normalizeNumbers('高280公分'), '高2.8公尺');
+});
+
+test('一句話講完我家的條件', async () => {
+  const { parseHome } = await import('../lib/intake.js');
+  assert.deepEqual(parseHome('客廳大概八坪，長五米六、寬四米七，天花板兩米八，中古屋'), { ping: '8', len: '5.6', wid: '4.7', height: '2.8', age: '中古屋' });
+  assert.deepEqual(parseHome('5.6 x 4.7 公尺，挑高 3 米的老公寓'), { len: '5.6', wid: '4.7', height: '3', age: '老屋' });
+  assert.deepEqual(parseHome('大概 10 坪的新成屋'), { ping: '10', age: '新成屋' });
+  assert.deepEqual(parseHome('我想要溫暖一點'), {}, 'nothing recognisable stays empty');
+});

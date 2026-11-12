@@ -14,7 +14,9 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { createRenderScheduler } from './render-scheduler.js';
 import { buildScene, loadAssets } from './scene.js';
 
-const TARGET = new T.Vector3(-0.35, 0.85, -0.2);
+import { ROOM as DEFAULT_ROOM } from './layout.js';
+// Camera set-ups for the default room; scaled with the room so a bigger room still fits the frame.
+const TARGET = [-0.35, 0.85, -0.2];
 export const VIEWS = { A: [5.9, 3.6, 6.2], B: [1.2, 2.2, 8.2], C: [7.8, 4.8, 2.4] };
 const BACKDROP = '#ebe4d8';
 
@@ -27,12 +29,15 @@ const loadHDRI = () => (hdri ??= new EXRLoader().loadAsync(new URL('../assets/en
  * @param {HTMLElement} container
  * @param {object} look one entry of STYLES (possibly edited)
  * @param {'A'|'B'|'C'} view
+ * @param {{w:number, d:number, h:number}} size room size in metres
  * @returns {{setView:(v:'A'|'B'|'C')=>void, dispose:()=>void, stats:()=>object}}
  */
 /** Start downloading a look's furniture and materials ahead of time (cached for the session). */
 export const preload = (look) => { loadAssets(look).catch(() => {}); loadHDRI().catch(() => {}); };
 
-export function mountRoom3D(container, look, view = 'A') {
+export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM) {
+  const f = Math.max(size.w / DEFAULT_ROOM.w, size.d / DEFAULT_ROOM.d, size.h / DEFAULT_ROOM.h, 0.85);
+  const viewPos = (v) => new T.Vector3(...VIEWS[v]).multiplyScalar(f);
   const renderer = new T.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   renderer.outputColorSpace = T.SRGBColorSpace;
   renderer.toneMapping = T.ACESFilmicToneMapping;
@@ -51,9 +56,9 @@ export function mountRoom3D(container, look, view = 'A') {
   const stage = new T.Scene();
   stage.background = new T.Color(BACKDROP);
   const camera = new T.PerspectiveCamera(32, 1, 0.1, 60);
-  camera.position.set(...VIEWS[view]);
+  camera.position.copy(viewPos(view));
   const controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.copy(TARGET);
+  controls.target.set(...TARGET).multiplyScalar(f);
   Object.assign(controls, { enableDamping: false, enablePan: false, enableZoom: false, rotateSpeed: 0.6,
     minAzimuthAngle: 0.06, maxAzimuthAngle: 1.42, minPolarAngle: 0.8, maxPolarAngle: 1.45 });
   controls.update();
@@ -87,7 +92,7 @@ export function mountRoom3D(container, look, view = 'A') {
   const show = (assets, final = true) => {
     if (disposed) return;
     room?.dispose();
-    room = buildScene(look, { assets });
+    room = buildScene(look, { assets, size });
     if (lite) room.sun.shadow.mapSize.set(1024, 1024);
     room.scene.background = new T.Color(BACKDROP);
     room.scene.environmentIntensity = 0.55;
@@ -126,7 +131,7 @@ export function mountRoom3D(container, look, view = 'A') {
 
   return {
     setView(v) {
-      const from = camera.position.clone(), to = new T.Vector3(...VIEWS[v]), t0 = performance.now();
+      const from = camera.position.clone(), to = viewPos(v), t0 = performance.now();
       const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
       const mine = tween = {};
       scheduler.start();
@@ -140,7 +145,7 @@ export function mountRoom3D(container, look, view = 'A') {
       };
       requestAnimationFrame(step);
     },
-    stats: () => ({ ready, frames, calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, pixelRatio: renderer.getPixelRatio() }),
+    stats: () => ({ ready, size, frames, calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, pixelRatio: renderer.getPixelRatio() }),
     dispose() {
       if (disposed) return;
       disposed = true; clearTimeout(standIn);

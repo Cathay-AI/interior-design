@@ -71,6 +71,14 @@ main[data-step="1"]{max-width:520px;align-items:center}
 
 /* 2 我家的條件 */
 main[data-step="2"]{max-width:720px}
+.voice{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:14px 16px}
+.voice:focus-within{border-color:var(--accent)}
+.voicebody{flex:1;min-width:0;display:grid;gap:4px}
+.voice input{width:100%;border:none;background:none;outline:none;font-size:17px;padding:4px 0}
+.mic{width:52px;height:52px;flex:none;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;box-shadow:0 0 0 6px rgba(181,101,58,.16);transition:transform .15s}
+.mic[aria-pressed="true"]{animation:pulse 1.1s infinite;transform:scale(.94)}
+.mic:disabled{background:#b9afa2;box-shadow:none}
+@keyframes pulse{50%{box-shadow:0 0 0 14px rgba(181,101,58,.24)}}
 .meter{display:grid;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:18px 20px}
 .meter .bar{height:10px;border-radius:99px;background:var(--line);overflow:hidden}.meter .bar i{display:block;height:100%;background:var(--green);border-radius:99px;transition:width .35s}
 .tick{font-size:13px;padding:4px 10px;border-radius:99px;border:1px dashed var(--line);color:var(--muted)}.tick.done{border-style:solid;border-color:var(--green);color:var(--green);font-weight:600}

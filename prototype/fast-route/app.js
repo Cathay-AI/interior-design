@@ -3,8 +3,9 @@
 import { STYLES, SWIPE_ORDER, emptyScores, applySwipe, pickStyle } from './lib/taste.js';
 import { designEstimate, resolvePing } from './lib/estimate.js';
 import { STATES, ruleFindings } from './lib/rules.js';
-import { AGES } from './lib/intake.js';
+import { AGES, parseHome } from './lib/intake.js';
 import { drawingSet } from './lib/drawings.js';
+import { roomSize } from './lib/layout.js';
 import { MASCOT, roomSVG } from './lib/art.js';
 import { PINS } from './lib/pins.js';
 import { contextScore, pingFromDims, tighten } from './lib/context.js';
@@ -31,7 +32,7 @@ const STATE_COLOR = { ok: '#5f7a6a', conflict: '#b5653a', missing: '#c9a77c', re
 const fresh = () => ({
   step: 1, reached: 1, scores: emptyScores(), swiped: 0, liked: 0,
   cond: { space: '客廳', style: null, ping: '', len: '', wid: '', height: '', age: '新成屋', ageSet: false },
-  docs: [], docError: '',
+  docs: [], docError: '', said: '', heard: null,
   versions: [], v: 0, view: 'A', generated: false, unlocked: false,
 });
 let S = fresh();
@@ -176,6 +177,35 @@ SCREENS[2] = () => {
       h('div', { class: 'chips' }, ...Object.entries(KINDS).map(([k, label]) => h('button', { class: 'chip', 'aria-pressed': String(d.kind === k), onclick: () => { d.kind = k; render(); } }, label)))),
     h('button', { class: 'rm', 'aria-label': `移除 ${d.name}`, onclick: () => { if (d.url) URL.revokeObjectURL(d.url); S.docs.splice(i, 1); render(); } }, '×'))));
   const c = S.cond, k = knowledge(), pct = Math.round(k.score * 100);
+  // 用說的（或打一句話）：聽得出來的欄位直接填進下面，其餘不動
+  const LABEL = { ping: ['坪數', '坪'], len: ['長', '公尺'], wid: ['寬', '公尺'], height: ['天花板高', '公尺'], age: ['屋況', ''] };
+  const applySaid = (text) => {
+    S.said = text.trim();
+    const got = parseHome(S.said);
+    Object.assign(c, got);
+    if (got.age) c.ageSet = true;
+    const p = pingFromDims(c.len, c.wid);
+    if (p && (got.len || got.wid)) c.ping = String(p);
+    S.heard = Object.entries(got).map(([key, v]) => `${LABEL[key][0]} ${v}${LABEL[key][1] ? ' ' + LABEL[key][1] : ''}`);
+    render();
+  };
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const say = h('input', { type: 'text', id: 'say', value: S.said, placeholder: '例：客廳大概 8 坪，長 5 米 6、寬 4 米 7，中古屋', 'aria-label': '用一句話描述你家',
+    onchange: (e) => applySaid(e.target.value) });
+  const micLabel = h('span', { class: 'note', id: 'micnote', 'aria-live': 'polite' },
+    S.heard === null ? (Recognition ? '按麥克風用說的，或直接打一句話' : '這個瀏覽器不支援語音，請直接打一句話')
+      : S.heard.length ? `聽到：${S.heard.join('、')}` : '沒聽出坪數或尺寸，可以再說一次，或直接填下面');
+  let rec = null;
+  const mic = h('button', { class: 'mic', id: 'mic', 'aria-label': '用說的', 'aria-pressed': 'false', disabled: !Recognition,
+    onclick: () => {
+      if (rec) return rec.stop();
+      rec = new Recognition(); rec.lang = 'zh-TW'; rec.interimResults = true;
+      mic.setAttribute('aria-pressed', 'true'); micLabel.textContent = '正在聽…說完再按一次';
+      rec.onresult = (e) => { say.value = [...e.results].map((r) => r[0].transcript).join(''); };
+      rec.onerror = (e) => { rec = null; mic.setAttribute('aria-pressed', 'false'); micLabel.textContent = e.error === 'not-allowed' ? '沒有麥克風權限，請直接打一句話' : '沒聽清楚，再試一次或直接打字'; };
+      rec.onend = () => { if (!rec) return; rec = null; if (S.step === 2) applySaid(say.value); };
+      rec.start();
+    } }, fromHTML('<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>'));
   const field = (key, label, unit, attrs = {}) => h('label', { class: 'field' }, h('span', {}, label),
     h('input', { type: 'number', inputmode: 'decimal', min: 0, step: 'any', value: c[key], id: 'f-' + key, placeholder: '—', ...attrs,
       onchange: (e) => {
@@ -186,6 +216,7 @@ SCREENS[2] = () => {
         render();
       } }), h('em', {}, unit));
   app.append(h('div', { class: 'shead' }, backBtn(1), h('h1', {}, '多告訴我一點你家'), h('p', { class: 'lead' }, '都是選填。給得越多，估價區間越窄、圖面尺寸越準。')),
+    h('div', { class: 'voice' }, mic, h('div', { class: 'voicebody' }, say, micLabel)),
     h('div', { class: 'meter', role: 'group', 'aria-label': '掌握度' },
       h('div', { class: 'row between' }, h('b', { id: 'score' }, `掌握度 ${pct}%`), h('span', { class: 'note' }, pct ? `估價區間收窄 ${Math.round(k.score * 50)}%` : '目前用預設值估算')),
       h('div', { class: 'bar' }, h('i', { style: `width:${pct}%` })),
@@ -204,7 +235,7 @@ SCREENS[2] = () => {
 SCREENS[3] = () => {
   if (!S.cond.style) setStyle(pickStyle(S.scores));
   if (!S.generated) return generating();
-  const c = S.cond, current = look(), est = estimateNow();
+  const c = S.cond, current = look(), est = estimateNow(), size = roomSize(c, est.ping);
   const stage = h('div', { class: 'scene', role: 'img', 'aria-label': '3D 空間，可拖曳旋轉' });
   const views = h('div', { class: 'seg', role: 'group', 'aria-label': '視角' }, ...['A', 'B', 'C'].map((v) => h('button', { 'aria-pressed': String(S.view === v), 'aria-label': '視角 ' + v,
     onclick: () => { S.view = v; live?.setView(v); [...views.children].forEach((b) => b.setAttribute('aria-pressed', String(b.textContent === v))); } }, v)));
@@ -218,11 +249,12 @@ SCREENS[3] = () => {
       h('div', { class: 'tweak' }, h('b', {}, '改細節'),
         h('div', { class: 'chips' }, ...EDITS.map(([label, fn]) => h('button', { class: 'chip', onclick: () => edit(fn) }, label))),
         S.versions.length > 1 ? h('div', { class: 'chips versions' }, ...S.versions.map((v, i) => h('button', { class: 'chip ghost', 'aria-pressed': String(i === S.v), onclick: () => { S.v = i; render(); } }, v.label))) : null),
-      h('p', { class: 'note', id: 'ctx' }, `掌握度 ${Math.round(knowledge().score * 100)}%・${est.ping} 坪${est.assumedPing ? '（預設）' : ''}${c.len && c.wid ? `・${c.len}×${c.wid} 公尺` : ''}。3D 目前是示意格局，尚未依你家的尺寸變形。`, ' ', h('button', { class: 'link', onclick: () => go(2) }, '補條件')),
+      h('p', { class: 'note', id: 'ctx' }, `這個房間：${size.w} × ${size.d} 公尺、高 ${size.h} 公尺（${est.ping} 坪${est.assumedPing ? '，預設' : ''}）・掌握度 ${Math.round(knowledge().score * 100)}%。`,
+        size.clamped ? '尺寸超出 3D 可呈現的範圍，已取最接近的大小。' : '', ' ', h('button', { class: 'link', onclick: () => go(2) }, c.len && c.wid ? '修改尺寸' : '填你家的尺寸')),
       h('p', { class: 'pricetag' }, '預估', h('b', { id: 'teaser' }, `${est.low}–${est.high} 萬`)),
       cta('看估價與施工圖', () => go(4)))));
   stage.append(h('span', { class: 'hint' }, '拖曳旋轉'));
-  load3D().then((m) => { if (S.step === 3 && stage.isConnected) { live = m.mountRoom3D(stage, current, S.view); window.__room = live; } })
+  load3D().then((m) => { if (S.step === 3 && stage.isConnected) { live = m.mountRoom3D(stage, current, S.view, size); window.__room = live; } })
     .catch(() => { stage.append(fromHTML(roomSVG(current, { label: '空間示意' }))); stage.querySelector('.hint').textContent = '這台裝置無法顯示 3D，改用示意圖'; });
 };
 function generating() {
