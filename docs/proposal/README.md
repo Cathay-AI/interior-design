@@ -23,4 +23,4 @@ Public hosting contains only presentation files. Private product specifications 
 
 - `deck-v3/index.html`: 34-page HTML deck (background, market, needs, product experience, competitors, positioning, execution incl. work split, timeline, partner proposal). Arrow keys / swipe, chapter jump, `N` notes, `F` fullscreen, print to PDF.
 - `../../prototype/fast-route/`: RWD prototype of the 快速找風格 route (entry with three routes, taste map, layout, confirm, result with 3D view, rough estimate, rule check, versions). See its README.
-- Deployed together via `vercel.json` + `scripts/build-site.sh` (only the site, prototype and deck-v3 are published).
+- The prototype is deployed on Vercel (`vercel.json` + `scripts/build-site.sh`); the deck is published on GitHub Pages at https://cathay-ai.github.io/interior-design/ (`.github/workflows/pages.yml`).

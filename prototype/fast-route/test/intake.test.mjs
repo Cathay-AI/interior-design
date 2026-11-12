@@ -14,3 +14,15 @@ test('沒提到的欄位不出現，避免覆蓋使用者已填的值', () => {
 test('小數坪數', () => {
   assert.equal(parseIntake('臥室 4.5坪').ping, '4.5');
 });
+
+import { inferStyle } from '../lib/intake.js';
+
+test('從一句話猜風格', () => {
+  assert.equal(inferStyle('客廳想要溫暖木質感、多收納'), 'warm');
+  assert.equal(inferStyle('想要北歐風，明亮一點'), 'nordic');
+  assert.equal(inferStyle('工業風，水泥牆'), 'indus');
+});
+
+test('猜不到就回 null，不亂猜', () => {
+  assert.equal(inferStyle('預算 50 萬'), null);
+});

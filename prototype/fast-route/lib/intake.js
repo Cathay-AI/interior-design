@@ -29,3 +29,27 @@ export function parseIntake(text) {
   if (city) out.city = city;
   return out;
 }
+
+const STYLE_WORDS = {
+  warm: ['木質', '溫暖', '木頭', '暖'],
+  nordic: ['北歐', '明亮', '白色'],
+  muji: ['無印', '日式', '日系', '簡約'],
+  retro: ['復古', '懷舊'],
+  dark: ['深色', '黑', '現代'],
+  indus: ['工業', '水泥', '鐵件'],
+};
+
+/**
+ * Guess a style key from the transcript. Returns null when nothing matches,
+ * so the UI can say 「我猜的」 instead of pretending to know.
+ * @param {string} text
+ * @returns {keyof typeof STYLE_WORDS | null}
+ */
+export function inferStyle(text) {
+  let best = null, bestHits = 0;
+  for (const [key, words] of Object.entries(STYLE_WORDS)) {
+    const hits = words.filter((w) => text.includes(w)).length;
+    if (hits > bestHits) { best = key; bestHits = hits; }
+  }
+  return best;
+}
