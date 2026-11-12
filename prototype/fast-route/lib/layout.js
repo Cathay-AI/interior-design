@@ -23,8 +23,11 @@ export const LAYOUT = {
 const PING_M2 = 3.3058;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const pos = (v) => { const n = Number.parseFloat(v); return Number.isFinite(n) && n > 0 ? n : null; };
-/** Sizes the 3D room accepts (metres). Wide on purpose: small rooms drop furniture that does not fit, big rooms just gain floor. */
-export const LIMITS = { w: [2.4, 20], d: [2.4, 20], h: [2.2, 6] };
+/**
+ * Sizes the 3D room accepts (metres). There is no practical upper limit: a 100 坪 home is drawn as 100 坪.
+ * The lower bound is physical: below it not even a two-seat sofa fits.
+ */
+export const LIMITS = { w: [2, 60], d: [2, 60], h: [2, 12] };
 
 /**
  * Room size for the 3D view. Uses the homeowner's length / width / height when given;
@@ -50,9 +53,9 @@ export function roomSize(cond, ping) {
 export function roomLayout({ w, d, h }) {
   const L = -w / 2, R = w / 2, B = -d / 2, F = d / 2;
   const cabinet = { x0: L, x1: L + Math.min(1.75, w * 0.36), depth: 0.42 };
-  const x1 = R - 0.45, x0 = Math.max(cabinet.x1 + 0.3, x1 - Math.min(6, 2.4 * Math.max(1, w / ROOM.w)));
+  const x1 = R - 0.45, x0 = Math.max(cabinet.x1 + 0.3, x1 - Math.min(8, 2.4 * Math.max(1, w / ROOM.w)));
   const window = { x0, x1, y0: 0.45, y1: Math.min(2.55 + (h - ROOM.h) * 0.8, h - 0.25) };
-  const sofaLen = Math.min(2.3, d - 0.9);                 // two-seater when the room is short
+  const sofaLen = Math.max(1.5, Math.min(2.3, d - 0.5));  // two-seater when the room is short
   const sz = d >= 3.4 ? 0.06 * d : 0.15;                  // seating group sits a little forward of centre
   const sofa = { x: L + 0.48, z: Math.min(sz, F - sofaLen / 2 - 0.1), sx: 0.96, sz: sofaLen };
   const table = w >= 2.8 ? { x: L + 1.65, z: sofa.z, sx: 0.62, sz: Math.min(1.05, sofaLen - 0.4) } : null;

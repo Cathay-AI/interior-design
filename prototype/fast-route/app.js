@@ -222,7 +222,7 @@ SCREENS[2] = () => {
       h('div', { class: 'bar' }, h('i', { style: `width:${pct}%` })),
       h('div', { class: 'chips' }, ...k.items.map((i) => h('span', { class: 'tick' + (i.done ? ' done' : '') }, (i.done ? '✓ ' : '＋ ') + i.label)))),
     h('div', { class: 'cardbox' }, h('b', {}, '空間'),
-      h('div', { class: 'fields' }, field('ping', '坪數', '坪', { max: 200 }), field('len', '長', '公尺', { max: 30 }), field('wid', '寬', '公尺', { max: 30 }), field('height', '天花板高', '公尺', { max: 6 })),
+      h('div', { class: 'fields' }, field('ping', '坪數', '坪'), field('len', '長', '公尺'), field('wid', '寬', '公尺'), field('height', '天花板高', '公尺')),
       h('div', { class: 'inline' }, h('span', { class: 'note' }, '屋況'), ...AGES.map((a) => h('button', { class: 'chip', 'aria-pressed': String(c.ageSet && c.age === a), onclick: () => { c.age = a; c.ageSet = true; render(); } }, a)))),
     h('div', { class: 'cardbox' }, h('b', {}, '圖面'), input, drop,
       S.docError ? h('p', { class: 'err', role: 'alert' }, S.docError) : h('span', { hidden: true }),
@@ -250,7 +250,7 @@ SCREENS[3] = () => {
         h('div', { class: 'chips' }, ...EDITS.map(([label, fn]) => h('button', { class: 'chip', onclick: () => edit(fn) }, label))),
         S.versions.length > 1 ? h('div', { class: 'chips versions' }, ...S.versions.map((v, i) => h('button', { class: 'chip ghost', 'aria-pressed': String(i === S.v), onclick: () => { S.v = i; render(); } }, v.label))) : null),
       h('p', { class: 'note', id: 'ctx' }, `這個房間：${size.w} × ${size.d} 公尺、高 ${size.h} 公尺（${est.ping} 坪${est.assumedPing ? '，預設' : ''}）・掌握度 ${Math.round(knowledge().score * 100)}%。`,
-        size.clamped ? '尺寸超出 3D 能畫的範圍（2.4–20 公尺），已取最接近的大小。' : '', ' ', h('button', { class: 'link', onclick: () => go(2) }, c.len && c.wid ? '修改尺寸' : '填你家的尺寸')),
+        size.clamped ? '這個尺寸放不下一張沙發或超過 60 公尺，3D 取了最接近的大小。' : '', ' ', h('button', { class: 'link', onclick: () => go(2) }, c.len && c.wid ? '修改尺寸' : '填你家的尺寸')),
       h('p', { class: 'pricetag' }, '預估', h('b', { id: 'teaser' }, `${est.low}–${est.high} 萬`)),
       cta('看估價與施工圖', () => go(4)))));
   stage.append(h('span', { class: 'hint' }, '拖曳旋轉'));
@@ -268,7 +268,7 @@ function generating() {
 SCREENS[4] = () => {
   const c = S.cond, current = look(), est = estimateNow(), k = knowledge();
   const max = Math.max(...est.items.map((i) => i.high));
-  const setPing = (v) => { c.ping = String(Math.max(3, Math.min(60, Math.round(v)))); c.len = ''; c.wid = ''; render(); };
+  const setPing = (v) => { c.ping = String(Math.max(1, Math.round(v))); c.len = ''; c.wid = ''; render(); };
   const money = h('div', { class: 'cardbox' },
     h('p', { class: 'note' }, `照這個設計做，預估花費`),
     h('p', { class: 'note', id: 'know' }, `掌握度 ${Math.round(k.score * 100)}%${est.narrowed ? `，區間已收窄 ${Math.round(est.narrowed * 100)}%` : ''}。`, ' ', h('button', { class: 'link', onclick: () => go(2) }, k.score < 1 ? '補條件讓它更準' : '修改條件')),
