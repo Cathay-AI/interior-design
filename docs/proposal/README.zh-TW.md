@@ -18,3 +18,9 @@ python3 -m http.server 8000 --bind 127.0.0.1 --directory docs/proposal
 ```
 
 [公開簡報原始碼](https://github.com/Cathay-AI/interior-design-proposal)；內部產品文件維持私人。
+
+## 簡報 v3 與「快速找風格」原型
+
+- `deck-v3/index.html`：34 頁 HTML 簡報（背景、市場、需求、產品體驗、競品、定位、執行：分工、Timeline、合作提案）。方向鍵／滑動翻頁、章節跳轉、`N` 備註、`F` 全螢幕、可列印 PDF。
+- `../../prototype/fast-route/`：快速找風格路線的 RWD 原型（三路線入口、口味圖譜、佈置、確認需求、結果頁 3D、粗略報價、規則檢查、版本）。詳見該資料夾 README。
+- 透過 `vercel.json` + `scripts/build-site.sh` 一起部署（只發布 site、prototype、deck-v3）。
