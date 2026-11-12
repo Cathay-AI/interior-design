@@ -16,7 +16,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
     assert.ok(overflow <= 1, `${name} ${at}: horizontal overflow ${overflow}px`);
   };
   await page.goto(base);
-  await page.getByRole('heading', { name: '新提案' }).waitFor();
+  await page.getByRole('heading', { name: '說說你想要的家' }).waitFor();
 
   // 1 說出想像：沒填不能往下
   assert.equal(await page.getByRole('button', { name: '下一步' }).isDisabled(), true);
@@ -25,7 +25,8 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.getByRole('button', { name: '下一步' }).click();
 
   // 2 放參考圖
-  await page.getByRole('button', { name: '木質沙發' }).click();
+  await page.locator('.tile img').first().waitFor({ timeout: 15000 }); // realistic stills rendered on demand
+  await page.getByRole('button', { name: '溫暖木質' }).click();
   await snap('2-refs'); await noOverflow('2');
   await page.getByRole('button', { name: '下一步' }).click();
 
@@ -44,8 +45,13 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.getByRole('button', { name: '確認，開始生成' }).click();
 
   // 4 看 3D 提案
-  await page.locator('.scene').waitFor({ timeout: 8000 });
+  await page.locator('.scene canvas').waitFor({ timeout: 15000 });
+  await page.waitForTimeout(600);
+  const idle = await page.evaluate(() => window.__room.stats().frames);
+  await page.waitForTimeout(700);
+  assert.equal(await page.evaluate(() => window.__room.stats().frames), idle, `${name}: 3D must not render while idle`);
   await page.getByRole('button', { name: '視角 B' }).click();
+  await page.waitForTimeout(900);
   await page.getByRole('button', { name: '沙發換淺色' }).click();
   await page.getByRole('button', { name: '版本 2' }).waitFor();
   await snap('4-3d'); await noOverflow('4');
