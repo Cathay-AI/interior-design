@@ -1,4 +1,4 @@
-// End-to-end check of the flow on desktop and phone widths: 靈感牆 → 3D → 估價與施工圖.
+// End-to-end check of the flow on desktop and phone widths: 滑卡 → 3D → 估價與施工圖.
 // Usage: node e2e/flow.e2e.mjs [baseUrl] [screenshotDir]
 import { chromium } from 'playwright';
 import { strict as assert } from 'node:assert';
@@ -20,24 +20,24 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   };
   await page.goto(base);
 
-  // 1 靈感牆：瀑布流，點圖就是喜歡，可取消；喜歡最多的風格決定 3D
-  await page.locator('.pin').first().waitFor();
-  assert.equal(await page.locator('.pin').count(), 48);
-  assert.equal(await page.locator('.feed figcaption a[href^="https://www.pinterest.com/"]').count(), 48, 'every pin links back to its source');
-  await page.waitForFunction(() => document.querySelector('.pin img').naturalWidth > 0);
-  assert.match(await page.locator('#make').innerText(), /跳過，直接看 3D/);
-  const cols = await page.evaluate(() => new Set([...document.querySelectorAll('.pin')].map((p) => Math.round(p.getBoundingClientRect().left))).size);
-  assert.ok(name === 'phone' ? cols === 2 : cols >= 4, `${name}: ${cols} columns`);
-  await page.locator('.pin[data-style="warm"]').first().click();
-  await page.locator('.pin[data-style="nordic"]').nth(0).click();
-  await page.locator('.pin[data-style="nordic"]').nth(1).click();
-  await page.locator('.pin[data-style="dark"]').first().click();
-  await page.locator('.pin[data-style="dark"]').first().click();              // 再點一次取消
-  assert.match(await page.locator('.feedbar .count').innerText(), /已喜歡 3 張/);
-  const bar = await page.locator('.feedbar').boundingBox();
-  assert.ok(bar.x >= 0 && bar.x + bar.width <= viewport.width, `${name}: the bottom bar must stay on screen`);
-  await snap('1-feed'); await noOverflow('1');
-  await page.getByRole('button', { name: '看我的 3D' }).click();
+  // 1 滑卡：按鈕、鍵盤、拖曳三種方式；卡片是 Pinterest 的圖並附來源
+  await page.locator('.card').first().waitFor();
+  assert.match(await page.locator('.count').innerText(), /1 \/ 18/);
+  assert.match(await page.locator('.card img').last().getAttribute('src'), /^https:\/\/i\.pinimg\.com\//);
+  assert.match(await page.locator('.card a').last().getAttribute('href'), /^https:\/\/www\.pinterest\.com\//);
+  await snap('1-swipe'); await noOverflow('1');
+  await page.getByRole('button', { name: '不喜歡', exact: true }).click();   // 溫暖木質 ✕
+  await page.waitForFunction(() => document.querySelector('.count').textContent.startsWith('2 '));
+  await page.keyboard.press('ArrowLeft');                                      // 深色現代 ✕
+  await page.waitForFunction(() => document.querySelector('.count').textContent.startsWith('3 '));
+  assert.equal(await page.locator('.card').last().getAttribute('data-style'), 'nordic');
+  const box = await page.locator('.card').last().boundingBox();               // 日光北歐：拖曳右滑
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 220, box.y + box.height / 2, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForFunction(() => document.querySelector('.count').textContent.startsWith('4 '));
+  await page.getByRole('button', { name: '夠了，直接看 3D' }).click();
 
   // 2 3D 成品：喜歡的那一種，靜止時不重畫
   await page.getByRole('heading', { name: '客廳・日光北歐' }).waitFor();

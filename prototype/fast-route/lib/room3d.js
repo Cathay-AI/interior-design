@@ -29,6 +29,9 @@ const loadHDRI = () => (hdri ??= new EXRLoader().loadAsync(new URL('../assets/en
  * @param {'A'|'B'|'C'} view
  * @returns {{setView:(v:'A'|'B'|'C')=>void, dispose:()=>void, stats:()=>object}}
  */
+/** Start downloading a look's furniture and materials ahead of time (cached for the session). */
+export const preload = (look) => { loadAssets(look).catch(() => {}); loadHDRI().catch(() => {}); };
+
 export function mountRoom3D(container, look, view = 'A') {
   const renderer = new T.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   renderer.outputColorSpace = T.SRGBColorSpace;
@@ -79,8 +82,11 @@ export function mountRoom3D(container, look, view = 'A') {
   controls.addEventListener('change', scheduler.request);
   controls.addEventListener('end', scheduler.end);
 
-  const show = (assets) => {
+  // First frame right away with the hand-built room; swap in the scanned furniture when it has arrived
+  // (usually already cached, because the swipe screen preloads it).
+  const show = (assets, final = true) => {
     if (disposed) return;
+    room?.dispose();
     room = buildScene(look, { assets });
     if (lite) room.sun.shadow.mapSize.set(1024, 1024);
     room.scene.background = new T.Color(BACKDROP);
@@ -88,11 +94,13 @@ export function mountRoom3D(container, look, view = 'A') {
     room.scene.environment = env;
     renderPass.scene = room.scene; ao.scene = room.scene;
     renderer.shadowMap.needsUpdate = true;
-    ready = true;
-    container.dataset.ready = 'true';
+    if (final) { ready = true; container.dataset.ready = 'true'; }
     scheduler.request();
   };
-  loadAssets(look).then(show, () => show(null)); // no assets (offline, blocked): hand-built fallback
+  // Only pay for the stand-in when the real assets are not already cached.
+  const standIn = setTimeout(() => show(null, false), 120);
+  loadAssets(look).then((a) => { clearTimeout(standIn); show(a); },
+    () => { clearTimeout(standIn); if (!room) show(null, false); ready = true; container.dataset.ready = 'true'; }); // offline or blocked: keep the hand-built room
   loadHDRI().then((t) => {
     if (disposed) return;
     const pmrem = new T.PMREMGenerator(renderer);
@@ -135,7 +143,7 @@ export function mountRoom3D(container, look, view = 'A') {
     stats: () => ({ ready, frames, calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, pixelRatio: renderer.getPixelRatio() }),
     dispose() {
       if (disposed) return;
-      disposed = true;
+      disposed = true; clearTimeout(standIn);
       scheduler.cancel(); resize.disconnect(); controls.dispose(); room?.dispose();
       env?.dispose();
       composer.dispose(); ao.dispose?.();

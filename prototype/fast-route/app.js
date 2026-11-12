@@ -1,4 +1,4 @@
-// UI for the 快速找風格 prototype: 靈感牆（點喜歡的圖）→ 3D 成品 → 估價與施工圖.
+// UI for the 快速找風格 prototype: 滑卡（Pinterest 靈感圖）→ 3D 成品 → 估價與施工圖.
 // Decision logic lives in ./lib (pure, unit-tested); this file owns state, rendering and browser APIs.
 import { STYLES, SWIPE_ORDER, emptyScores, applySwipe, pickStyle } from './lib/taste.js';
 import { designEstimate, resolvePing } from './lib/estimate.js';
@@ -14,7 +14,9 @@ const load3D = () => (room3d ??= import('./lib/room3d.js'));
 let live = null; // the mounted 3D room, disposed whenever the screen changes
 
 /* ================= content ================= */
-const STEPS = [null, { name: '靈感' }, { name: '3D 成品' }, { name: '估價與施工圖' }];
+const STEPS = [null, { name: '滑卡' }, { name: '3D 成品' }, { name: '估價與施工圖' }];
+// 18 cards, three per style; PINS is already interleaved so neighbouring cards differ.
+const DECK = PINS.slice(0, 18);
 const EDITS = [
   ['沙發換淺色', (l) => ({ ...l, sofa: '#cfc8bd', fabric: 'linen', sofaTex: 'poly_wool_herringbone' })],
   ['牆換暖白', (l) => ({ ...l, wall: '#f3ece0', wallType: undefined, wallTex: 'plastered_wall' })],
@@ -25,7 +27,7 @@ const STATE_COLOR = { ok: '#5f7a6a', conflict: '#b5653a', missing: '#c9a77c', na
 
 /* ================= state ================= */
 const fresh = () => ({
-  step: 1, reached: 1, liked: new Set(),
+  step: 1, reached: 1, scores: emptyScores(), swiped: 0, liked: 0,
   cond: { space: '客廳', style: null, ping: '', age: '新成屋' },
   versions: [], v: 0, view: 'A', generated: false, unlocked: false,
 });
@@ -75,43 +77,80 @@ const backBtn = (n) => h('button', { class: 'back', onclick: () => go(n) }, '‹
 /* ================= screens ================= */
 const SCREENS = [];
 
-/* ---- 1 靈感牆：像逛 Pinterest，點圖就是喜歡 ---- */
+/* ---- 1 滑卡：一張一張看，右滑喜歡、左滑跳過 ---- */
 SCREENS[1] = () => {
-  const bar = h('div', { class: 'feedbar' });
-  const next = cta('', () => { setStyle(pickStyle(likedScores())); S.generated = false; go(2); }, 'accent', { id: 'make' });
+  const total = DECK.length;
+  const deck = h('div', { class: 'deck', role: 'group', 'aria-label': '靈感卡片，右滑喜歡、左滑跳過' });
   const count = h('span', { class: 'count', 'aria-live': 'polite' });
-  const sync = () => {
-    count.textContent = S.liked.size ? `已喜歡 ${S.liked.size} 張` : '點喜歡的圖';
-    next.textContent = S.liked.size ? '看我的 3D' : '跳過，直接看 3D';
-    next.classList.toggle('accent', S.liked.size > 0);
+  const skip = h('button', { class: 'link', id: 'skip', onclick: () => finish() });
+  let busy = false;
+  const finish = () => { setStyle(pickStyle(S.scores)); S.generated = false; go(2); };
+  const makeCard = (p, depth) => {
+    const st = STYLES[p.style];
+    const card = h('div', { class: 'card', 'data-style': p.style, style: `transform:scale(${1 - depth * 0.04}) translateY(${depth * 12}px);z-index:${10 - depth}` },
+      h('img', { src: p.src2x, alt: `${st.name}客廳`, draggable: 'false', referrerpolicy: 'no-referrer', onerror: () => card.classList.add('noimg') }),
+      h('span', { class: 'stamp like' }, '喜歡'), h('span', { class: 'stamp nope' }, '跳過'),
+      h('div', { class: 'meta' }, h('b', {}, st.name), h('div', { class: 'tags' }, ...st.tags.map((t) => h('span', {}, t)),
+        h('a', { href: p.source, target: '_blank', rel: 'noopener noreferrer', onpointerdown: (e) => e.stopPropagation() }, '來源'))));
+    return card;
   };
-  const pin = (p, i) => {
-    const st = STYLES[p.style], label = () => `${st.name}，${S.liked.has(p.id) ? '已喜歡' : '點一下喜歡'}`;
-    const fig = h('figure', {});
-    const btn = h('button', { class: 'pin', 'aria-pressed': String(S.liked.has(p.id)), 'aria-label': label(), 'data-style': p.style, style: `aspect-ratio:${p.w}/${p.h}`,
-      onclick: () => {
-        S.liked.has(p.id) ? S.liked.delete(p.id) : S.liked.add(p.id);
-        btn.setAttribute('aria-pressed', String(S.liked.has(p.id)));
-        btn.setAttribute('aria-label', label());
-        sync();
-      } },
-      h('img', { src: p.src, srcset: `${p.src} 1x, ${p.src2x} 2x`, alt: '', width: p.w, height: p.h, loading: i < 8 ? 'eager' : 'lazy', decoding: 'async', referrerpolicy: 'no-referrer',
-        onerror: () => { S.liked.delete(p.id); fig.remove(); sync(); } }), // a pin that no longer loads just leaves the wall
-      h('span', { class: 'heart', 'aria-hidden': 'true' }, '♥'));
-    fig.append(btn, h('figcaption', {}, st.name, h('a', { href: p.source, target: '_blank', rel: 'noopener noreferrer' }, '來源')));
-    return fig;
+  const draw = () => {
+    deck.replaceChildren(...DECK.slice(S.swiped, S.swiped + 3).map((p, i) => makeCard(p, i)).reverse());
+    count.textContent = `${Math.min(S.swiped + 1, total)} / ${total}`;
+    skip.textContent = S.liked ? '夠了，直接看 3D' : '跳過，直接看 3D';
+    const top = deck.lastElementChild;
+    if (top) drag(top);
   };
-  bar.append(count, next);
-  app.append(h('h1', { class: 'sr' }, '挑喜歡的風格'), h('div', { class: 'feed' }, ...PINS.map(pin)), bar);
-  sync();
-  (window.requestIdleCallback ?? setTimeout)(() => load3D().catch(() => {}));
+  const decide = (liked, card = deck.lastElementChild) => {
+    if (busy || !card) return;
+    busy = true;
+    S.scores = applySwipe(S.scores, card.dataset.style, liked);
+    S.swiped += 1; S.liked += liked ? 1 : 0;
+    warm3D();
+    card.querySelector(liked ? '.like' : '.nope').style.opacity = 1;
+    card.style.transition = 'transform .28s ease-in, opacity .28s';
+    card.style.transform = `translateX(${liked ? 130 : -130}%) rotate(${liked ? 18 : -18}deg)`;
+    card.style.opacity = 0;
+    setTimeout(() => { busy = false; if (S.step !== 1) return; if (S.swiped >= total) finish(); else draw(); }, reducedMotion() ? 0 : 260);
+  };
+  function drag(card) {
+    let x0 = null, dx = 0;
+    card.addEventListener('pointerdown', (e) => { if (busy) return; x0 = e.clientX; dx = 0; card.setPointerCapture(e.pointerId); card.style.transition = 'none'; });
+    card.addEventListener('pointermove', (e) => {
+      if (x0 === null) return;
+      dx = e.clientX - x0;
+      card.style.transform = `translateX(${dx}px) rotate(${dx / 22}deg)`;
+      card.querySelector('.like').style.opacity = Math.max(0, Math.min(1, dx / 90));
+      card.querySelector('.nope').style.opacity = Math.max(0, Math.min(1, -dx / 90));
+    });
+    const up = () => {
+      if (x0 === null) return;
+      x0 = null;
+      if (Math.abs(dx) > Math.min(110, card.clientWidth * 0.28)) return decide(dx > 0, card);
+      card.style.transition = 'transform .2s'; card.style.transform = '';
+      card.querySelectorAll('.stamp').forEach((s) => { s.style.opacity = 0; });
+    };
+    card.addEventListener('pointerup', up); card.addEventListener('pointercancel', up);
+  }
+  const onKey = (e) => { if (S.step !== 1) return document.removeEventListener('keydown', onKey); if (e.key === 'ArrowRight') decide(true); if (e.key === 'ArrowLeft') decide(false); };
+  document.addEventListener('keydown', onKey);
+  // warm the next few images so a swipe never reveals an empty card
+  const preload = () => DECK.slice(S.swiped + 3, S.swiped + 6).forEach((p) => { const i = new Image(); i.referrerPolicy = 'no-referrer'; i.src = p.src2x; });
+  draw(); preload();
+  deck.addEventListener('transitionend', preload);
+  app.append(h('h1', { class: 'sr' }, '滑卡挑風格'), deck,
+    h('div', { class: 'swipebar' },
+      h('button', { class: 'round nope', 'aria-label': '不喜歡', onclick: () => decide(false) }, '✕'), count,
+      h('button', { class: 'round like', 'aria-label': '喜歡', onclick: () => decide(true) }, '♥')),
+    skip);
+  (window.requestIdleCallback ?? setTimeout)(warm3D);
 };
-const STYLE_OF = Object.fromEntries(PINS.map((p) => [p.id, p.style]));
-const likedScores = () => [...S.liked].reduce((sc, id) => applySwipe(sc, STYLE_OF[id], true), emptyScores());
+// While the user swipes, fetch the 3D code and the furniture of whichever style is currently winning.
+const warm3D = () => load3D().then((m) => m.preload(STYLES[pickStyle(S.scores)])).catch(() => {});
 
 /* ---- 2 3D 成品 ---- */
 SCREENS[2] = () => {
-  if (!S.cond.style) setStyle(pickStyle(likedScores()));
+  if (!S.cond.style) setStyle(pickStyle(S.scores));
   if (!S.generated) return generating();
   const c = S.cond, current = look(), est = designEstimate(c, current);
   const stage = h('div', { class: 'scene', role: 'img', 'aria-label': '3D 空間，可拖曳旋轉' });
@@ -129,9 +168,7 @@ SCREENS[2] = () => {
         S.versions.length > 1 ? h('div', { class: 'chips versions' }, ...S.versions.map((v, i) => h('button', { class: 'chip ghost', 'aria-pressed': String(i === S.v), onclick: () => { S.v = i; render(); } }, v.label))) : null),
       h('p', { class: 'pricetag' }, '預估', h('b', { id: 'teaser' }, `${est.low}–${est.high} 萬`)),
       cta('看估價與施工圖', () => go(3)))));
-  const hint = h('span', { class: 'hint' }, '載入家具…');
-  stage.append(hint);
-  new MutationObserver((_, o) => { if (stage.dataset.ready) { hint.textContent = '拖曳旋轉'; o.disconnect(); } }).observe(stage, { attributes: true });
+  stage.append(h('span', { class: 'hint' }, '拖曳旋轉'));
   load3D().then((m) => { if (S.step === 2 && stage.isConnected) { live = m.mountRoom3D(stage, current, S.view); window.__room = live; } })
     .catch(() => { stage.append(fromHTML(roomSVG(current, { label: '空間示意' }))); stage.querySelector('.hint').textContent = '這台裝置無法顯示 3D，改用示意圖'; });
 };

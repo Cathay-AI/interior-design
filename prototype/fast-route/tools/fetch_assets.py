@@ -3,10 +3,11 @@
 
     python3 tools/fetch_assets.py            (needs network access to api.polyhaven.com / dl.polyhaven.org, Pillow)
 
-Writes assets/models/<name>/ (glTF + textures at 512 px) and assets/tex/<name>/{diff,nor,rough}.jpg,
-plus assets/tex/manifest.json with each texture's mean colour (used to tint a texture to a style's colour).
+Writes assets/models/<name>.glb (one file per model: meshopt-compressed geometry, 512 px WebP textures; needs
+`npx @gltf-transform/cli`) and assets/tex/<name>/{diff,nor,rough}.jpg, plus assets/tex/manifest.json with each
+texture's mean colour (used to tint a texture to a style's colour).
 """
-import io, json, os, urllib.request
+import io, json, os, subprocess, tempfile, urllib.request
 from PIL import Image
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'assets')
@@ -35,18 +36,18 @@ def save_jpg(data, path, size, quality=80):
 
 def main():
     for name in MODELS:
-        d = os.path.join(ROOT, 'models', name)
-        if os.path.exists(os.path.join(d, name + '.gltf')):
+        out = os.path.join(ROOT, 'models', name + '.glb')
+        if os.path.exists(out):
             continue
         g = json.loads(get(f'https://api.polyhaven.com/files/{name}'))['gltf']['1k']['gltf']
-        os.makedirs(d, exist_ok=True)
-        open(os.path.join(d, name + '.gltf'), 'wb').write(get(g['url']))
-        for rel, inc in g['include'].items():
-            data = get(inc['url'])
-            if rel.endswith('.jpg'):
-                save_jpg(data, os.path.join(d, rel), 512)
-            else:
-                open(os.path.join(d, rel), 'wb').write(data)
+        with tempfile.TemporaryDirectory() as d:
+            open(os.path.join(d, name + '.gltf'), 'wb').write(get(g['url']))
+            for rel, inc in g['include'].items():
+                os.makedirs(os.path.dirname(os.path.join(d, rel)), exist_ok=True)
+                open(os.path.join(d, rel), 'wb').write(get(inc['url']))
+            os.makedirs(os.path.dirname(out), exist_ok=True)
+            subprocess.run(['npx', '--yes', '@gltf-transform/cli@4', 'optimize', os.path.join(d, name + '.gltf'), out, '--compress', 'meshopt',
+                            '--instance', 'false', '--texture-compress', 'webp', '--texture-size', '512', '--simplify-error', '0.001'], check=True)
         print('model', name)
     manifest = {}
     for name, size in TEXTURES.items():

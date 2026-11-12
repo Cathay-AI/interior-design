@@ -9,7 +9,7 @@ const mean = JSON.parse(readFileSync(new URL('tex/manifest.json', root)));
 test('every model and material a style names is in the repo', () => {
   for (const [key, look] of Object.entries(STYLES)) {
     for (const m of [look.chairModel, look.tableModel, look.pendantModel]) {
-      assert.ok(m && existsSync(new URL(`models/${m}/${m}.gltf`, root)), `${key}: model ${m}`);
+      assert.ok(m && existsSync(new URL(`models/${m}.glb`, root)), `${key}: model ${m}`);
     }
     for (const t of [look.floorTex, look.wallTex, look.sofaTex, look.cabinetTex, look.woodTex].filter(Boolean)) {
       assert.ok(mean[t], `${key}: ${t} has a mean colour`);

@@ -4,6 +4,7 @@
 import * as T from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
 import { ROOM, WINDOW, CABINET, LAYOUT } from './layout.js';
 export { ROOM, WINDOW, CABINET, LAYOUT };
@@ -200,7 +201,8 @@ function leafShape() {
 const ASSETS = new URL('../assets/', import.meta.url).href;
 const cache = new Map();
 const once = (key, make) => { if (!cache.has(key)) cache.set(key, make()); return cache.get(key); };
-const loadModel = (name) => once('m:' + name, () => new GLTFLoader().loadAsync(`${ASSETS}models/${name}/${name}.gltf`).then((g) => g.scene));
+const gltf = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+const loadModel = (name) => once('m:' + name, () => gltf.loadAsync(`${ASSETS}models/${name}.glb`).then((g) => g.scene));
 const loadMap = (name, map, srgb) => once(`t:${name}/${map}`, () => new T.TextureLoader().loadAsync(`${ASSETS}tex/${name}/${map}.jpg`).then((t) => {
   if (srgb) t.colorSpace = T.SRGBColorSpace;
   t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 8;
@@ -282,7 +284,7 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
   const woodTone = (hex) => { const p = planks(hex, { rows: 2, size: 512, vary: 0.04, joints: false }); p.bump.dispose(); p.map.rotation = Math.PI / 2; return std({ map: tex(p.map), roughness: 0.5 }); };
   const cabinetMat = has(look.cabinetTex) ? pbr(look.cabinetTex, null, { roughness: 0.75 }) : look.cabinetWood ? woodTone(look.cabinet) : std({ color: look.cabinet, roughness: 0.55 });
   const accentWood = has(look.woodTex) ? pbr(look.woodTex, null, { roughness: 0.8 }) : has(look.cabinetTex) ? cabinetMat : woodTone(look.woodAccent ?? look.cabinet);
-  const fab = fabric(look.sofa, look.fabric ?? 'linen');
+  const fab = has(look.sofaTex) ? null : fabric(look.sofa, look.fabric ?? 'linen');
   const sofaMat = has(look.sofaTex) ? pbr(look.sofaTex, look.sofa, look.fabric === 'leather' ? { roughness: 0.75, envMapIntensity: 0.6 } : { roughnessMap: null, roughness: 1, envMapIntensity: 0.25 }) : std({ map: tex(fab.map), bumpMap: tex(fab.bump), bumpScale: 0.4, roughness: look.fabric === 'leather' ? 0.48 : 0.95, ...(look.fabric === 'velvet' ? { sheen: 1 } : {}) });
   const pillowA = std({ map: tex(fabric(mix(look.accent, '#ffffff', 0.15)).map), roughness: 1 });
   const pillowB = std({ map: tex(fabric(mix(look.rug ?? '#e8e0d2', '#ffffff', 0.1)).map), roughness: 1 });
