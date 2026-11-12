@@ -1,0 +1,65 @@
+name: site
+
+on:
+  pull_request:
+    paths: ["prototype/**", "docs/proposal/deck-v3/**", "site/**", "scripts/build-site.sh", "vercel.json", ".github/workflows/site.yml"]
+  push:
+    branches: [main]
+    paths: ["prototype/**", "docs/proposal/deck-v3/**", "site/**", "scripts/build-site.sh", "vercel.json", ".github/workflows/site.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Unit tests
+        working-directory: prototype/fast-route
+        run: npm test
+      - name: Build site
+        run: sh scripts/build-site.sh
+      - name: End-to-end (desktop + phone)
+        run: |
+          npm install --no-save playwright@1.49.1
+          npx playwright install --with-deps chromium
+          python3 -m http.server 5173 --bind 127.0.0.1 --directory dist/prototype &
+          sleep 1
+          node prototype/fast-route/e2e/flow.e2e.mjs http://127.0.0.1:5173/
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    # Runs only after VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID are added as repo secrets.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skip when Vercel is not configured
+        id: cfg
+        run: |
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
+            echo "Vercel secrets not set; skipping deploy." && echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.cfg.outputs.skip != 'true'
+        with:
+          node-version: 22
+      - name: Deploy
+        if: steps.cfg.outputs.skip != 'true'
+        run: |
+          npm install --global vercel@39
+          ENV=preview; FLAG=""
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF" = "refs/heads/main" ]; then ENV=production; FLAG="--prod"; fi
+          vercel pull --yes --environment=$ENV --token="$VERCEL_TOKEN"
+          vercel build $FLAG --token="$VERCEL_TOKEN"
+          url=$(vercel deploy --prebuilt $FLAG --token="$VERCEL_TOKEN")
+          echo "Deployed: $url" | tee -a "$GITHUB_STEP_SUMMARY"
