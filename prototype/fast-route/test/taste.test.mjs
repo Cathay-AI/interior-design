@@ -44,3 +44,14 @@ test('佈置：三個方向互不重複，挑戰者離主方向最遠', () => {
   const others = Object.keys(STYLES).filter((k) => k !== dirs[0].key && k !== dirs[1].key);
   assert.equal(far(dirs[2].key), Math.max(...others.map(far)));
 });
+
+test('swipes: likes win, dislikes push a style down, no swipes falls back to the first card', async () => {
+  const { applySwipe, pickStyle, emptyScores, SWIPE_ORDER } = await import('../lib/taste.js');
+  let s = emptyScores();
+  assert.equal(pickStyle(s), SWIPE_ORDER[0]);
+  s = applySwipe(s, 'warm', false);
+  assert.notEqual(pickStyle(s), 'warm');
+  s = applySwipe(applySwipe(s, 'dark', false), 'indus', true);
+  assert.equal(pickStyle(s), 'indus');
+  assert.throws(() => applySwipe(s, 'nope', true));
+});

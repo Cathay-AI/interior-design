@@ -7,4 +7,5 @@ mkdir -p dist
 cp prototype/fast-route/index.html prototype/fast-route/app.js dist/
 cp -R prototype/fast-route/lib dist/lib
 cp -R prototype/fast-route/vendor dist/vendor
+cp -R prototype/fast-route/assets dist/assets
 echo "built dist/: $(find dist -type f | wc -l) files"

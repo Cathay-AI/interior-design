@@ -1,0 +1,9 @@
+<!doctype html><meta charset="utf-8"><title>room dev</title>
+<script type="importmap">{"imports":{"three":"../vendor/three.module.min.js","three/addons/":"../vendor/addons/"}}</script>
+<style>body{margin:0;background:#ebe4d8}#s{width:100vw;height:100vh;position:relative}canvas{width:100%!important;height:100%!important}</style>
+<div id="s"></div>
+<script type="module">
+import {STYLES} from '../lib/taste.js'; import {mountRoom3D} from '../lib/room3d.js';
+const q=new URLSearchParams(location.search);
+window.__room=mountRoom3D(document.getElementById('s'),STYLES[q.get('s')||'warm'],q.get('v')||'A');
+</script>
