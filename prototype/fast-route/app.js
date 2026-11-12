@@ -6,6 +6,7 @@ import { STATES, ruleFindings } from './lib/rules.js';
 import { AGES } from './lib/intake.js';
 import { drawingSet } from './lib/drawings.js';
 import { MASCOT, roomSVG } from './lib/art.js';
+import { PINS } from './lib/pins.js';
 
 // The 3D module (Three.js) is loaded on demand so the first screen stays light.
 let room3d = null;
@@ -14,12 +15,6 @@ let live = null; // the mounted 3D room, disposed whenever the screen changes
 
 /* ================= content ================= */
 const STEPS = [null, { name: '靈感' }, { name: '3D 成品' }, { name: '估價與施工圖' }];
-const photo = (key, shot = 'hero') => `./assets/refs/${key}-${shot}.jpg`;
-// Pins: [style, shot, width, height]. Interleaved so neighbouring pins differ in style and height.
-const SHOTS = { hero: [880, 1100], wide: [1200, 800], detail: [540, 810], corner: [680, 680] };
-const PINS = ['hero', 'corner', 'detail', 'wide'].flatMap((shot, r) =>
-  SWIPE_ORDER.map((_, i) => SWIPE_ORDER[(i * (r % 2 ? 5 : 1) + r * 2) % SWIPE_ORDER.length]).map((k) => [k, shot, ...SHOTS[shot]]))
-  .map((p, i, all) => all[(i * 7) % all.length]);
 const EDITS = [
   ['沙發換淺色', (l) => ({ ...l, sofa: '#cfc8bd', fabric: 'linen', sofaTex: 'poly_wool_herringbone' })],
   ['牆換暖白', (l) => ({ ...l, wall: '#f3ece0', wallType: undefined, wallTex: 'plastered_wall' })],
@@ -32,7 +27,7 @@ const STATE_COLOR = { ok: '#5f7a6a', conflict: '#b5653a', missing: '#c9a77c', na
 const fresh = () => ({
   step: 1, reached: 1, liked: new Set(),
   cond: { space: '客廳', style: null, ping: '', age: '新成屋' },
-  versions: [], v: 0, view: 'A', mode: '3d', generated: false, unlocked: false,
+  versions: [], v: 0, view: 'A', generated: false, unlocked: false,
 });
 let S = fresh();
 
@@ -90,39 +85,41 @@ SCREENS[1] = () => {
     next.textContent = S.liked.size ? '看我的 3D' : '跳過，直接看 3D';
     next.classList.toggle('accent', S.liked.size > 0);
   };
-  const pin = ([key, shot, w, hgt], i) => {
-    const id = `${key}-${shot}`, st = STYLES[key];
-    const btn = h('button', { class: 'pin', 'aria-pressed': String(S.liked.has(id)), 'aria-label': `${st.name}，${S.liked.has(id) ? '已喜歡' : '點一下喜歡'}`, 'data-style': key,
+  const pin = (p, i) => {
+    const st = STYLES[p.style], label = () => `${st.name}，${S.liked.has(p.id) ? '已喜歡' : '點一下喜歡'}`;
+    const fig = h('figure', {});
+    const btn = h('button', { class: 'pin', 'aria-pressed': String(S.liked.has(p.id)), 'aria-label': label(), 'data-style': p.style, style: `aspect-ratio:${p.w}/${p.h}`,
       onclick: () => {
-        S.liked.has(id) ? S.liked.delete(id) : S.liked.add(id);
-        btn.setAttribute('aria-pressed', String(S.liked.has(id)));
-        btn.setAttribute('aria-label', `${st.name}，${S.liked.has(id) ? '已喜歡' : '點一下喜歡'}`);
+        S.liked.has(p.id) ? S.liked.delete(p.id) : S.liked.add(p.id);
+        btn.setAttribute('aria-pressed', String(S.liked.has(p.id)));
+        btn.setAttribute('aria-label', label());
         sync();
       } },
-      h('img', { src: photo(key, shot), alt: '', width: w, height: hgt, loading: i < 6 ? 'eager' : 'lazy', decoding: 'async' }),
+      h('img', { src: p.src, srcset: `${p.src} 1x, ${p.src2x} 2x`, alt: '', width: p.w, height: p.h, loading: i < 8 ? 'eager' : 'lazy', decoding: 'async', referrerpolicy: 'no-referrer',
+        onerror: () => { S.liked.delete(p.id); fig.remove(); sync(); } }), // a pin that no longer loads just leaves the wall
       h('span', { class: 'heart', 'aria-hidden': 'true' }, '♥'));
-    return h('figure', {}, btn, h('figcaption', {}, st.name, h('small', {}, st.tags.slice(1).join('・'))));
+    fig.append(btn, h('figcaption', {}, st.name, h('a', { href: p.source, target: '_blank', rel: 'noopener noreferrer' }, '來源')));
+    return fig;
   };
   bar.append(count, next);
   app.append(h('h1', { class: 'sr' }, '挑喜歡的風格'), h('div', { class: 'feed' }, ...PINS.map(pin)), bar);
   sync();
   (window.requestIdleCallback ?? setTimeout)(() => load3D().catch(() => {}));
 };
-const likedScores = () => [...S.liked].reduce((sc, id) => applySwipe(sc, id.split('-')[0], true), emptyScores());
+const STYLE_OF = Object.fromEntries(PINS.map((p) => [p.id, p.style]));
+const likedScores = () => [...S.liked].reduce((sc, id) => applySwipe(sc, STYLE_OF[id], true), emptyScores());
 
 /* ---- 2 3D 成品 ---- */
 SCREENS[2] = () => {
   if (!S.cond.style) setStyle(pickStyle(likedScores()));
   if (!S.generated) return generating();
   const c = S.cond, current = look(), est = designEstimate(c, current);
-  const stage = h('div', { class: 'scene', role: 'img', 'aria-label': S.mode === '3d' ? '3D 空間，可拖曳旋轉' : '寫實算圖' });
+  const stage = h('div', { class: 'scene', role: 'img', 'aria-label': '3D 空間，可拖曳旋轉' });
   const views = h('div', { class: 'seg', role: 'group', 'aria-label': '視角' }, ...['A', 'B', 'C'].map((v) => h('button', { 'aria-pressed': String(S.view === v), 'aria-label': '視角 ' + v,
     onclick: () => { S.view = v; live?.setView(v); [...views.children].forEach((b) => b.setAttribute('aria-pressed', String(b.textContent === v))); } }, v)));
-  const modes = h('div', { class: 'seg', role: 'group', 'aria-label': '顯示方式' }, ...[['3d', '即時 3D'], ['photo', '寫實圖']].map(([m, label]) =>
-    h('button', { 'aria-pressed': String(S.mode === m), onclick: () => { S.mode = m; render(); } }, label)));
-  const edit = (fn) => { S.versions.push({ label: `版本 ${S.versions.length + 1}`, look: fn({ ...look() }) }); S.v = S.versions.length - 1; S.mode = '3d'; render(); };
+  const edit = (fn) => { S.versions.push({ label: `版本 ${S.versions.length + 1}`, look: fn({ ...look() }) }); S.v = S.versions.length - 1; render(); };
   app.append(h('div', { class: 'result' },
-    h('div', { class: 'stagewrap' }, stage, h('div', { class: 'stagebar' }, modes, S.mode === '3d' ? views : null)),
+    h('div', { class: 'stagewrap' }, stage, h('div', { class: 'stagebar' }, views)),
     h('div', { class: 'panel' },
       h('div', { class: 'shead' }, backBtn(1), h('h1', {}, `${c.space}・${STYLES[c.style].name}`)),
       h('div', { class: 'tweak' }, h('b', {}, '換風格'),
@@ -132,11 +129,6 @@ SCREENS[2] = () => {
         S.versions.length > 1 ? h('div', { class: 'chips versions' }, ...S.versions.map((v, i) => h('button', { class: 'chip ghost', 'aria-pressed': String(i === S.v), onclick: () => { S.v = i; render(); } }, v.label))) : null),
       h('p', { class: 'pricetag' }, '預估', h('b', { id: 'teaser' }, `${est.low}–${est.high} 萬`)),
       cta('看估價與施工圖', () => go(3)))));
-  if (S.mode === 'photo') {
-    stage.append(h('img', { class: 'photo', src: photo(c.style, 'wide'), alt: `${STYLES[c.style].name}寫實算圖` }),
-      h('span', { class: 'hint' }, S.v ? '原始風格的算圖，不含你的修改' : '寫實算圖'));
-    return;
-  }
   const hint = h('span', { class: 'hint' }, '載入家具…');
   stage.append(hint);
   new MutationObserver((_, o) => { if (stage.dataset.ready) { hint.textContent = '拖曳旋轉'; o.disconnect(); } }).observe(stage, { attributes: true });

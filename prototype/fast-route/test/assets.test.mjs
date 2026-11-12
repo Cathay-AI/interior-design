@@ -18,8 +18,13 @@ test('every model and material a style names is in the repo', () => {
   }
 });
 
-test('every style has photos for the inspiration wall', () => {
-  for (const key of Object.keys(STYLES)) for (const shot of ['hero', 'wide', 'detail', 'corner']) {
-    assert.ok(existsSync(new URL(`refs/${key}-${shot}.jpg`, root)), `${key}-${shot}`);
+test('the inspiration wall covers every style and every pin has a source', async () => {
+  const { PINS } = await import('../lib/pins.js');
+  assert.equal(new Set(PINS.map((p) => p.id)).size, PINS.length, 'ids are unique');
+  for (const key of Object.keys(STYLES)) assert.ok(PINS.filter((p) => p.style === key).length >= 6, key);
+  for (const p of PINS) {
+    assert.match(p.src, /^https:\/\/i\.pinimg\.com\/474x\/[0-9a-f/]+\.jpg$/);
+    assert.match(p.source, /^https:\/\/www\.pinterest\.com\//);
+    assert.ok(p.w > 0 && p.h > 0);
   }
 });

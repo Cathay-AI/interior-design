@@ -4,11 +4,6 @@
   "type": "module",
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "dev": "python3 -m http.server 5173",
-    "render:refs": "node tools/render-refs.mjs"
-  },
-  "devDependencies": {
-    "three-gpu-pathtracer": "0.0.23",
-    "three-mesh-bvh": "0.9.1"
+    "dev": "python3 -m http.server 5173"
   }
 }

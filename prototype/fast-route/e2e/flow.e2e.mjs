@@ -11,6 +11,8 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   const page = await browser.newPage({ viewport });
   page.on('pageerror', (e) => errors.push(`${name}: ${e.message}`));
   page.on('response', (r) => { if (r.status() >= 400) errors.push(`${name}: ${r.status()} ${r.url()}`); });
+  // the wall hot-links Pinterest's image host; serve a stand-in so the test does not depend on it
+  await page.route('https://i.pinimg.com/**', (route) => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="50"><rect width="40" height="50" fill="#b9a58c"/></svg>' }));
   const snap = async (n) => { if (!shots) return; await page.waitForTimeout(450); await page.screenshot({ path: `${shots}/${name}-${n}.png` }); };
   const noOverflow = async (at) => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -20,7 +22,8 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
 
   // 1 靈感牆：瀑布流，點圖就是喜歡，可取消；喜歡最多的風格決定 3D
   await page.locator('.pin').first().waitFor();
-  assert.equal(await page.locator('.pin').count(), 24);
+  assert.equal(await page.locator('.pin').count(), 48);
+  assert.equal(await page.locator('.feed figcaption a[href^="https://www.pinterest.com/"]').count(), 48, 'every pin links back to its source');
   await page.waitForFunction(() => document.querySelector('.pin img').naturalWidth > 0);
   assert.match(await page.locator('#make').innerText(), /跳過，直接看 3D/);
   const cols = await page.evaluate(() => new Set([...document.querySelectorAll('.pin')].map((p) => Math.round(p.getBoundingClientRect().left))).size);
@@ -52,8 +55,6 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   assert.notEqual(await page.locator('#teaser').innerText(), before, 'editing the design changes the estimate');
   await page.locator('.scene[data-ready] canvas').waitFor({ timeout: 30000 });
   await snap('2-3d'); await noOverflow('2');
-  await page.getByRole('button', { name: '寫實圖' }).click();
-  await page.locator('.scene img.photo').waitFor();
   await page.getByRole('button', { name: '看估價與施工圖' }).click();
 
   // 3 估價與施工圖：不問預算；坪數、屋況會改變金額；圖要付費才清楚
