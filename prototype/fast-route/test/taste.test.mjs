@@ -55,3 +55,12 @@ test('swipes: likes win, dislikes push a style down, no swipes falls back to the
   assert.equal(pickStyle(s), 'indus');
   assert.throws(() => applySwipe(s, 'nope', true));
 });
+
+test('滑卡前兩名：兩種各喜歡一些時第二名不會被丟掉；沒表態的不算喜歡', async () => {
+  const { topStyles, applySwipe, emptyScores } = await import('../lib/taste.js');
+  assert.deepEqual(topStyles(emptyScores()), { first: 'warm', second: null, liked: false });
+  let s = applySwipe(applySwipe(applySwipe(emptyScores(), 'muji', true), 'muji', true), 'warm', true);
+  assert.deepEqual(topStyles(s), { first: 'muji', second: 'warm', liked: true });
+  s = applySwipe(emptyScores(), 'dark', true);
+  assert.deepEqual(topStyles(s), { first: 'dark', second: null, liked: true });
+});

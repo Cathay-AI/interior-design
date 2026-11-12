@@ -6,8 +6,13 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
-import { ROOM, WINDOW, CABINET, LAYOUT } from './layout.js';
-export { ROOM, WINDOW, CABINET, LAYOUT };
+import { ROOM as DEFAULT_ROOM, roomLayout } from './layout.js';
+
+// The room being built. buildScene sets these from the requested size before it places anything
+// (building is synchronous, so the helpers below can read them).
+let ROOM, WINDOW, CABINET, LAYOUT;
+const useRoom = (size) => { ({ room: ROOM, window: WINDOW, cabinet: CABINET, layout: LAYOUT } = roomLayout(size)); };
+useRoom(DEFAULT_ROOM);
 
 /* ---------------- deterministic noise + colour helpers ---------------- */
 let seed = 1;
@@ -231,13 +236,15 @@ export async function loadAssets(look) {
 /* ---------------- the room ---------------- */
 /**
  * @param {object} look one entry of STYLES (colours and material kinds)
- * @param {{closed?:boolean, pathtrace?:boolean, assets?:object}} opts
+ * @param {{closed?:boolean, pathtrace?:boolean, assets?:object, size?:{w:number,d:number,h:number}}} opts
+ *   size: room size in metres (see roomSize in layout.js); furniture stays wall-anchored.
  *   closed: four walls + ceiling (camera inside, for stills); otherwise a cut-away for orbiting.
  *   pathtrace: lighting tuned for the path tracer (area lights instead of fill tricks).
  *   assets: result of loadAssets(look). Without it the room falls back to hand-built furniture and painted textures.
  */
-export function buildScene(look, { closed = false, pathtrace = false, assets: A = null } = {}) {
+export function buildScene(look, { closed = false, pathtrace = false, assets: A = null, size = DEFAULT_ROOM } = {}) {
   seed = 97;
+  useRoom(size);
   const scene = new T.Scene();
   const owned = new Set();
   const tex = (t) => { owned.add(t); return t; };
@@ -326,9 +333,10 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
     add(new T.PlaneGeometry(x1 - x0, y1 - y0), new T.MeshPhysicalMaterial({ color: '#ffffff', roughness: 0.02, transparent: true, opacity: 0.12, metalness: 0, envMapIntensity: 1.4 }),
       [(x0 + x1) / 2, (y0 + y1) / 2, fz], { cast: false, receive: false });
   }
-  const vw = 9, vh = closed ? 5.5 : 2.9;
+  // the view outside: in the cut-away it sits right behind the opening so it can never show past the wall
+  const vw = closed ? 9 : x1 - x0, vh = closed ? 5.5 : y1 - y0;
   add(new T.PlaneGeometry(vw, vh), std({ color: '#000', emissive: '#ffffff', emissiveMap: tex(viewTexture()), emissiveIntensity: pathtrace ? 2.2 : 1 }),
-    [0.8, closed ? 1.6 : 1.2, -d / 2 - 1.4], { cast: false, receive: false });
+    [(x0 + x1) / 2, closed ? 1.6 : (y0 + y1) / 2, -d / 2 - (closed ? 1.4 : 0.1)], { cast: false, receive: false });
 
   /* sheer curtains, bunched at both sides, on a slim track */
   const sheer = std({ color: '#fbfaf6', roughness: 1, transparent: true, opacity: 0.62, side: T.DoubleSide });
@@ -346,7 +354,7 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
     add(new T.BoxGeometry(bay, 0.88, depth - 0.02), carcass, [cx0 + bay * 1.5, 0.44, cz - 0.01]);
     add(new T.BoxGeometry(bay, top - 1.8, depth - 0.02), carcass, [cx0 + bay * 1.5, (top + 1.8) / 2, cz - 0.01]);
     const door = (bx, by, bw, bh) => add(has(look.cabinetTex) ? worldBox(bw - g * 2, bh - g * 2, 0.02, 1.3) : soft(bw - g * 2, bh - g * 2, 0.02, 0.004, 1), cabinetMat, [bx, by, front]);
-    for (const i of [0, 2]) { const bx = cx0 + bay * (i + 0.5); door(bx, 1.4, bay, 2.62); }
+    for (const i of [0, 2]) { const bx = cx0 + bay * (i + 0.5); door(bx, 0.09 + (top - 0.18) / 2, bay, top - 0.18); }
     const mx = cx0 + bay * 1.5;
     door(mx, 0.08 + 0.4, bay, 0.8);
     door(mx, (1.8 + top) / 2 + 0.04, bay, top - 1.8 - 0.08);
@@ -361,8 +369,8 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
     if (look.handles) for (const bx of [cx0 + bay - 0.03, cx0 + bay * 2 + 0.03]) add(new T.BoxGeometry(0.012, 0.32, 0.02), brass, [bx, 1.05, front + 0.02]);
   }
 
-  /* low sideboard under the window */
-  if (has('modern_wooden_cabinet')) {
+  /* low sideboard under the window (left out when the window wall is too short) */
+  if (!LAYOUT.sideboard) { /* nothing */ } else if (has('modern_wooden_cabinet')) {
     const L = LAYOUT.sideboard, b = place('modern_wooden_cabinet', L.x, -d / 2 + 0.24, { scale: 0.68 });
     place('ceramic_vase_01', L.x - 0.55, -d / 2 + 0.24, { y: b.max.y, scale: 0.9 });
     place('potted_plant_04', L.x + 0.5, -d / 2 + 0.24, { y: b.max.y, scale: 1.1 });
@@ -383,15 +391,15 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
 
   /* sofa against the left wall, an armchair facing it */
   const S = LAYOUT.sofa;
-  sofa(group(S.x, 0, S.z, Math.PI / 2), put, { L: S.sz, D: S.sx, seats: 3, mat: sofaMat, legs: look.legs, metal, wood: accentWood, pillows: [pillowA, pillowB], uv: has(look.sofaTex) ? 2.5 : 1 });
+  sofa(group(S.x, 0, S.z, Math.PI / 2), put, { L: S.sz, D: S.sx, seats: S.sz < 1.9 ? 2 : 3, mat: sofaMat, legs: look.legs, metal, wood: accentWood, pillows: [pillowA, pillowB], uv: has(look.sofaTex) ? 2.5 : 1 });
   const C = LAYOUT.chair;
-  if (has(look.chairModel)) place(look.chairModel, C.x, C.z, { ry: Math.PI / 2 + 0.35, scale: look.chairScale ?? 1 });
+  if (!C) { /* no room for an armchair */ } else if (has(look.chairModel)) place(look.chairModel, C.x, C.z, { ry: Math.PI / 2 + 0.35, scale: look.chairScale ?? 1 });
   else sofa(group(C.x, 0, C.z, -Math.PI / 2 + 0.35), put, { L: 0.86, D: 0.84, seats: 1, mat: look.chairFabric ? std({ map: tex(fabric(look.chairFabric).map), roughness: 0.95 }) : sofaMat, legs: look.legs, metal, wood: accentWood, pillows: [pillowB] });
   // throw on the sofa arm
   add(soft(0.5, 0.05, 0.46, 0.02), pillowB, [S.x + 0.05, 0.665, S.z + S.sz / 2 - 0.12], { rot: [0, 0.1, 0.05] });
 
   /* coffee table */
-  if (has(look.tableModel)) {
+  if (!LAYOUT.table) { /* too narrow for a coffee table */ } else if (has(look.tableModel)) {
     const T0 = LAYOUT.table, b = place(look.tableModel, T0.x, T0.z, { scale: look.tableScale ?? 1 });
     add(new T.BoxGeometry(0.22, 0.03, 0.28), std({ color: '#ece6db', roughness: 0.8 }), [T0.x - 0.04, b.max.y + 0.015, T0.z - 0.18], { rot: [0, 0.3, 0] });
     add(new T.BoxGeometry(0.2, 0.025, 0.26), std({ color: look.accent, roughness: 0.8 }), [T0.x - 0.04, b.max.y + 0.042, T0.z - 0.18], { rot: [0, 0.18, 0] });
@@ -401,7 +409,7 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
   /* side table + floor lamp + pendant */
   {
     const st = LAYOUT.sidetable;
-    if (has('side_table_01')) {
+    if (!st) { /* nothing */ } else if (has('side_table_01')) {
       const b = place('side_table_01', st.x, st.z, { scale: 0.85 });
       add(new T.CylinderGeometry(0.04, 0.035, 0.09, 20), std({ color: look.ceramic ?? '#e9e2d6', roughness: 0.3 }), [st.x + 0.06, b.max.y + 0.045, st.z + 0.05]);
     } else {
@@ -411,11 +419,13 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
       add(new T.CylinderGeometry(0.04, 0.035, 0.09, 20), std({ color: look.ceramic ?? '#e9e2d6', roughness: 0.3 }), [st.x + 0.06, 0.61, st.z + 0.05]);
     }
     const lp = LAYOUT.lamp;
+    if (lp) {
     add(new T.CylinderGeometry(0.16, 0.17, 0.02, 32), metal, [lp.x, 0.01, lp.z]);
     add(new T.CylinderGeometry(0.01, 0.01, 1.5, 10), metal, [lp.x, 0.76, lp.z]);
     const shade = std({ color: '#f4ecdc', roughness: 1, side: T.DoubleSide, emissive: '#ffd59a', emissiveIntensity: pathtrace ? 0.6 : 0.35 });
     add(new T.CylinderGeometry(0.19, 0.22, 0.3, 40, 1, true), shade, [lp.x, 1.56, lp.z], { cast: false });
     add(new T.SphereGeometry(0.035, 12, 10), std({ color: '#000', emissive: '#ffe2b0', emissiveIntensity: 4 }), [lp.x, 1.5, lp.z], { cast: false, receive: false });
+    }
     if (has(look.pendantModel)) place(look.pendantModel, LAYOUT.pendant.x, LAYOUT.pendant.z, { y: h, hang: true });
     else pendant(look, add, { metal, brass, std, pathtrace, white });
   }
@@ -428,7 +438,7 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
   }
 
   /* plant */
-  if (has('potted_plant_02')) place('potted_plant_02', LAYOUT.plant.x, LAYOUT.plant.z, { scale: 1.55, ry: 0.6 });
+  if (!LAYOUT.plant) { /* nothing */ } else if (has('potted_plant_02')) place('potted_plant_02', LAYOUT.plant.x, LAYOUT.plant.z, { scale: 1.55, ry: 0.6 });
   else {
     const P = LAYOUT.plant, potMat = std({ color: look.pot ?? '#d8cfc1', roughness: 0.55 });
     const pts = [[0, 0], [0.15, 0], [0.17, 0.02], [0.19, 0.34], [0.2, 0.36], [0.18, 0.36], [0.165, 0.05], [0, 0.05]].map(([x, y]) => new T.Vector2(x, y));
@@ -451,11 +461,14 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
 
   /* lights */
   const sun = new T.DirectionalLight('#fff0d6', pathtrace ? 4.2 : 3.2);
-  sun.position.set(2.6, 4.4, -7.5);
-  sun.target.position.set(-0.6, 0, 0.6);
+  // same sun angle whatever the room size: aimed through the window at the floor in front of it
+  const aim = new T.Vector3((x0 + x1) / 2 - 1.45, 0, -d / 2 + 2.7), far = 1 + Math.max(w, d) / 8;
+  sun.target.position.copy(aim);
+  sun.position.set(aim.x + 3.2 * far, 4.4 * far, aim.z - 8.1 * far);
   sun.castShadow = !pathtrace;
   sun.shadow.mapSize.set(2048, 2048);
-  Object.assign(sun.shadow.camera, { left: -4.2, right: 4.2, top: 4.2, bottom: -4.2, near: 2, far: 18 });
+  const reach = Math.max(ROOM.w, ROOM.d) * 0.9;
+  Object.assign(sun.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 1, far: 16 * far + 12 });
   sun.shadow.bias = -0.0003; sun.shadow.normalBias = 0.025; sun.shadow.radius = 4;
   scene.add(sun, sun.target);
   // skylight coming through the window (an area light the path tracer samples directly)
@@ -471,7 +484,7 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
   {
     if (!pathtrace) scene.add(new T.HemisphereLight('#fbf6ee', '#b9a58c', 0.5));
     const warm = new T.PointLight('#ffcf8f', 1.1, 5, 2); warm.position.set(LAYOUT.pendant.x, h - 1.0, LAYOUT.pendant.z); scene.add(warm);
-    const lamp = new T.PointLight('#ffcf8f', 0.8, 3, 2); lamp.position.set(LAYOUT.lamp.x + 0.1, 1.45, LAYOUT.lamp.z); scene.add(lamp);
+    if (LAYOUT.lamp) { const lamp = new T.PointLight('#ffcf8f', 0.8, 3, 2); lamp.position.set(LAYOUT.lamp.x + 0.1, 1.45, LAYOUT.lamp.z); scene.add(lamp); }
   }
 
   const dispose = () => {

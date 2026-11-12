@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>回家之前・滑出你家的樣子</title>
-<meta name="description" content="滑幾張圖，看見你家的 3D、預估花費與施工圖。">
+<meta name="description" content="滑幾張圖，看見喜歡的風格變成 3D；補上你家的尺寸，估價和圖面就跟著貼近你家。">
 <script type="importmap">{"imports":{"three":"./vendor/three.module.min.js","three/addons/":"./vendor/addons/"}}</script>
 <style>
 :root{
@@ -69,7 +69,37 @@ main[data-step="1"]{max-width:520px;align-items:center}
 .count{font-size:14px;color:var(--muted);min-width:3em;text-align:center}
 .link{font-size:14px;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
 
-/* 2 3D */
+/* 2 我家的條件 */
+main[data-step="2"]{max-width:720px}
+.voice{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:14px 16px}
+.voice:focus-within{border-color:var(--accent)}
+.voicebody{flex:1;min-width:0;display:grid;gap:4px}
+.voice input{width:100%;border:none;background:none;outline:none;font-size:17px;padding:4px 0}
+.mic{width:52px;height:52px;flex:none;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;box-shadow:0 0 0 6px rgba(181,101,58,.16);transition:transform .15s}
+.mic[aria-pressed="true"]{animation:pulse 1.1s infinite;transform:scale(.94)}
+.mic:disabled{background:#b9afa2;box-shadow:none}
+@keyframes pulse{50%{box-shadow:0 0 0 14px rgba(181,101,58,.24)}}
+.taste{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;font-size:16px}
+.warn{font-size:14px;line-height:1.5;background:#f8e9dd;border:1px solid var(--accent);border-radius:12px;padding:10px 12px;color:#5a3a26}
+.meter{display:grid;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:18px 20px}
+.meter .bar{height:10px;border-radius:99px;background:var(--line);overflow:hidden}.meter .bar i{display:block;height:100%;background:var(--green);border-radius:99px;transition:width .35s}
+.tick{font-size:13px;padding:4px 10px;border-radius:99px;border:1px dashed var(--line);color:var(--muted)}.tick.done{border-style:solid;border-color:var(--green);color:var(--green);font-weight:600}
+.fields{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.field{display:grid;gap:4px;font-size:13px;color:var(--muted);position:relative}
+.field input{width:100%;height:46px;border:1px solid var(--line);border-radius:12px;padding:0 44px 0 12px;background:#fff;font-size:17px;color:var(--ink)}
+.field em{position:absolute;right:10px;bottom:13px;font-style:normal;font-size:12px}
+.drop{display:grid;gap:4px;place-items:center;text-align:center;padding:22px 16px;border:2px dashed var(--accent);border-radius:16px;color:var(--accent-d);cursor:pointer}
+.drop span{font-size:13px;color:var(--muted)}.drop.over{background:#f8e9dd}
+.docs{list-style:none;padding:0;display:grid;gap:8px}
+.docs li{display:flex;align-items:center;gap:12px;background:var(--paper);border-radius:14px;padding:8px}
+.docs img,.docs .pdf{width:56px;height:56px;border-radius:10px;object-fit:cover;flex:none}.docs .pdf{display:grid;place-items:center;background:var(--ink);color:#fff;font-size:12px;font-weight:700}
+.docmeta{flex:1;min-width:0;display:grid;gap:6px}.docmeta b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.docs .chip{min-height:30px;padding:2px 10px;font-size:13px}
+.docs .rm{width:32px;height:32px;border-radius:50%;background:var(--card);font-size:18px;flex:none}
+.err{color:#b3261e;font-size:14px}
+.link{font-size:14px;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+
+/* 3 3D */
 .result{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,1fr);gap:28px;align-items:start}
 .stagewrap{display:grid;gap:12px}
 .scene{position:relative;aspect-ratio:4/3;max-height:calc(100dvh - 190px);width:100%;border-radius:24px;overflow:hidden;background:#ebe4d8;touch-action:none;cursor:grab}
@@ -88,7 +118,7 @@ main[data-step="1"]{max-width:520px;align-items:center}
 .gen .mascot{width:110px;height:110px;animation:bob 1s ease-in-out infinite alternate}
 @keyframes bob{to{transform:translateY(-8px)}}
 
-/* 3 估價與施工圖 */
+/* 4 估價與施工圖 */
 .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:20px;align-items:start}
 .cardbox{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:22px;display:grid;gap:12px}
 .big{font-size:clamp(34px,6vw,46px);font-weight:700;color:var(--accent);letter-spacing:-.01em}
@@ -112,7 +142,10 @@ main[data-step="1"]{max-width:520px;align-items:center}
 .unlockrow{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .cons{list-style:none;padding:0;display:grid;font-size:14px;color:#5a5047}
 .cons li{display:flex;gap:10px;align-items:baseline;padding:6px 0}.cons i{width:9px;height:9px;border-radius:50%;flex:none}
-details.more summary{cursor:pointer;color:var(--muted);font-size:14px}
+.regs{list-style:none;padding:0;display:grid}
+.regs li{display:grid;grid-template-columns:5.2em 1fr;gap:12px;padding:12px 0;align-items:start}.regs li+li{border-top:1px solid var(--line)}
+.regs .state{font-size:12px;font-weight:700;color:#fff;border-radius:999px;padding:3px 0;text-align:center}
+.regs p{font-size:14px;color:#5a5047;line-height:1.6;margin-top:2px}.regs small{font-size:12px;color:var(--muted)}
 
 dialog{border:none;border-radius:22px;padding:0;max-width:min(92vw,420px);background:var(--surface);color:var(--ink)}
 dialog::backdrop{background:rgba(43,38,33,.55)}
@@ -131,6 +164,7 @@ dialog.viewer{max-width:min(96vw,1100px);width:100%}dialog.viewer svg{width:100%
   main{padding:20px 16px 24px;gap:16px}
   .cta{align-self:stretch;position:sticky;bottom:calc(12px + env(safe-area-inset-bottom));z-index:5;box-shadow:0 8px 24px rgba(43,38,33,.25)}
   .result,.two{grid-template-columns:1fr;gap:16px}
+  .fields{grid-template-columns:repeat(2,1fr)}
   .scene{aspect-ratio:1;border-radius:20px}
   .sheets{grid-template-columns:repeat(2,1fr)}
   dialog.viewer{max-width:96vw}
@@ -145,13 +179,13 @@ dialog.viewer{max-width:min(96vw,1100px);width:100%}dialog.viewer svg{width:100%
   <button class="ghostbtn" id="restart" hidden>重新開始</button>
 </div></header>
 <main id="app" aria-live="polite"></main>
-<footer>原型：靈感圖來自 Pinterest，版權屬原作者；金額為參考行情量級，施工圖為示意。</footer>
+<footer>原型：靈感圖來自 Pinterest，版權屬原作者；金額為參考行情量級；施工圖與法規評估為草稿，由專業團隊覆核後定案。</footer>
 
 <dialog id="unlock"><div class="dlg">
-  <h2>解鎖施工圖包</h2>
+  <h2>解鎖你家尺寸的施工圖草稿</h2>
   <p class="price">NT$ 1,990 <small>示意價格</small></p>
-  <ul><li>六張圖清晰可放大：平面、燈具、插座、立面、地坪</li><li>逐項估價明細表</li><li>可下載交給設計師或統包</li></ul>
-  <p class="note">這是原型的模擬付款，不會扣款。圖面為示意，未經專業簽證。</p>
+  <ul><li>六張圖清晰可放大：平面、燈具、插座、立面、地坪，依你家的尺寸配置</li><li>逐項估價明細表</li><li>消防法規與室內裝修許可的評估</li><li>由設計師與施工團隊覆核</li></ul>
+  <p class="note">解鎖後先拿到的是草稿；經我們的設計師與施工團隊依現場覆核確認後，才作為施工依據。這是原型的模擬付款，不會扣款。</p>
   <div class="actions"><button class="btn ghost" id="payCancel">先不要</button><button class="btn" id="payOk">模擬付款並解鎖</button></div>
 </div></dialog>
 <dialog id="viewer" class="viewer"><div class="dlg"><div id="viewerBody"></div><div class="actions"><button class="btn" onclick="this.closest('dialog').close()">關閉</button></div></div></dialog>

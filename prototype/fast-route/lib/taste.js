@@ -96,3 +96,13 @@ export function applySwipe(scores, key, liked) {
 export function pickStyle(scores, order = SWIPE_ORDER) {
   return [...order].sort((a, b) => scores[b] - scores[a] || order.indexOf(a) - order.indexOf(b))[0];
 }
+
+/**
+ * 滑卡結果的前兩名，給「你喜歡的是 A，也有一點 B」用。
+ * second 只在它真的被喜歡過（分數 > 0）時才有，避免把沒表態的風格說成喜歡。
+ * @returns {{first:string, second:string|null, liked:boolean}} liked = 至少喜歡過一張
+ */
+export function topStyles(scores, order = SWIPE_ORDER) {
+  const ranked = [...order].sort((a, b) => scores[b] - scores[a] || order.indexOf(a) - order.indexOf(b));
+  return { first: ranked[0], second: scores[ranked[1]] > 0 ? ranked[1] : null, liked: scores[ranked[0]] > 0 };
+}
