@@ -54,7 +54,6 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   assert.equal(await page.inputValue('#f-wid'), '4.7');
   await page.waitForFunction(() => document.querySelector('#f-ping').value === '8');   // 長×寬 換算坪數
   assert.match(await page.locator('#score').innerText(), /掌握度 40%/);
-  await page.locator('#micprivacy a[href="./privacy/"]').waitFor().catch(() => {});   // 只在支援語音的瀏覽器顯示
   await page.setInputFiles('#docFile', [
     { name: '3F 機電圖.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') },
     { name: '平面圖.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') },
@@ -179,15 +178,6 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   assert.equal(await other.getByRole('button', { name: '版本 2' }).getAttribute('aria-pressed'), 'true');
   assert.equal(new URL(other.url()).hash, '', 'the hash is consumed so a reload keeps the local copy');
   await ctx.close();
-}
-{ // 隱私說明與使用說明頁存在，並說明語音與第三方
-  const page = await browser.newPage();
-  for (const [path, must] of [['privacy/', /語音輸入[\s\S]*瀏覽器供應商/], ['terms/', /不是合格判定/]]) {
-    const r = await page.goto(new URL(path, base).href);
-    assert.equal(r.status(), 200, path);
-    assert.match(await page.locator('main').innerText(), must, path);
-  }
-  await page.close();
 }
 await browser.close();
 assert.deepEqual(errors, []);

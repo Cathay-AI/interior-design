@@ -244,7 +244,7 @@ SCREENS[2] = () => {
         top.second ? h('div', { class: 'chips' }, pick(top.first), pick(top.second)) : null);
     })(),
     h('div', { class: 'voice' }, mic, h('div', { class: 'voicebody' }, say, micLabel)),
-    Recognition ? h('p', { class: 'note', id: 'micprivacy' }, '按下麥克風後，聲音由瀏覽器的語音辨識服務處理，可能會傳送到瀏覽器供應商（例如 Google 或 Apple）。不想的話直接打字。', ' ', h('a', { href: './privacy/' }, '隱私說明')) : null,
+    Recognition ? h('p', { class: 'note', id: 'micprivacy' }, '按下麥克風後，聲音由瀏覽器的語音辨識服務處理，可能會傳送到瀏覽器供應商（例如 Google 或 Apple）。不想的話直接打字。') : null,
     h('div', { class: 'meter', role: 'group', 'aria-label': '掌握度' },
       h('div', { class: 'row between' }, h('b', { id: 'score' }, `掌握度 ${pct}%`), h('span', { class: 'note' }, pct ? `估價區間收窄 ${Math.round(k.score * 50)}%` : '目前用預設值估算')),
       h('div', { class: 'bar' }, h('i', { style: `width:${pct}%` })),
