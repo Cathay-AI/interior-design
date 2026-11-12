@@ -118,7 +118,7 @@ function lightingSheet(meta, dm) {
 <g class="thin"><path class="dash" d="${circuits}"/><path class="dash" d="M${px(LAYOUT.pendant.x)} ${pz(LAYOUT.pendant.z)}L${px(R) - 8} ${pz(swz - 0.15)}"/></g>
 ${at(R - 0.08, swz, SYM.sw)}${at(R - 0.08, swz - 0.15, SYM.sw)}
 ${text(px(R) - 44, pz(swz) + 16, 'S1 S2')}${downs.length <= 16 ? downs.map(([x, z], i) => text(px(x) + 9, pz(z) - 8, `L${i + 1}`)).join('') : ''}${text(px(LAYOUT.pendant.x) + 12, pz(LAYOUT.pendant.z) - 10, 'P1')}</g>`
-    + text(px(-ROOM.w / 2) + 6, pz(F) - 8, `天花板高度 CH=${dm.h - 200}，窗簾盒深 180`)
+    + text(px(-ROOM.w / 2) + 6, pz(F) - 8, `現況淨高 ${dm.h}；完成天花板 CH=${dm.h - 200}（預留 200 走燈具與管線），窗簾盒深 180`)
     + legend([[SYM.down, `嵌燈 Ø95　9W 3000K ×${downs.length}`], [SYM.pendant, '吊燈　E27 ×1'], [SYM.strip, '層板 LED 燈條 2700K'], [SYM.floor, '立燈（插座迴路）'], [SYM.sw, '單切開關 H=1200']].map(([sym, l]) => [`<g class="red">${sym}</g>`, l])));
 }
 function powerSheet(meta, dm) {
@@ -178,12 +178,15 @@ function costSheet(meta, est) {
     + text(x + cols[2] + 8, y + 49 + rows.length * 30, '合計（未稅，不含設計監工費）', 'style="font-weight:700"') + text(x + cols[3] + 8, y + 49 + rows.length * 30, `${est.low} – ${est.high}`, 'style="font-weight:700"'));
 }
 
+// 下載檔名用英數，避免各系統對中文檔名的處理不一致
+const FILE = { 'A-01': 'floor-plan', 'E-01': 'lighting', 'E-02': 'power', 'A-02': 'elevation', 'A-03': 'flooring', 'Q-01': 'estimate' };
+
 /**
  * @param {{space:string, age:string}} cond
  * @param {object} look
  * @param {ReturnType<import('./estimate.js').designEstimate>} est
  * @param {string} date yyyy-mm-dd
- * @returns {{no:string, title:string, svg:string}[]} six sheets
+ * @returns {{no:string, title:string, svg:string, file:string}[]} six sheets
  */
 export function drawingSet(cond, look, est, date) {
   const size = roomSize(cond, est.ping);
@@ -198,5 +201,5 @@ export function drawingSet(cond, look, est, date) {
     ['A-02', '收納櫃與窗牆立面圖', elevationSheet(meta, dm)],
     ['A-03', '地坪材料計畫圖', floorSheet(meta, dm)],
     ['Q-01', '工程估價明細表', costSheet(meta, est)],
-  ].map(([no, title, svg]) => ({ no, title, svg }));
+  ].map(([no, title, svg]) => ({ no, title, svg, file: `${no}-${FILE[no]}.svg` }));
 }

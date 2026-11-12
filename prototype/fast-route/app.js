@@ -9,6 +9,7 @@ import { roomSize } from './lib/layout.js';
 import { MASCOT, roomSVG } from './lib/art.js';
 import { PINS } from './lib/pins.js';
 import { contextScore, pingFromDims, tighten, aboutThisHome } from './lib/context.js';
+import { KEY, serialize, restore, toShare, fromShare } from './lib/persist.js';
 import { KINDS, ACCEPT, MAX_FILES, MAX_MB, guessKind, rejectReason, summarize } from './lib/docs.js';
 
 // The 3D module (Three.js) is loaded on demand so the first screen stays light.
@@ -35,7 +36,10 @@ const fresh = () => ({
   docs: [], docError: '', said: '', heard: null,
   versions: [], v: 0, view: 'A', generated: false, unlocked: false,
 });
-let S = fresh();
+// 進度存在這台瀏覽器：重整頁面不會從頭來（上傳的檔案除外）
+const stored = () => { try { return localStorage.getItem(KEY); } catch { return null; } };
+const save = () => { try { localStorage.setItem(KEY, serialize(S)); } catch { /* 私密模式或空間滿了：不存也能用 */ } };
+let S = restore(stored(), fresh());
 
 /* ================= dom helpers ================= */
 const $ = (s) => document.querySelector(s);
@@ -63,7 +67,7 @@ function go(step) {
 function render() {
   $('#steps').replaceChildren(...STEPS.slice(1).map((s, i) => {
     const n = i + 1, state = n === S.step ? 'now' : n <= S.reached ? 'done' : '';
-    return h('li', {}, h('button', { class: state, disabled: n > S.reached, 'aria-current': n === S.step ? 'step' : false, onclick: () => go(n) },
+    return h('li', {}, h('button', { class: state, disabled: n > S.reached, 'aria-current': n === S.step ? 'step' : false, 'aria-label': `第 ${n} 步：${STEPS[n].name}`, onclick: () => go(n) },
       h('span', { class: 'n' }, String(n)), h('span', { class: 't' }, s.name)));
   }));
   $('#restart').hidden = S.reached === 1;
@@ -71,14 +75,25 @@ function render() {
   app.replaceChildren();
   app.dataset.step = S.step;
   SCREENS[S.step]();
+  save();
 }
-$('#restart').addEventListener('click', () => { S.docs.forEach((d) => d.url && URL.revokeObjectURL(d.url)); S = fresh(); go(1); });
+$('#restart').addEventListener('click', () => { S.docs.forEach((d) => d.url && URL.revokeObjectURL(d.url)); try { localStorage.removeItem(KEY); } catch { /* ignore */ } S = fresh(); go(1); });
 
-const setStyle = (key) => { S.cond.style = key; S.versions = [{ label: '版本 1', look: { ...STYLES[key] } }]; S.v = 0; };
+const setStyle = (key) => { S.cond.style = key; S.versions = [{ label: '版本 1', look: { ...STYLES[key] }, edits: [] }]; S.v = 0; };
 const look = () => S.versions[S.v].look;
 // 估價：依設計逐項估，再依掌握度收窄區間
 const knowledge = () => contextScore(S.cond, summarize(S.docs));
 const estimateNow = () => tighten(designEstimate(S.cond, look()), knowledge().score);
+// 分享：把目前的風格、修改與條件編進網址，對方打開就看到同一個結果（不含上傳的檔案與解鎖）
+const shareBtn = () => {
+  const btn = h('button', { class: 'link', id: 'share', onclick: async () => {
+    const url = `${location.origin}${location.pathname}#${toShare(S)}`;
+    try { await navigator.clipboard.writeText(url); btn.textContent = '已複製連結'; }
+    catch { prompt('複製這個連結', url); }
+    setTimeout(() => { btn.textContent = '複製分享連結'; }, 2400);
+  } }, '複製分享連結');
+  return btn;
+};
 const backBtn = (n) => h('button', { class: 'back', onclick: () => go(n) }, '‹ 上一步');
 
 /* ================= screens ================= */
@@ -95,7 +110,8 @@ SCREENS[1] = () => {
   const makeCard = (p, depth) => {
     const st = STYLES[p.style];
     const card = h('div', { class: 'card', 'data-style': p.style, style: `transform:scale(${1 - depth * 0.04}) translateY(${depth * 12}px);z-index:${10 - depth}` },
-      h('img', { src: p.src2x, alt: `${st.name}客廳`, draggable: 'false', referrerpolicy: 'no-referrer', onerror: () => card.classList.add('noimg') }),
+      h('img', { src: p.src, srcset: `${p.src} 474w, ${p.src2x} 736w`, sizes: '(max-width: 520px) 92vw, 480px', alt: `${st.name}客廳`, draggable: 'false', referrerpolicy: 'no-referrer',
+        fetchpriority: depth === 0 ? 'high' : 'low', decoding: 'async', onerror: () => card.classList.add('noimg') }),
       h('span', { class: 'stamp like' }, '喜歡'), h('span', { class: 'stamp nope' }, '跳過'),
       h('div', { class: 'meta' }, h('b', {}, st.name), h('div', { class: 'tags' }, ...st.tags.map((t) => h('span', {}, t)),
         h('a', { href: p.source, target: '_blank', rel: 'noopener noreferrer', onpointerdown: (e) => e.stopPropagation() }, '來源'))));
@@ -113,7 +129,7 @@ SCREENS[1] = () => {
     busy = true;
     S.scores = applySwipe(S.scores, card.dataset.style, liked);
     S.swiped += 1; S.liked += liked ? 1 : 0;
-    warm3D();
+    save();
     card.querySelector(liked ? '.like' : '.nope').style.opacity = 1;
     card.style.transition = 'transform .28s ease-in, opacity .28s';
     card.style.transform = `translateX(${liked ? 130 : -130}%) rotate(${liked ? 18 : -18}deg)`;
@@ -143,16 +159,17 @@ SCREENS[1] = () => {
   document.addEventListener('keydown', onKey);
   // warm the next few images so a swipe never reveals an empty card
   const preload = () => DECK.slice(S.swiped + 3, S.swiped + 6).forEach((p) => { const i = new Image(); i.referrerPolicy = 'no-referrer'; i.src = p.src2x; });
-  draw(); preload();
+  draw();
+  (window.requestIdleCallback ?? setTimeout)(preload);   // 等第一張顯示後才去暖後面幾張
   deck.addEventListener('transitionend', preload);
   app.append(h('h1', { class: 'sr' }, '滑卡挑風格'), deck,
     h('div', { class: 'swipebar' },
       h('button', { class: 'round nope', 'aria-label': '不喜歡', onclick: () => decide(false) }, '✕'), count,
       h('button', { class: 'round like', 'aria-label': '喜歡', onclick: () => decide(true) }, '♥')),
     skip);
-  (window.requestIdleCallback ?? setTimeout)(warm3D);
 };
-// While the user swipes, fetch the 3D code and the furniture of whichever style is currently winning.
+// Fetch the 3D code and the chosen style's furniture. Called once the user reaches 我家的條件, so the
+// swipe screen's own images are never competing with it for bandwidth.
 const warm3D = () => load3D().then((m) => m.preload(STYLES[pickStyle(S.scores)])).catch(() => {});
 
 /* ---- 2 我家的圖：格局圖、平面圖、機電圖（選填） ---- */
@@ -164,6 +181,7 @@ SCREENS[2] = () => {
       if (why) { S.docError = why; continue; }
       S.docs.push({ name: f.name, kind: guessKind(f.name, f.type), pdf: f.type === 'application/pdf', url: f.type.startsWith('image/') ? URL.createObjectURL(f) : null });
     }
+    S.lostDocs = false;
     render();
   };
   const input = h('input', { type: 'file', id: 'docFile', class: 'sr', accept: ACCEPT, multiple: true, onchange: (e) => { add([...e.target.files]); } });
@@ -177,6 +195,8 @@ SCREENS[2] = () => {
       h('div', { class: 'chips' }, ...Object.entries(KINDS).map(([k, label]) => h('button', { class: 'chip', 'aria-pressed': String(d.kind === k), onclick: () => { d.kind = k; render(); } }, label)))),
     h('button', { class: 'rm', 'aria-label': `移除 ${d.name}`, onclick: () => { if (d.url) URL.revokeObjectURL(d.url); S.docs.splice(i, 1); render(); } }, '×'))));
   const c = S.cond, k = knowledge(), pct = Math.round(k.score * 100);
+  if (!c.style) setStyle(pickStyle(S.scores));
+  warm3D();
   // 用說的（或打一句話）：聽得出來的欄位直接填進下面，其餘不動
   const LABEL = { ping: ['坪數', '坪'], len: ['長', '公尺'], wid: ['寬', '公尺'], height: ['天花板高', '公尺'], age: ['屋況', ''], floors: ['建物總樓層', '層'], partition: ['隔間', ''] };
   const applySaid = (text) => {
@@ -190,8 +210,8 @@ SCREENS[2] = () => {
     render();
   };
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const say = h('input', { type: 'text', id: 'say', value: S.said, placeholder: '例：客廳大概 8 坪，長 5 米 6、寬 4 米 7，中古屋', 'aria-label': '用一句話描述你家',
-    onchange: (e) => applySaid(e.target.value) });
+  const say = h('textarea', { id: 'say', rows: 2, placeholder: '例：客廳大概 8 坪，長 5 米 6、寬 4 米 7，中古屋', 'aria-label': '用一句話描述你家',
+    onchange: (e) => applySaid(e.target.value) }, S.said);
   const micLabel = h('span', { class: 'note', id: 'micnote', 'aria-live': 'polite' },
     S.heard === null ? (Recognition ? '按麥克風用說的，或直接打一句話' : '這個瀏覽器不支援語音，請直接打一句話')
       : S.heard.length ? `聽到：${S.heard.join('、')}` : '沒聽出坪數或尺寸，可以再說一次，或直接填下面');
@@ -224,6 +244,7 @@ SCREENS[2] = () => {
         top.second ? h('div', { class: 'chips' }, pick(top.first), pick(top.second)) : null);
     })(),
     h('div', { class: 'voice' }, mic, h('div', { class: 'voicebody' }, say, micLabel)),
+    Recognition ? h('p', { class: 'note', id: 'micprivacy' }, '按下麥克風後，聲音由瀏覽器的語音辨識服務處理，可能會傳送到瀏覽器供應商（例如 Google 或 Apple）。不想的話直接打字。', ' ', h('a', { href: './privacy/' }, '隱私說明')) : null,
     h('div', { class: 'meter', role: 'group', 'aria-label': '掌握度' },
       h('div', { class: 'row between' }, h('b', { id: 'score' }, `掌握度 ${pct}%`), h('span', { class: 'note' }, pct ? `估價區間收窄 ${Math.round(k.score * 50)}%` : '目前用預設值估算')),
       h('div', { class: 'bar' }, h('i', { style: `width:${pct}%` })),
@@ -237,7 +258,9 @@ SCREENS[2] = () => {
         ...[['yes', '會'], ['no', '不會']].map(([v, label]) => h('button', { class: 'chip', id: 'part-' + v, 'aria-pressed': String(c.partition === v), onclick: () => { c.partition = c.partition === v ? '' : v; render(); } }, label)))),
     h('div', { class: 'cardbox' }, h('b', {}, '圖面'), input, drop,
       S.docError ? h('p', { class: 'err', role: 'alert' }, S.docError) : h('span', { hidden: true }),
+      S.lostDocs && !S.docs.length ? h('p', { class: 'err', id: 'lostdocs' }, '重新整理後，先前附的圖面需要再附一次（檔案只留在瀏覽器的這一次瀏覽）。') : h('span', { hidden: true }),
       S.docs.length ? list : h('span', { hidden: true }),
+      S.docs.some((d) => d.kind === 'photo') ? h('p', { class: 'note', id: 'photonote' }, '現況照片會留給設計師參考，但不影響估價，所以不計入掌握度；格局／平面圖和機電圖才會。') : h('span', { hidden: true }),
       h('p', { class: 'note' }, '原型階段：檔案只留在你的瀏覽器，不會上傳，也還不會自動判讀內容。')),
     cta(pct ? '生成 3D' : '先跳過，生成 3D', () => { S.generated = false; go(3); }, pct ? 'accent' : ''));
 };
@@ -250,7 +273,7 @@ SCREENS[3] = () => {
   const stage = h('div', { class: 'scene', role: 'img', 'aria-label': '3D 空間，可拖曳旋轉' });
   const views = h('div', { class: 'seg', role: 'group', 'aria-label': '視角' }, ...['A', 'B', 'C'].map((v) => h('button', { 'aria-pressed': String(S.view === v), 'aria-label': '視角 ' + v,
     onclick: () => { S.view = v; live?.setView(v); [...views.children].forEach((b) => b.setAttribute('aria-pressed', String(b.textContent === v))); } }, v)));
-  const edit = (fn) => { S.versions.push({ label: `版本 ${S.versions.length + 1}`, look: fn({ ...look() }) }); S.v = S.versions.length - 1; render(); };
+  const edit = (fn, i) => { S.versions.push({ label: `版本 ${S.versions.length + 1}`, look: fn({ ...look() }), edits: [...(S.versions[S.v].edits ?? []), i] }); S.v = S.versions.length - 1; render(); };
   app.append(h('div', { class: 'result' },
     h('div', { class: 'stagewrap' }, stage, h('div', { class: 'stagebar' }, views)),
     h('div', { class: 'panel' },
@@ -258,7 +281,7 @@ SCREENS[3] = () => {
       h('div', { class: 'tweak' }, h('b', {}, '換風格'),
         h('div', { class: 'chips' }, ...SWIPE_ORDER.map((k) => h('button', { class: 'chip', 'aria-pressed': String(c.style === k), onclick: () => { setStyle(k); render(); } }, STYLES[k].name)))),
       h('div', { class: 'tweak' }, h('b', {}, '改細節'),
-        h('div', { class: 'chips' }, ...EDITS.map(([label, fn]) => h('button', { class: 'chip', onclick: () => edit(fn) }, label))),
+        h('div', { class: 'chips' }, ...EDITS.map(([label, fn], i) => h('button', { class: 'chip', onclick: () => edit(fn, i) }, label))),
         S.versions.length > 1 ? h('div', { class: 'chips versions' }, ...S.versions.map((v, i) => h('button', { class: 'chip ghost', 'aria-pressed': String(i === S.v), onclick: () => { S.v = i; render(); } }, v.label))) : null),
       h('p', { class: 'note', id: 'ctx' }, `這個房間：${size.w} × ${size.d} 公尺、高 ${size.h} 公尺（${est.ping} 坪${est.assumedPing ? '，預設' : ''}）・掌握度 ${Math.round(knowledge().score * 100)}%。`,
         size.clamped ? '這個尺寸放不下一張沙發或超過 60 公尺，3D 取了最接近的大小。' : '', ' ', h('button', { class: 'link', onclick: () => go(2) }, c.len && c.wid ? '修改尺寸' : '填你家的尺寸')),
@@ -267,7 +290,7 @@ SCREENS[3] = () => {
         est.assumedPing || !c.ageSet ? '坪數和屋況會讓金額差很多，' : '', h('button', { class: 'link', onclick: () => go(2) }, est.assumedPing || !c.ageSet ? '填我家的' : '修改')),
       ...ruleFindings({ ...c, ping: est.ping }, current, summarize(S.docs)).filter((f) => f.state === 'conflict')
         .map((f) => h('p', { class: 'warn', role: 'status' }, h('b', {}, `${f.title}：`), f.detail)),
-      cta('看估價與施工圖', () => go(4)))));
+      cta('看估價與施工圖', () => go(4)), shareBtn())));
   stage.append(h('span', { class: 'hint' }, '拖曳旋轉'));
   load3D().then((m) => { if (S.step === 3 && stage.isConnected) { live = m.mountRoom3D(stage, current, S.view, size); window.__room = live; } })
     .catch(() => { stage.append(fromHTML(roomSVG(current, { label: '空間示意' }))); stage.querySelector('.hint').textContent = '這台裝置無法顯示 3D，改用示意圖'; });
@@ -296,16 +319,21 @@ SCREENS[4] = () => {
       ...AGES.map((a) => h('button', { class: 'chip', 'aria-pressed': String(c.age === a), onclick: () => { c.age = a; c.ageSet = true; render(); } }, a))),
     h('ul', { class: 'items' }, ...est.items.map((i) => h('li', {}, h('b', {}, i.name), h('span', { class: 'amt' }, `${i.low}–${i.high} 萬`),
       h('small', {}, i.basis), h('span', { class: 'bar', 'aria-hidden': 'true' }, h('i', { style: `width:${(i.high / max) * 100}%` }))))),
-    h('p', { class: 'note' }, '2025 參考行情，中等建材、不動格局；不含家電與設計監工費。'));
+    h('p', { class: 'note' }, '參考行情量級（尚未以實際單價表校正），中等建材、不動格局；不含家電與設計監工費。'));
 
   const sheets = drawingSet(c, current, est, new Date().toISOString().slice(0, 10));
   const docs = summarize(S.docs);
   const findings = ruleFindings({ ...c, ping: est.ping }, current, docs);
-  const mine = aboutThisHome(c, docs);   // 沒有這個家的長寬或平面圖，畫的只是範例空間：不賣
+  const mine = aboutThisHome(c, docs) || S.unlocked;   // 已解鎖的不會因為重整後檔案不在而被收回   // 沒有這個家的長寬或平面圖，畫的只是範例空間：不賣
   const open = (s) => {
     if (!mine) return go(2);
     if (!S.unlocked) return $('#unlock').showModal();
-    $('#viewerBody').replaceChildren(fromHTML(s.svg)); $('#viewer').showModal();
+    $('#viewerBody').replaceChildren(fromHTML(s.svg));
+    const a = $('#viewerDownload');
+    if (a.href.startsWith('blob:')) URL.revokeObjectURL(a.href);
+    a.href = URL.createObjectURL(new Blob([s.svg], { type: 'image/svg+xml' }));
+    a.download = s.file;
+    $('#viewer').showModal();
   };
   const drawings = h('div', { class: 'cardbox' + (S.unlocked ? '' : ' locked'), id: 'drawings' },
     h('div', { class: 'unlockrow' }, h('h2', {}, !mine ? '施工圖範例' : S.unlocked ? '你家尺寸的施工圖草稿（已解鎖）' : '你家尺寸的施工圖草稿'),
@@ -324,7 +352,7 @@ SCREENS[4] = () => {
       h('button', { class: 'link', onclick: () => go(2) }, c.floors && c.partition ? '修改' : '補樓層與隔間')),
     h('ul', { class: 'regs' }, ...legal.map(item), ...site.map(item)),
     h('p', { class: 'note' }, '這是依台灣消防與建築法規整理的提醒，不是合格判定；實際適用條文與申請，由我們的設計師與施工團隊在覆核時逐項確認。'));
-  app.append(h('div', { class: 'shead' }, backBtn(3), h('h1', {}, '估價與施工圖')),
+  app.append(h('div', { class: 'shead' }, backBtn(3), h('h1', {}, '估價與施工圖'), shareBtn()),
     h('div', { class: 'two' }, money, drawings),
     regs,
     ...(S.unlocked ? [] : [mine ? cta('解鎖我家的施工圖草稿　NT$ 1,990', () => $('#unlock').showModal(), 'accent') : cta('先補我家的尺寸或平面圖', () => go(2), 'accent', { id: 'needhome' })]));
@@ -332,4 +360,16 @@ SCREENS[4] = () => {
 $('#payCancel').addEventListener('click', () => $('#unlock').close());
 $('#payOk').addEventListener('click', () => { $('#unlock').close(); S.unlocked = true; if (S.step === 4) render(); });
 
+// 從分享連結打開：直接帶到那個設計的 3D（不覆蓋對方沒給的欄位）
+const shared = fromShare(location.hash, { styles: Object.keys(STYLES), edits: EDITS.length, ages: AGES });
+if (shared) {
+  S = fresh();
+  Object.assign(S.cond, shared.cond);
+  setStyle(shared.style);
+  let cur = { ...STYLES[shared.style] };
+  shared.edits.forEach((i, n) => { cur = EDITS[i][1]({ ...cur }); S.versions.push({ label: `版本 ${n + 2}`, look: cur, edits: shared.edits.slice(0, n + 1) }); });
+  S.v = S.versions.length - 1;
+  S.step = 3; S.reached = 4; S.swiped = 0;
+  history.replaceState(null, '', location.pathname);
+}
 render();

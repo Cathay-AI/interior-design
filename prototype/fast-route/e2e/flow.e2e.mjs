@@ -19,6 +19,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
     assert.ok(overflow <= 1, `${name} ${at}: horizontal overflow ${overflow}px`);
   };
   await page.goto(base);
+  await page.evaluate(() => localStorage.clear()); await page.reload();   // 從乾淨的狀態開始
 
   // 1 滑卡：按鈕、鍵盤、拖曳三種方式；卡片是 Pinterest 的圖並附來源
   await page.locator('.card').first().waitFor();
@@ -53,6 +54,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   assert.equal(await page.inputValue('#f-wid'), '4.7');
   await page.waitForFunction(() => document.querySelector('#f-ping').value === '8');   // 長×寬 換算坪數
   assert.match(await page.locator('#score').innerText(), /掌握度 40%/);
+  await page.locator('#micprivacy a[href="./privacy/"]').waitFor().catch(() => {});   // 只在支援語音的瀏覽器顯示
   await page.setInputFiles('#docFile', [
     { name: '3F 機電圖.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') },
     { name: '平面圖.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') },
@@ -80,6 +82,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.getByRole('button', { name: '版本 2' }).waitFor();
   assert.notEqual(await page.locator('#teaser').innerText(), before, 'editing the design changes the estimate');
   await page.locator('.scene[data-ready] canvas').waitFor({ timeout: 30000 });
+  if (name === 'phone') { const b = await page.locator('.cta').boundingBox(); assert.ok(b.y + b.height <= viewport.height && b.y > viewport.height - 120, 'the main button stays docked at the bottom of the phone screen'); }
   assert.match(await page.locator('#ctx').innerText(), /這個房間：5.6 × 4.7 公尺、高 2.8 公尺（8 坪）・掌握度 80%/);
   assert.deepEqual(await page.evaluate(() => window.__room.stats().size), { w: 5.6, d: 4.7, h: 2.8, clamped: false }, '3D room uses the real size');
   await snap('3-3d'); await noOverflow('3');
@@ -114,8 +117,24 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   assert.equal(await page.locator('.sheetbtn svg').first().evaluate((el) => getComputedStyle(el).filter), 'none');
   await page.locator('.sheetbtn').first().click();
   await page.locator('#viewer svg').waitFor();
+  const dl = page.waitForEvent('download');
+  await page.locator('#viewerDownload').click();
+  assert.match((await dl).suggestedFilename(), /^A-01-floor-plan\.svg$/, 'unlocked sheets can be downloaded');
   await snap('4-unlocked');
   await page.locator('#viewer').getByRole('button', { name: '關閉' }).click();
+
+  // 重新整理後進度還在（上傳的檔案除外，並提醒重附）
+  await page.reload();
+  await page.getByRole('heading', { name: '你家尺寸的施工圖草稿（已解鎖）' }).waitFor();
+  assert.match(await page.locator('#ping').innerText(), /^9 坪$/);
+  await page.locator('#steps button').nth(1).click();
+  await page.locator('#lostdocs').waitFor();
+  assert.equal(await page.inputValue('#f-floors'), '12');
+  if (name === 'phone') {   // 手機：底部主要按鈕不會蓋住最後的內容
+    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+    const cta = await page.locator('.cta').boundingBox(), drop = await page.locator('#drop').boundingBox();
+    assert.ok(drop.y + drop.height <= cta.y, 'at the end of the page the upload area sits above the bottom button');
+  }
 
   // 什麼都沒給的人：圖只是範例，不賣；先請他補尺寸或平面圖
   await page.getByRole('button', { name: '重新開始' }).click();
@@ -128,6 +147,46 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   assert.match(await page.locator('#regs').innerText(), /還不知道建物總樓層/);
   await page.locator('#needhome').click();
   await page.getByRole('heading', { name: '多告訴我一點你家' }).waitFor();
+  await page.close();
+}
+{ // 分享連結：別人打開就看到同一個設計與條件
+  const ctx = await browser.newContext({ viewport: { width: 1366, height: 860 } });
+  await ctx.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const page = await ctx.newPage();
+  page.on('pageerror', (e) => errors.push(`share: ${e.message}`));
+  await page.route('https://i.pinimg.com/**', (route) => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="5"/>' }));
+  await page.goto(base);
+  await page.locator('.round.like').click();                                    // 溫暖木質 ♥
+  await page.waitForFunction(() => document.querySelector('.count').textContent.startsWith('2 '));
+  await page.locator('#skip').click();
+  await page.fill('#f-len', '6.2'); await page.locator('#f-len').blur();
+  await page.fill('#f-wid', '4.3'); await page.locator('#f-wid').blur();
+  await page.getByRole('button', { name: '老屋' }).click();
+  await page.getByRole('button', { name: '生成 3D', exact: true }).click();
+  await page.getByRole('button', { name: '地毯拿掉' }).click();
+  await page.getByRole('button', { name: '版本 2' }).waitFor();
+  const price = await page.locator('#teaser').innerText();
+  await page.locator('#share').click();
+  await page.getByText('已複製連結').waitFor();
+  const url = await page.evaluate(() => navigator.clipboard.readText());
+  assert.match(url, /#r=[A-Za-z0-9_-]+$/);
+  const other = await (await browser.newContext({ viewport: { width: 1366, height: 860 } })).newPage();   // 另一個人、乾淨的瀏覽器
+  await other.goto(url);
+  await other.getByRole('heading', { name: '客廳・溫暖木質' }).waitFor({ timeout: 30000 });
+  assert.equal(await other.locator('#teaser').innerText(), price, 'same design and conditions give the same estimate');
+  assert.match(await other.locator('#ctx').innerText(), /6.2 × 4.3 公尺/);
+  assert.match(await other.locator('#assume').innerText(), /老屋估算/);
+  assert.equal(await other.getByRole('button', { name: '版本 2' }).getAttribute('aria-pressed'), 'true');
+  assert.equal(new URL(other.url()).hash, '', 'the hash is consumed so a reload keeps the local copy');
+  await ctx.close();
+}
+{ // 隱私說明與使用說明頁存在，並說明語音與第三方
+  const page = await browser.newPage();
+  for (const [path, must] of [['privacy/', /語音輸入[\s\S]*瀏覽器供應商/], ['terms/', /不是合格判定/]]) {
+    const r = await page.goto(new URL(path, base).href);
+    assert.equal(r.status(), 200, path);
+    assert.match(await page.locator('main').innerText(), must, path);
+  }
   await page.close();
 }
 await browser.close();
