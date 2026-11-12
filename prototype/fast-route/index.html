@@ -5,12 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>回家之前・滑出你家的樣子</title>
 <meta name="description" content="滑幾張圖，看見喜歡的風格變成 3D；補上你家的尺寸，估價和圖面就跟著貼近你家。">
+<!-- import map 必須在任何模組開始載入之前（含 modulepreload），否則較舊的瀏覽器會忽略它，3D 就載不起來 -->
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js","three/addons/":"./vendor/addons/"}}</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect x='8' y='8' width='184' height='184' rx='40' fill='%2329251f'/%3E%3Cpath d='M68 116a32 32 0 0 0 64 0Z' fill='%23fff0cc'/%3E%3Cpath d='M100 52C66 52 44 80 41 116H159C156 80 134 52 100 52Z' fill='%23a2562d'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://i.pinimg.com">
 <!-- 第一張卡片（lib/pins.js 的第一筆）提前載入，不必等程式跑完；test/assets.test.mjs 會檢查兩邊一致 -->
 <link rel="preload" as="image" href="https://i.pinimg.com/474x/92/0f/bd/920fbde632d7565361feb9f94d962291.jpg" imagesrcset="https://i.pinimg.com/474x/92/0f/bd/920fbde632d7565361feb9f94d962291.jpg 474w, https://i.pinimg.com/736x/92/0f/bd/920fbde632d7565361feb9f94d962291.jpg 736w" imagesizes="(max-width: 520px) 92vw, 480px" fetchpriority="high" referrerpolicy="no-referrer">
 <link rel="modulepreload" href="./app.js"><link rel="modulepreload" href="./lib/taste.js"><link rel="modulepreload" href="./lib/estimate.js"><link rel="modulepreload" href="./lib/rules.js"><link rel="modulepreload" href="./lib/intake.js"><link rel="modulepreload" href="./lib/drawings.js"><link rel="modulepreload" href="./lib/layout.js"><link rel="modulepreload" href="./lib/art.js"><link rel="modulepreload" href="./lib/pins.js"><link rel="modulepreload" href="./lib/context.js"><link rel="modulepreload" href="./lib/persist.js"><link rel="modulepreload" href="./lib/docs.js">
-<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js","three/addons/":"./vendor/addons/"}}</script>
 <style>
 :root{
   --paper:#f3eee5;--surface:#fbf9f4;--card:#ece5d8;--ink:#2b2621;--muted:#675d53;--accent:#b5653a;--accent-d:#8f4c2a;

@@ -36,3 +36,10 @@ test('index.html preloads the first swipe card, and every module app.js imports'
   const app = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
   for (const [, lib] of app.matchAll(/from '\.\/lib\/([a-z-]+)\.js'/g)) assert.ok(html.includes(`modulepreload" href="./lib/${lib}.js"`), `modulepreload ${lib}`);
 });
+
+test('the import map comes before anything that starts loading modules', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const map = html.indexOf('<script type="importmap">');
+  assert.ok(map > 0 && map < html.indexOf('rel="modulepreload"') && map < html.indexOf('<script type="module"'),
+    'browsers that do not accept a late import map would fail to resolve "three"');
+});
