@@ -12,7 +12,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { createRenderScheduler } from './render-scheduler.js';
-import { buildScene } from './scene.js';
+import { buildScene, loadAssets } from './scene.js';
 
 const TARGET = new T.Vector3(-0.35, 0.85, -0.2);
 export const VIEWS = { A: [5.9, 3.6, 6.2], B: [1.2, 2.2, 8.2], C: [7.8, 4.8, 2.4] };
@@ -43,10 +43,10 @@ export function mountRoom3D(container, look, view = 'A') {
   renderer.setPixelRatio(dpr(false));
   container.prepend(renderer.domElement);
 
-  const room = buildScene(look);
-  if (lite) room.sun.shadow.mapSize.set(1024, 1024);
-  room.scene.background = new T.Color(BACKDROP);
-  room.scene.environmentIntensity = 0.55;
+  // the room appears as soon as its furniture models and materials are in (cached after the first time)
+  let room = null, env = null, ready = false;
+  const stage = new T.Scene();
+  stage.background = new T.Color(BACKDROP);
   const camera = new T.PerspectiveCamera(32, 1, 0.1, 60);
   camera.position.set(...VIEWS[view]);
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -57,8 +57,9 @@ export function mountRoom3D(container, look, view = 'A') {
 
   // settled frames go through the composer (MSAA + ambient occlusion); moving frames render directly
   const composer = new EffectComposer(renderer, new T.WebGLRenderTarget(1, 1, { type: T.HalfFloatType, samples: lite ? 2 : 4 }));
-  composer.addPass(new RenderPass(room.scene, camera));
-  const ao = new GTAOPass(room.scene, camera, 1, 1);
+  const renderPass = new RenderPass(stage, camera);
+  composer.addPass(renderPass);
+  const ao = new GTAOPass(stage, camera, 1, 1);
   ao.blendIntensity = 0.9;
   ao.updateGtaoMaterial({ radius: 0.45, distanceExponent: 1.4, thickness: 1.2, scale: 1.1, samples: lite ? 8 : 16 });
   ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: lite ? 8 : 16 });
@@ -69,7 +70,7 @@ export function mountRoom3D(container, look, view = 'A') {
   const scheduler = createRenderScheduler({
     draw: () => {
       if (disposed) return;
-      if (moving) renderer.render(room.scene, camera); else composer.render();
+      if (moving || !room) renderer.render(room ? room.scene : stage, camera); else composer.render();
       frames += 1;
     },
     onInteraction: (m) => { moving = m; renderer.setPixelRatio(dpr(m)); if (!m) composer.setPixelRatio(dpr(false)); },
@@ -78,12 +79,26 @@ export function mountRoom3D(container, look, view = 'A') {
   controls.addEventListener('change', scheduler.request);
   controls.addEventListener('end', scheduler.end);
 
+  const show = (assets) => {
+    if (disposed) return;
+    room = buildScene(look, { assets });
+    if (lite) room.sun.shadow.mapSize.set(1024, 1024);
+    room.scene.background = new T.Color(BACKDROP);
+    room.scene.environmentIntensity = 0.55;
+    room.scene.environment = env;
+    renderPass.scene = room.scene; ao.scene = room.scene;
+    renderer.shadowMap.needsUpdate = true;
+    ready = true;
+    container.dataset.ready = 'true';
+    scheduler.request();
+  };
+  loadAssets(look).then(show, () => show(null)); // no assets (offline, blocked): hand-built fallback
   loadHDRI().then((t) => {
     if (disposed) return;
     const pmrem = new T.PMREMGenerator(renderer);
-    room.scene.environment = pmrem.fromEquirectangular(t).texture;
+    env = pmrem.fromEquirectangular(t).texture;
     pmrem.dispose();
-    scheduler.request();
+    if (room) { room.scene.environment = env; scheduler.request(); }
   }).catch(() => {});
 
   const resize = new ResizeObserver(() => {
@@ -117,12 +132,12 @@ export function mountRoom3D(container, look, view = 'A') {
       };
       requestAnimationFrame(step);
     },
-    stats: () => ({ frames, calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, pixelRatio: renderer.getPixelRatio() }),
+    stats: () => ({ ready, frames, calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, pixelRatio: renderer.getPixelRatio() }),
     dispose() {
       if (disposed) return;
       disposed = true;
-      scheduler.cancel(); resize.disconnect(); controls.dispose(); room.dispose();
-      room.scene.environment?.dispose();
+      scheduler.cancel(); resize.disconnect(); controls.dispose(); room?.dispose();
+      env?.dispose();
       composer.dispose(); ao.dispose?.();
       renderer.dispose(); renderer.forceContextLoss(); renderer.domElement.remove();
     },

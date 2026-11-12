@@ -21,10 +21,10 @@ const PINS = ['hero', 'corner', 'detail', 'wide'].flatMap((shot, r) =>
   SWIPE_ORDER.map((_, i) => SWIPE_ORDER[(i * (r % 2 ? 5 : 1) + r * 2) % SWIPE_ORDER.length]).map((k) => [k, shot, ...SHOTS[shot]]))
   .map((p, i, all) => all[(i * 7) % all.length]);
 const EDITS = [
-  ['沙發換淺色', (l) => ({ ...l, sofa: '#cfc8bd', fabric: 'linen' })],
-  ['牆換暖白', (l) => ({ ...l, wall: '#f3ece0', wallType: undefined })],
+  ['沙發換淺色', (l) => ({ ...l, sofa: '#cfc8bd', fabric: 'linen', sofaTex: 'poly_wool_herringbone' })],
+  ['牆換暖白', (l) => ({ ...l, wall: '#f3ece0', wallType: undefined, wallTex: 'plastered_wall' })],
   ['地毯拿掉', (l) => ({ ...l, rug: null })],
-  ['地板換深色', (l) => ({ ...l, floor: '#7a5a3e', floorType: 'wood' })],
+  ['地板換深色', (l) => ({ ...l, floor: '#6b4a32', floorType: 'wood', floorTex: 'wood_floor' })],
 ];
 const STATE_COLOR = { ok: '#5f7a6a', conflict: '#b5653a', missing: '#c9a77c', na: '#8a7f72' };
 
@@ -137,7 +137,9 @@ SCREENS[2] = () => {
       h('span', { class: 'hint' }, S.v ? '原始風格的算圖，不含你的修改' : '寫實算圖'));
     return;
   }
-  stage.append(h('span', { class: 'hint' }, '拖曳旋轉'));
+  const hint = h('span', { class: 'hint' }, '載入家具…');
+  stage.append(hint);
+  new MutationObserver((_, o) => { if (stage.dataset.ready) { hint.textContent = '拖曳旋轉'; o.disconnect(); } }).observe(stage, { attributes: true });
   load3D().then((m) => { if (S.step === 2 && stage.isConnected) { live = m.mountRoom3D(stage, current, S.view); window.__room = live; } })
     .catch(() => { stage.append(fromHTML(roomSVG(current, { label: '空間示意' }))); stage.querySelector('.hint').textContent = '這台裝置無法顯示 3D，改用示意圖'; });
 };

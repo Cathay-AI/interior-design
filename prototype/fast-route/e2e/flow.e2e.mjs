@@ -38,7 +38,8 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
 
   // 2 3D 成品：喜歡的那一種，靜止時不重畫
   await page.getByRole('heading', { name: '客廳・日光北歐' }).waitFor();
-  await page.locator('.scene canvas').waitFor({ timeout: 20000 });
+  await page.locator('.scene[data-ready] canvas').waitFor({ timeout: 30000 }); // furniture models and materials are in
+  assert.equal(await page.evaluate(() => window.__room.stats().ready), true);
   await page.waitForTimeout(1500);
   const idle = await page.evaluate(() => window.__room.stats().frames);
   await page.waitForTimeout(700);
@@ -49,7 +50,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.getByRole('button', { name: '地毯拿掉' }).click();
   await page.getByRole('button', { name: '版本 2' }).waitFor();
   assert.notEqual(await page.locator('#teaser').innerText(), before, 'editing the design changes the estimate');
-  await page.locator('.scene canvas').waitFor();
+  await page.locator('.scene[data-ready] canvas').waitFor({ timeout: 30000 });
   await snap('2-3d'); await noOverflow('2');
   await page.getByRole('button', { name: '寫實圖' }).click();
   await page.locator('.scene img.photo').waitFor();

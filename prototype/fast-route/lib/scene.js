@@ -3,6 +3,7 @@
 // (scripts/render-refs.mjs, closed room + path tracing). No downloads besides one small HDRI.
 import * as T from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 import { ROOM, WINDOW, CABINET, LAYOUT } from './layout.js';
 export { ROOM, WINDOW, CABINET, LAYOUT };
@@ -124,10 +125,8 @@ function marble(size = 512) {
 function rugTexture(base, accent, size = 512) {
   const c = canvas(size, Math.round(size * 1.3)), x = c.getContext('2d'), H = c.height;
   x.fillStyle = base; x.fillRect(0, 0, size, H);
-  x.strokeStyle = css(rgb(accent), 0.55); x.lineWidth = 7; x.strokeRect(26, 26, size - 52, H - 52);
-  x.lineWidth = 2; x.strokeRect(44, 44, size - 88, H - 88);
-  x.strokeStyle = css(rgb(accent), 0.18); x.lineWidth = 2;
-  for (let i = -H; i < size + H; i += 46) { x.beginPath(); x.moveTo(i, 50); x.lineTo(i + H, H + 50); x.moveTo(i + H, 50 - H + H); x.lineTo(i, H + 50); x.stroke(); }
+  x.strokeStyle = css(rgb(accent), 0.22); x.lineWidth = 10; x.strokeRect(30, 30, size - 60, H - 60);
+  for (let i = 0; i < H; i += 3) { x.fillStyle = `rgba(${rand() < 0.5 ? '255,255,255' : '60,45,30'},${0.02 + rand() * 0.05})`; x.fillRect(0, i, size, 1.5); } // flat-weave rows
   for (let i = 0; i < 16000; i++) { x.fillStyle = `rgba(${rand() < 0.5 ? '255,255,255' : '0,0,0'},${rand() * 0.1})`; x.fillRect(rand() * size, rand() * H, 1.6, 1.6); }
   return toTexture(c);
 }
@@ -197,14 +196,45 @@ function leafShape() {
   return s;
 }
 
+/* ---------------- real assets: scanned furniture + PBR materials (Poly Haven, CC0) ---------------- */
+const ASSETS = new URL('../assets/', import.meta.url).href;
+const cache = new Map();
+const once = (key, make) => { if (!cache.has(key)) cache.set(key, make()); return cache.get(key); };
+const loadModel = (name) => once('m:' + name, () => new GLTFLoader().loadAsync(`${ASSETS}models/${name}/${name}.gltf`).then((g) => g.scene));
+const loadMap = (name, map, srgb) => once(`t:${name}/${map}`, () => new T.TextureLoader().loadAsync(`${ASSETS}tex/${name}/${map}.jpg`).then((t) => {
+  if (srgb) t.colorSpace = T.SRGBColorSpace;
+  t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 8;
+  return t;
+}));
+const loadTex = (name) => once('t:' + name, () => Promise.all([loadMap(name, 'diff', true), loadMap(name, 'nor'), loadMap(name, 'rough')]).then(([diff, nor, rough]) => ({ diff, nor, rough })));
+const loadManifest = () => once('manifest', () => fetch(`${ASSETS}tex/manifest.json`).then((r) => r.json()));
+
+/** Which models and materials a look needs. */
+export function assetNames(look) {
+  return {
+    models: [look.chairModel, look.tableModel, look.pendantModel, 'modern_wooden_cabinet', 'potted_plant_02', 'potted_plant_04', 'ceramic_vase_01', 'side_table_01'].filter(Boolean),
+    tex: [look.floorTex, look.wallTex, look.sofaTex, look.cabinetTex, look.woodTex].filter(Boolean),
+  };
+}
+/**
+ * Fetch (once, cached for the session) everything `look` needs. Pass the result to buildScene as `assets`.
+ * @returns {Promise<{models:Record<string,T.Object3D>, tex:Record<string,{diff:T.Texture,nor:T.Texture,rough:T.Texture}>, mean:Record<string,string>}>}
+ */
+export async function loadAssets(look) {
+  const { models, tex } = assetNames(look);
+  const [mean, ms, ts] = await Promise.all([loadManifest(), Promise.all(models.map(loadModel)), Promise.all(tex.map(loadTex))]);
+  return { mean, models: Object.fromEntries(models.map((n, i) => [n, ms[i]])), tex: Object.fromEntries(tex.map((n, i) => [n, ts[i]])) };
+}
+
 /* ---------------- the room ---------------- */
 /**
  * @param {object} look one entry of STYLES (colours and material kinds)
- * @param {{closed?:boolean, pathtrace?:boolean}} opts
+ * @param {{closed?:boolean, pathtrace?:boolean, assets?:object}} opts
  *   closed: four walls + ceiling (camera inside, for stills); otherwise a cut-away for orbiting.
  *   pathtrace: lighting tuned for the path tracer (area lights instead of fill tricks).
+ *   assets: result of loadAssets(look). Without it the room falls back to hand-built furniture and painted textures.
  */
-export function buildScene(look, { closed = false, pathtrace = false } = {}) {
+export function buildScene(look, { closed = false, pathtrace = false, assets: A = null } = {}) {
   seed = 97;
   const scene = new T.Scene();
   const owned = new Set();
@@ -222,25 +252,43 @@ export function buildScene(look, { closed = false, pathtrace = false } = {}) {
   const add = (geo, mat, pos, o) => put(scene, geo, mat, pos, o);
   const group = (x, y, z, ry = 0) => { const g = new T.Group(); g.position.set(x, y, z); g.rotation.y = ry; scene.add(g); return g; };
   const { w, d, h } = ROOM;
+  // real material: scanned diffuse / normal / roughness, tinted so its average colour matches `tint`
+  const pbr = (name, tint, o = {}) => {
+    const t = A.tex[name], c = new T.Color('#ffffff');
+    if (tint) { const want = new T.Color(tint), mean = new T.Color(A.mean[name]); c.setRGB(Math.min(2.2, want.r / Math.max(mean.r, 0.02)), Math.min(2.2, want.g / Math.max(mean.g, 0.02)), Math.min(2.2, want.b / Math.max(mean.b, 0.02))); }
+    return std({ map: t.diff, normalMap: t.nor, roughnessMap: t.rough, roughness: 1, color: c, ...o });
+  };
+  const has = (n) => Boolean(A && n && (A.tex[n] || A.models[n]));
+  // scanned model, dropped on the floor (or at height y) with its footprint centred on x/z
+  const place = (name, x, z, { ry = 0, scale = 1, y = 0, hang = false } = {}) => {
+    const g = A.models[name].clone(true);
+    g.scale.setScalar(scale); g.rotation.y = ry; g.position.set(0, 0, 0); g.updateMatrixWorld(true);
+    const b = new T.Box3().setFromObject(g), c = b.getCenter(new T.Vector3());
+    g.position.set(x - c.x, hang ? y - b.max.y : y - b.min.y, z - c.z);
+    g.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.userData.shared = true; } });
+    scene.add(g);
+    return b.translate(g.position);
+  };
 
   /* materials */
   const metal = std({ color: look.metal ?? '#2b2621', roughness: 0.35, metalness: 0.85 });
   const brass = std({ color: '#b48a4e', roughness: 0.3, metalness: 1 });
   const white = std({ color: '#f3f0ea', roughness: 0.6 });
   let floorMat;
-  if (look.floorType === 'concrete') floorMat = std({ map: tex(concrete(look.floor)), roughness: 0.45, metalness: 0 });
+  if (has(look.floorTex)) floorMat = pbr(look.floorTex, look.floor, { envMapIntensity: 0.6 });
+  else if (look.floorType === 'concrete') floorMat = std({ map: tex(concrete(look.floor)), roughness: 0.45, metalness: 0 });
   else { const p = planks(look.floor); floorMat = std({ map: tex(p.map), bumpMap: tex(p.bump), bumpScale: 0.6, roughness: 0.42 }); }
-  const wallMat = std({ map: tex(look.wallType === 'concrete' ? concrete(look.wall, 512) : plaster(look.wall)), roughness: 0.92 });
+  const wallMat = has(look.wallTex) ? pbr(look.wallTex, look.wall) : std({ map: tex(look.wallType === 'concrete' ? concrete(look.wall, 512) : plaster(look.wall)), roughness: 0.92 });
   const woodTone = (hex) => { const p = planks(hex, { rows: 2, size: 512, vary: 0.04, joints: false }); p.bump.dispose(); p.map.rotation = Math.PI / 2; return std({ map: tex(p.map), roughness: 0.5 }); };
-  const cabinetMat = look.cabinetWood ? woodTone(look.cabinet) : std({ color: look.cabinet, roughness: 0.55 });
-  const accentWood = woodTone(look.woodAccent ?? look.cabinet);
+  const cabinetMat = has(look.cabinetTex) ? pbr(look.cabinetTex, null, { roughness: 0.75 }) : look.cabinetWood ? woodTone(look.cabinet) : std({ color: look.cabinet, roughness: 0.55 });
+  const accentWood = has(look.woodTex) ? pbr(look.woodTex, null, { roughness: 0.8 }) : has(look.cabinetTex) ? cabinetMat : woodTone(look.woodAccent ?? look.cabinet);
   const fab = fabric(look.sofa, look.fabric ?? 'linen');
-  const sofaMat = std({ map: tex(fab.map), bumpMap: tex(fab.bump), bumpScale: 0.4, roughness: look.fabric === 'leather' ? 0.48 : 0.95, ...(look.fabric === 'velvet' ? { sheen: 1 } : {}) });
+  const sofaMat = has(look.sofaTex) ? pbr(look.sofaTex, look.sofa, look.fabric === 'leather' ? { roughness: 0.75, envMapIntensity: 0.6 } : { roughnessMap: null, roughness: 1, envMapIntensity: 0.25 }) : std({ map: tex(fab.map), bumpMap: tex(fab.bump), bumpScale: 0.4, roughness: look.fabric === 'leather' ? 0.48 : 0.95, ...(look.fabric === 'velvet' ? { sheen: 1 } : {}) });
   const pillowA = std({ map: tex(fabric(mix(look.accent, '#ffffff', 0.15)).map), roughness: 1 });
   const pillowB = std({ map: tex(fabric(mix(look.rug ?? '#e8e0d2', '#ffffff', 0.1)).map), roughness: 1 });
 
   /* shell: floor, walls (window opening is real so sunlight falls through it), skirting */
-  add(scaleUV(new T.BoxGeometry(w, 0.1, d), w / 1.2, d / 1.2), floorMat, [0, -0.05, 0], { cast: false });
+  add(scaleUV(new T.BoxGeometry(w, 0.1, d), w / (A ? 2.4 : 1.2), d / (A ? 2.4 : 1.2)), floorMat, [0, -0.05, 0], { cast: false });
   const T_W = 0.12, bz = -d / 2 - T_W / 2;
   const { x0, x1, y0, y1 } = WINDOW;
   const wallPiece = (pw, ph, px, py) => add(worldBox(pw, ph, T_W, 1.6), wallMat, [px, py, bz]);
@@ -295,7 +343,7 @@ export function buildScene(look, { closed = false, pathtrace = false } = {}) {
     for (const i of [0, 2]) add(new T.BoxGeometry(bay, top, depth - 0.02), carcass, [cx0 + bay * (i + 0.5), top / 2, cz - 0.01]);
     add(new T.BoxGeometry(bay, 0.88, depth - 0.02), carcass, [cx0 + bay * 1.5, 0.44, cz - 0.01]);
     add(new T.BoxGeometry(bay, top - 1.8, depth - 0.02), carcass, [cx0 + bay * 1.5, (top + 1.8) / 2, cz - 0.01]);
-    const door = (bx, by, bw, bh) => add(soft(bw - g * 2, bh - g * 2, 0.02, 0.004, 1), cabinetMat, [bx, by, front]);
+    const door = (bx, by, bw, bh) => add(has(look.cabinetTex) ? worldBox(bw - g * 2, bh - g * 2, 0.02, 1.3) : soft(bw - g * 2, bh - g * 2, 0.02, 0.004, 1), cabinetMat, [bx, by, front]);
     for (const i of [0, 2]) { const bx = cx0 + bay * (i + 0.5); door(bx, 1.4, bay, 2.62); }
     const mx = cx0 + bay * 1.5;
     door(mx, 0.08 + 0.4, bay, 0.8);
@@ -312,7 +360,12 @@ export function buildScene(look, { closed = false, pathtrace = false } = {}) {
   }
 
   /* low sideboard under the window */
-  {
+  if (has('modern_wooden_cabinet')) {
+    const L = LAYOUT.sideboard, b = place('modern_wooden_cabinet', L.x, -d / 2 + 0.24, { scale: 0.68 });
+    place('ceramic_vase_01', L.x - 0.55, -d / 2 + 0.24, { y: b.max.y, scale: 0.9 });
+    place('potted_plant_04', L.x + 0.5, -d / 2 + 0.24, { y: b.max.y, scale: 1.1 });
+    books(scene, add, L.x + 0.05, b.max.y, -d / 2 + 0.24, 4, look, true);
+  } else {
     const L = LAYOUT.sideboard, sg = group(L.x, 0, -d / 2 + 0.2);
     put(sg, soft(L.sx, 0.36, L.sz, 0.012, 2), cabinetMat, [0, 0.29, 0]);
     for (let i = -3; i <= 3; i++) put(sg, new T.BoxGeometry(0.004, 0.3, 0.004), std({ color: '#000', roughness: 1, transparent: true, opacity: 0.3 }), [i * (L.sx / 8), 0.29, L.sz / 2 + 0.001], { cast: false });
@@ -328,29 +381,41 @@ export function buildScene(look, { closed = false, pathtrace = false } = {}) {
 
   /* sofa against the left wall, an armchair facing it */
   const S = LAYOUT.sofa;
-  sofa(group(S.x, 0, S.z, Math.PI / 2), put, { L: S.sz, D: S.sx, seats: 3, mat: sofaMat, legs: look.legs, metal, wood: accentWood, pillows: [pillowA, pillowB] });
+  sofa(group(S.x, 0, S.z, Math.PI / 2), put, { L: S.sz, D: S.sx, seats: 3, mat: sofaMat, legs: look.legs, metal, wood: accentWood, pillows: [pillowA, pillowB], uv: has(look.sofaTex) ? 2.5 : 1 });
   const C = LAYOUT.chair;
-  sofa(group(C.x, 0, C.z, -Math.PI / 2 + 0.35), put, { L: 0.86, D: 0.84, seats: 1, mat: look.chairFabric ? std({ map: tex(fabric(look.chairFabric).map), roughness: 0.95 }) : sofaMat, legs: look.legs, metal, wood: accentWood, pillows: [pillowB] });
+  if (has(look.chairModel)) place(look.chairModel, C.x, C.z, { ry: Math.PI / 2 + 0.35, scale: look.chairScale ?? 1 });
+  else sofa(group(C.x, 0, C.z, -Math.PI / 2 + 0.35), put, { L: 0.86, D: 0.84, seats: 1, mat: look.chairFabric ? std({ map: tex(fabric(look.chairFabric).map), roughness: 0.95 }) : sofaMat, legs: look.legs, metal, wood: accentWood, pillows: [pillowB] });
   // throw on the sofa arm
   add(soft(0.5, 0.05, 0.46, 0.02), pillowB, [S.x + 0.05, 0.665, S.z + S.sz / 2 - 0.12], { rot: [0, 0.1, 0.05] });
 
   /* coffee table */
-  coffeeTable(look, add, { metal, wood: accentWood, white, marbleMat: () => std({ map: tex(marble()), roughness: 0.18 }), std });
+  if (has(look.tableModel)) {
+    const T0 = LAYOUT.table, b = place(look.tableModel, T0.x, T0.z, { scale: look.tableScale ?? 1 });
+    add(new T.BoxGeometry(0.22, 0.03, 0.28), std({ color: '#ece6db', roughness: 0.8 }), [T0.x - 0.04, b.max.y + 0.015, T0.z - 0.18], { rot: [0, 0.3, 0] });
+    add(new T.BoxGeometry(0.2, 0.025, 0.26), std({ color: look.accent, roughness: 0.8 }), [T0.x - 0.04, b.max.y + 0.042, T0.z - 0.18], { rot: [0, 0.18, 0] });
+    vase(add, std({ color: look.ceramic ?? '#e9e2d6', roughness: 0.3 }), T0.x + 0.06, b.max.y, T0.z + 0.2, 0.55);
+  } else coffeeTable(look, add, { metal, wood: accentWood, white, marbleMat: () => std({ map: tex(marble()), roughness: 0.18 }), std });
 
   /* side table + floor lamp + pendant */
   {
     const st = LAYOUT.sidetable;
-    add(new T.CylinderGeometry(0.22, 0.22, 0.025, 36), look.tableType === 'marble' ? std({ map: tex(marble()), roughness: 0.2 }) : accentWood, [st.x, 0.55, st.z]);
-    add(new T.CylinderGeometry(0.012, 0.012, 0.54, 10), metal, [st.x, 0.275, st.z]);
-    add(new T.CylinderGeometry(0.15, 0.17, 0.015, 28), metal, [st.x, 0.008, st.z]);
-    add(new T.CylinderGeometry(0.04, 0.035, 0.09, 20), std({ color: look.ceramic ?? '#e9e2d6', roughness: 0.3 }), [st.x + 0.06, 0.61, st.z + 0.05]);
+    if (has('side_table_01')) {
+      const b = place('side_table_01', st.x, st.z, { scale: 0.85 });
+      add(new T.CylinderGeometry(0.04, 0.035, 0.09, 20), std({ color: look.ceramic ?? '#e9e2d6', roughness: 0.3 }), [st.x + 0.06, b.max.y + 0.045, st.z + 0.05]);
+    } else {
+      add(new T.CylinderGeometry(0.22, 0.22, 0.025, 36), look.tableType === 'marble' ? std({ map: tex(marble()), roughness: 0.2 }) : accentWood, [st.x, 0.55, st.z]);
+      add(new T.CylinderGeometry(0.012, 0.012, 0.54, 10), metal, [st.x, 0.275, st.z]);
+      add(new T.CylinderGeometry(0.15, 0.17, 0.015, 28), metal, [st.x, 0.008, st.z]);
+      add(new T.CylinderGeometry(0.04, 0.035, 0.09, 20), std({ color: look.ceramic ?? '#e9e2d6', roughness: 0.3 }), [st.x + 0.06, 0.61, st.z + 0.05]);
+    }
     const lp = LAYOUT.lamp;
     add(new T.CylinderGeometry(0.16, 0.17, 0.02, 32), metal, [lp.x, 0.01, lp.z]);
     add(new T.CylinderGeometry(0.01, 0.01, 1.5, 10), metal, [lp.x, 0.76, lp.z]);
     const shade = std({ color: '#f4ecdc', roughness: 1, side: T.DoubleSide, emissive: '#ffd59a', emissiveIntensity: pathtrace ? 0.6 : 0.35 });
     add(new T.CylinderGeometry(0.19, 0.22, 0.3, 40, 1, true), shade, [lp.x, 1.56, lp.z], { cast: false });
     add(new T.SphereGeometry(0.035, 12, 10), std({ color: '#000', emissive: '#ffe2b0', emissiveIntensity: 4 }), [lp.x, 1.5, lp.z], { cast: false, receive: false });
-    pendant(look, add, { metal, brass, std, pathtrace, white });
+    if (has(look.pendantModel)) place(look.pendantModel, LAYOUT.pendant.x, LAYOUT.pendant.z, { y: h, hang: true });
+    else pendant(look, add, { metal, brass, std, pathtrace, white });
   }
 
   /* art above the sofa */
@@ -360,8 +425,9 @@ export function buildScene(look, { closed = false, pathtrace = false } = {}) {
     add(new T.PlaneGeometry(0.9, 0.64), std({ map: tex(artTexture(look)), roughness: 0.95 }), [ax + 0.037, ay, S.z], { rot: [0, Math.PI / 2, 0], cast: false });
   }
 
-  /* fiddle-leaf plant */
-  {
+  /* plant */
+  if (has('potted_plant_02')) place('potted_plant_02', LAYOUT.plant.x, LAYOUT.plant.z, { scale: 1.55, ry: 0.6 });
+  else {
     const P = LAYOUT.plant, potMat = std({ color: look.pot ?? '#d8cfc1', roughness: 0.55 });
     const pts = [[0, 0], [0.15, 0], [0.17, 0.02], [0.19, 0.34], [0.2, 0.36], [0.18, 0.36], [0.165, 0.05], [0, 0.05]].map(([x, y]) => new T.Vector2(x, y));
     add(new T.LatheGeometry(pts, 40), potMat, [P.x, 0, P.z]);
@@ -407,15 +473,15 @@ export function buildScene(look, { closed = false, pathtrace = false } = {}) {
   }
 
   const dispose = () => {
-    scene.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose()); } });
+    scene.traverse((o) => { if (o.isMesh && !o.userData.shared) { o.geometry.dispose(); (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose()); } });
     owned.forEach((t) => t.dispose());
   };
   return { scene, dispose, sun };
 }
 
 /* ---------------- furniture ---------------- */
-function sofa(g, put, { L, D, seats, mat, legs = 'wood', metal, wood, pillows }) {
-  const p = (geo, m, pos, o) => put(g, geo, m, pos, o);
+function sofa(g, put, { L, D, seats, mat, legs = 'wood', metal, wood, pillows, uv = 1 }) {
+  const p = (geo, m, pos, o) => put(g, uv === 1 || m !== mat ? geo : scaleUV(geo, uv, uv), m, pos, o);
   const legH = legs === 'block' ? 0.06 : 0.13, legMat = legs === 'metal' ? metal : wood;
   for (const lx of [-L / 2 + 0.08, L / 2 - 0.08]) for (const lz of [-D / 2 + 0.08, D / 2 - 0.08]) {
     if (legs === 'block') p(new T.BoxGeometry(0.06, legH, 0.06), legMat, [lx, legH / 2, lz]);

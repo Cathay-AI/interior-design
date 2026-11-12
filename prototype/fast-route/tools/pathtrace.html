@@ -7,7 +7,7 @@ import * as T from 'three';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 import { WebGLPathTracer } from 'three-gpu-pathtracer';
 import { STYLES } from '../lib/taste.js';
-import { buildScene } from '../lib/scene.js';
+import { buildScene, loadAssets } from '../lib/scene.js';
 import { SHOTS } from './shots.js';
 
 const q = new URLSearchParams(location.search);
@@ -18,7 +18,8 @@ renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = +
 document.body.append(renderer.domElement);
 
 const raster = q.has('raster');
-const { scene } = buildScene(STYLES[q.get('s') || 'warm'], { closed: true, pathtrace: !raster });
+const look = STYLES[q.get('s') || 'warm'];
+const { scene } = buildScene(look, { closed: true, pathtrace: !raster, assets: await loadAssets(look) });
 const env = await new EXRLoader().loadAsync('../assets/env/apartment.exr');
 env.mapping = T.EquirectangularReflectionMapping;
 scene.environment = env; scene.environmentIntensity = 0.35; scene.background = new T.Color('#cfdde6');
