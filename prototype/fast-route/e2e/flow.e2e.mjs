@@ -31,7 +31,10 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   };
   const noOverflow = async (at) => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    assert.ok(overflow <= 1, `${name} ${at}: horizontal overflow ${overflow}px`);
+    // 溢出時把超出畫面的元素列出來，不用猜是誰
+    const who = overflow <= 1 ? [] : await page.evaluate(() => [...document.querySelectorAll('body *')].filter((e) => e.getBoundingClientRect().right > innerWidth + 1)
+      .slice(0, 8).map((e) => `${e.tagName.toLowerCase()}${e.id ? '#' + e.id : ''}${e.className && typeof e.className === 'string' ? '.' + e.className.trim().replace(/\s+/g, '.') : ''}→${Math.round(e.getBoundingClientRect().right)}`));
+    assert.ok(overflow <= 1, `${name} ${at}: horizontal overflow ${overflow}px by ${who.join(', ')}`);
   };
   await page.goto(base);
   await page.evaluate(() => localStorage.clear()); await page.reload();   // 從乾淨的狀態開始
