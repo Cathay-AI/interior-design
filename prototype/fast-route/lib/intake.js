@@ -94,7 +94,10 @@ export function parseHome(text) {
   if (floors) out.floors = floors;
   if (/不(?:會)?(?:動|改|拆|變更)隔間|隔間不(?:動|改|變)/.test(t)) out.partition = 'no';
   else if (/(?:動|改|拆|變更|打掉)隔間|隔間(?:要|會)?(?:動|改|重做|打掉)|(?:加|增設|多做)(?:一間)?(?:廁所|浴室)/.test(t)) out.partition = 'yes';
-  const space = /主臥|臥室|臥房|睡房|房間/.test(t) ? '臥室' : /客廳/.test(t) ? '客廳' : null;   // 目前支援這兩種
+  // 講到哪個空間（先講到的優先）。全室／廚房／衛浴認得出來，但目前只做客廳與臥室，由畫面說明。
+  const spaces = [['全室', /全室|整間|全屋|整個家/], ['臥室', /主臥|次臥|臥室|臥房|睡房|小孩房|房間/], ['客廳', /客廳/], ['廚房', /廚房/], ['衛浴', /衛浴|浴室|廁所/]]
+    .map(([name, re]) => [name, t.search(re)]).filter(([, i]) => i >= 0).sort((a, b) => a[1] - b[1]);
+  const space = spaces[0]?.[0] ?? null;
   if (space) out.space = space;
   const age = AGES.find((a) => t.includes(a)) ?? (/新房|新屋|預售/.test(t) ? '新成屋' : /二手/.test(t) ? '中古屋' : /老房|老公寓/.test(t) ? '老屋' : null);
   if (age) out.age = age;

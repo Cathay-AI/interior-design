@@ -85,7 +85,7 @@ main[data-step="2"]{max-width:720px}
 .mic[aria-pressed="true"]{animation:pulse 1.1s infinite;transform:scale(.94)}
 .mic:disabled{background:#b9afa2;box-shadow:none}
 @keyframes pulse{50%{box-shadow:0 0 0 14px rgba(181,101,58,.24)}}
-.taste{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;font-size:16px}
+.taste{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;font-size:16px}.taste>*{flex-basis:100%}.chip:disabled{opacity:.5;cursor:default}
 .warn{font-size:14px;line-height:1.5;background:#f8e9dd;border:1px solid var(--accent);border-radius:12px;padding:10px 12px;color:#5a3a26}
 .meter{display:grid;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:18px 20px}
 .meter .bar{height:10px;border-radius:99px;background:var(--line);overflow:hidden}.meter .bar i{display:block;height:100%;background:var(--green);border-radius:99px;transition:width .35s}

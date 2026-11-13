@@ -38,3 +38,16 @@ test('older homes add a base-works item; bigger rooms cost more', () => {
   assert.ok(designEstimate(cond({ ping: '15' }), STYLES.warm).low > fresh.low);
   assert.throws(() => designEstimate(cond({ age: '？' }), STYLES.warm));
 });
+
+test('臥室的工項跟客廳不同；家具可以不計', async () => {
+  const { designEstimate } = await import('../lib/estimate.js');
+  const { STYLES } = await import('../lib/taste.js');
+  const bed = designEstimate({ space: '臥室', ping: '5', age: '新成屋' }, STYLES.warm), living = designEstimate({ space: '客廳', ping: '5', age: '新成屋' }, STYLES.warm);
+  assert.equal(bed.items.find((i) => i.key === 'cabinet').name, '衣櫃與斗櫃');
+  assert.match(bed.items.find((i) => i.key === 'furniture').basis, /床架、床墊、床頭櫃/);
+  assert.match(bed.items.find((i) => i.key === 'curtain').basis, /遮光簾/);
+  assert.notEqual(bed.high, living.high);
+  const bare = designEstimate({ space: '臥室', ping: '5', age: '新成屋', noFurniture: true }, STYLES.warm);
+  assert.equal(bare.items.some((i) => i.key === 'furniture'), false);
+  assert.ok(bare.high < bed.high);
+});

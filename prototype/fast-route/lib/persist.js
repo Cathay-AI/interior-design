@@ -34,7 +34,8 @@ export function restore(json, blank) {
 }
 
 /* ---------- 分享連結：把「哪個風格、改了什麼、我家的條件」放進網址，不需要伺服器 ---------- */
-const COND_KEYS = ['ping', 'len', 'wid', 'height', 'age', 'floors', 'partition'];
+const SHARE_SPACES = ['客廳', '臥室'];
+const COND_KEYS = ['space', 'ping', 'len', 'wid', 'height', 'age', 'floors', 'partition'];
 const b64 = { enc: (t) => btoa(unescape(encodeURIComponent(t))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''),
   dec: (t) => decodeURIComponent(escape(atob(t.replace(/-/g, '+').replace(/_/g, '/')))) };
 
@@ -43,7 +44,7 @@ const b64 = { enc: (t) => btoa(unescape(encodeURIComponent(t))).replace(/\+/g, '
  * @returns {string} 放在網址 # 後面的字串。只含風格代號、修改的編號與條件，不含上傳的檔案與解鎖狀態。
  */
 export function toShare(S) {
-  const c = Object.fromEntries(COND_KEYS.filter((k) => S.cond[k]).map((k) => [k, S.cond[k]]));
+  const c = Object.fromEntries(COND_KEYS.filter((k) => S.cond[k] && !(k === 'space' && S.cond[k] === '客廳')).map((k) => [k, S.cond[k]]));   // 客廳是預設，不必帶
   if (S.cond.ageSet) c.ageSet = 1;
   return 'r=' + b64.enc(JSON.stringify({ s: S.cond.style, e: S.versions[S.v]?.edits ?? [], c }));
 }
@@ -62,6 +63,7 @@ export function fromShare(hash, known) {
     if (d.e.some((i) => !Number.isInteger(i) || i < 0 || i >= known.edits)) return null;
     const c = d.c ?? {}, cond = {};
     for (const k of ['ping', 'len', 'wid', 'height', 'floors']) if (c[k] != null) { const n = Number.parseFloat(c[k]); if (!(n > 0 && n < 100000)) return null; cond[k] = String(n); }
+    if (c.space != null) { if (!SHARE_SPACES.includes(c.space)) return null; cond.space = c.space; }
     if (c.age != null) { if (!known.ages.includes(c.age)) return null; cond.age = c.age; cond.ageSet = Boolean(c.ageSet); }
     if (c.partition != null) { if (!['yes', 'no'].includes(c.partition)) return null; cond.partition = c.partition; }
     return { style: d.s, edits: d.e, cond };

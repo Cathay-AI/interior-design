@@ -49,8 +49,9 @@ export function roomSize(cond, ping) {
  * walls it belongs to, so a bigger room gains floor space instead of bigger furniture; in a small room
  * the sofa shortens and pieces that would not fit are left out (their entry is null).
  * roomLayout(ROOM) reproduces the default constants above.
+ * space '臥室' swaps the seating group for a bed, bedside tables and a chair by the window; entries that do not apply are null.
  */
-export function roomLayout({ w, d, h }) {
+export function roomLayout({ w, d, h, space = '客廳' }) {
   const L = -w / 2, R = w / 2, B = -d / 2, F = d / 2;
   const cabinet = { x0: L, x1: L + Math.min(1.75, w * 0.36), depth: 0.42 };
   const x1 = R - 0.45, x0 = Math.max(cabinet.x1 + 0.3, x1 - Math.min(8, 2.4 * Math.max(1, w / ROOM.w)));
@@ -61,17 +62,37 @@ export function roomLayout({ w, d, h }) {
   const table = w >= 2.8 ? { x: L + 1.65, z: sofa.z, sx: 0.62, sz: Math.min(1.05, sofaLen - 0.4) } : null;
   const chairX = Math.min(L + 3.35, R - 0.75);
   const chair = w >= 3.6 && d >= 3 ? { x: chairX, z: Math.max(sofa.z - 0.8, B + 0.95), sx: 0.85, sz: 0.85 } : null;
+  const plantAt = (chair) => (w >= 3.2 && (!chair || Math.hypot(R - 0.4 - chair.x, B + 0.55 - chair.z) >= 1.25) ? { x: R - 0.4, z: B + 0.55 } : null);
+  const sideboard = x1 - x0 >= 1.8 ? { x: (x0 + x1) / 2, z: B + 0.2, sx: 1.6, sz: 0.4 } : null;
+  if (space === '臥室') {
+    // 床頭靠左牆（和客廳的沙發同一面），衣櫃在後牆左側，窗下是斗櫃。房間短就改單人床；床頭櫃放得下才放。
+    const bw = d >= 3 ? 1.5 : 1.05, bl = Math.min(2.0, w - 0.02);
+    const bz = Math.min(Math.max(B + cabinet.depth + 0.5 + bw / 2, 0.06 * d), F - bw / 2 - 0.05);
+    const bed = { x: L + bl / 2, z: bz, sx: bl, sz: bw };
+    const night = (z) => (z - 0.21 >= B + cabinet.depth + 0.03 && z + 0.21 <= F - 0.02 && w >= 2.4 ? { x: L + 0.24, z, sx: 0.42, sz: 0.42 } : null);
+    const seat = w >= 4 && d >= 3.4 ? { x: Math.min(L + 3.3, R - 0.75), z: B + 1.1, sx: 0.85, sz: 0.85 } : null;
+    return {
+      room: { w, d, h }, window, cabinet,
+      layout: {
+        sofa: null, table: null, lamp: null, sidetable: null,
+        bed, nightA: night(bz - bw / 2 - 0.27), nightB: night(bz + bw / 2 + 0.27),
+        pendant: { x: bed.x, z: bz },
+        rug: { x: L + 0.9 + Math.min(2.0, w - 0.95) / 2, z: Math.min(bz, F - Math.min(bw + 0.9, d - 0.5) / 2 - 0.05), sx: Math.min(2.0, w - 0.95), sz: Math.min(bw + 0.9, d - 0.5) },
+        chair: seat, sideboard, plant: plantAt(seat),
+      },
+    };
+  }
   return {
     room: { w, d, h }, window, cabinet,
     layout: {
+      bed: null, nightA: null, nightB: null,
       sofa, table, pendant: { x: Math.min(L + 1.65, R - 0.5), z: sofa.z },
       rug: { x: L + 0.8 + Math.min(2.0, w - 0.9) / 2, z: sofa.z, sx: Math.min(2.0, w - 0.9), sz: Math.min(2.6, d - 0.5) },
       chair,
-      sideboard: x1 - x0 >= 1.8 ? { x: (x0 + x1) / 2, z: B + 0.2, sx: 1.6, sz: 0.4 } : null,
+      sideboard,
       lamp: d >= 3.2 ? { x: L + 0.35, z: Math.min(sofa.z + 1.5, F - 0.3) } : null,
       sidetable: d >= 3.6 ? { x: L + 0.3, z: Math.max(sofa.z - 1.5, B + 0.8) } : null,
-      // 盆栽放窗邊角落；會和單椅擠在一起就不放（另一個角落是門）
-      plant: w >= 3.2 && (!chair || Math.hypot(R - 0.4 - chair.x, B + 0.55 - chair.z) >= 1.25) ? { x: R - 0.4, z: B + 0.55 } : null,
+      plant: plantAt(chair),   // 盆栽放窗邊角落；會和單椅擠在一起就不放（另一個角落是門）
     },
   };
 }

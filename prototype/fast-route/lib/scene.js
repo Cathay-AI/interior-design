@@ -391,14 +391,27 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
   /* rug */
   if (look.rug) { const R = LAYOUT.rug; add(new T.BoxGeometry(R.sx, 0.012, R.sz), std({ map: tex(rugTexture(mix(look.rug, '#d9d0c2', 0.5), look.accent)), roughness: 1 }), [R.x, 0.006, R.z], { cast: false }); }
 
-  /* sofa against the left wall, an armchair facing it */
-  const S = LAYOUT.sofa;
-  sofa(group(S.x, 0, S.z, Math.PI / 2), put, { L: S.sz, D: S.sx, seats: S.sz < 1.9 ? 2 : 3, mat: sofaMat, legs: look.legs, metal, wood: accentWood, pillows: [pillowA, pillowB], uv: has(look.sofaTex) ? 2.5 : 1 });
-  const C = LAYOUT.chair;
-  if (!C) { /* no room for an armchair */ } else if (has(look.chairModel)) place(look.chairModel, C.x, C.z, { ry: Math.PI / 2 + 0.35, scale: look.chairScale ?? 1 });
-  else sofa(group(C.x, 0, C.z, -Math.PI / 2 + 0.35), put, { L: 0.86, D: 0.84, seats: 1, mat: look.chairFabric ? std({ map: tex(fabric(look.chairFabric).map), roughness: 0.95 }) : sofaMat, legs: look.legs, metal, wood: accentWood, pillows: [pillowB] });
+  /* sofa against the left wall, an armchair facing it (bedroom: a bed instead, the chair turns to the window) */
+  const S = LAYOUT.sofa, C = LAYOUT.chair, B = LAYOUT.bed;
+  if (S) sofa(group(S.x, 0, S.z, Math.PI / 2), put, { L: S.sz, D: S.sx, seats: S.sz < 1.9 ? 2 : 3, mat: sofaMat, legs: look.legs, metal, wood: accentWood, pillows: [pillowA, pillowB], uv: has(look.sofaTex) ? 2.5 : 1 });
+  const chairRy = B ? Math.PI - 0.5 : Math.PI / 2 + 0.35;
+  if (!C) { /* no room for an armchair */ } else if (has(look.chairModel)) place(look.chairModel, C.x, C.z, { ry: chairRy, scale: look.chairScale ?? 1 });
+  else sofa(group(C.x, 0, C.z, chairRy - Math.PI), put, { L: 0.86, D: 0.84, seats: 1, mat: look.chairFabric ? std({ map: tex(fabric(look.chairFabric).map), roughness: 0.95 }) : sofaMat, legs: look.legs, metal, wood: accentWood, pillows: [pillowB] });
   // throw on the sofa arm
-  add(soft(0.5, 0.05, 0.46, 0.02), pillowB, [S.x + 0.05, 0.665, S.z + S.sz / 2 - 0.12], { rot: [0, 0.1, 0.05] });
+  if (S) add(soft(0.5, 0.05, 0.46, 0.02), pillowB, [S.x + 0.05, 0.665, S.z + S.sz / 2 - 0.12], { rot: [0, 0.1, 0.05] });
+  if (B) {
+    const linen = std({ map: tex(fabric(mix(look.wall, '#ffffff', 0.55)).map), roughness: 1 });
+    bed(group(B.x - B.sx / 2, 0, B.z), put, { L: B.sx, W: B.sz, head: sofaMat, wood: accentWood, linen, duvet: pillowB, throwMat: pillowA, legs: look.legs, metal });
+    for (const n of [LAYOUT.nightA, LAYOUT.nightB]) {
+      if (!n) continue;
+      let top = 0.5;
+      if (has('side_table_01')) top = place('side_table_01', n.x, n.z, { scale: 0.9 }).max.y;
+      else { add(soft(n.sx, 0.36, n.sz, 0.015), accentWood, [n.x, 0.32, n.z]); for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) add(new T.CylinderGeometry(0.014, 0.01, 0.14, 8), accentWood, [n.x + dx * 0.16, 0.07, n.z + dz * 0.16]); }
+      // bedside lamp
+      add(new T.CylinderGeometry(0.055, 0.07, 0.16, 20), std({ color: look.ceramic ?? '#e9e2d6', roughness: 0.35 }), [n.x, top + 0.08, n.z]);
+      add(new T.CylinderGeometry(0.09, 0.12, 0.17, 32, 1, true), std({ color: '#f4ecdc', roughness: 1, side: T.DoubleSide, emissive: '#ffd59a', emissiveIntensity: pathtrace ? 0.6 : 0.4 }), [n.x, top + 0.26, n.z], { cast: false });
+    }
+  }
 
   /* coffee table */
   if (!LAYOUT.table) { /* too narrow for a coffee table */ } else if (has(look.tableModel)) {
@@ -439,8 +452,8 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
   /* art above the sofa */
   {
     const ax = -w / 2 + 0.02, ay = 1.62;
-    add(new T.BoxGeometry(0.035, 0.72, 0.98), std({ color: look.frameArt ?? '#2a2622', roughness: 0.5 }), [ax + 0.0175, ay, S.z]);
-    add(new T.PlaneGeometry(0.9, 0.64), std({ map: tex(artTexture(look)), roughness: 0.95 }), [ax + 0.037, ay, S.z], { rot: [0, Math.PI / 2, 0], cast: false });
+    add(new T.BoxGeometry(0.035, 0.72, 0.98), std({ color: look.frameArt ?? '#2a2622', roughness: 0.5 }), [ax + 0.0175, ay, (S ?? B).z]);
+    add(new T.PlaneGeometry(0.9, 0.64), std({ map: tex(artTexture(look)), roughness: 0.95 }), [ax + 0.037, ay, (S ?? B).z], { rot: [0, Math.PI / 2, 0], cast: false });
   }
 
   /* plant */
@@ -490,6 +503,7 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
   {
     if (!pathtrace) scene.add(new T.HemisphereLight('#fbf6ee', '#b9a58c', 0.5));
     const warm = new T.PointLight('#ffcf8f', 1.1, 5, 2); warm.position.set(LAYOUT.pendant.x, h - 1.0, LAYOUT.pendant.z); scene.add(warm);
+    for (const n of [LAYOUT.nightA, LAYOUT.nightB]) if (n) { const l = new T.PointLight('#ffcf8f', 0.5, 2.5, 2); l.position.set(n.x + 0.05, 0.85, n.z); scene.add(l); }
     if (LAYOUT.lamp) { const lamp = new T.PointLight('#ffcf8f', 0.8, 3, 2); lamp.position.set(LAYOUT.lamp.x + 0.1, 1.45, LAYOUT.lamp.z); scene.add(lamp); }
   }
 
@@ -524,6 +538,26 @@ function sofa(g, put, { L, D, seats, mat, legs = 'wood', metal, wood, pillows, u
     const sx = (i === 0 ? -1 : 1) * (inner / 2 - 0.22);
     p(soft(0.4, 0.4, 0.13, 0.06), pm, [seats === 1 ? 0 : sx, y0 + baseH + 0.33, -D / 2 + 0.42], { rot: [-0.25, (i === 0 ? 1 : -1) * 0.15, (i === 0 ? 1 : -1) * 0.12] });
   });
+}
+
+/** A bed built from the headboard end (g sits at the wall, the bed runs along +x). L length, W width. */
+function bed(g, put, { L, W, head, wood, linen, duvet, throwMat, legs = 'wood', metal }) {
+  const p = (geo, m, pos, o) => put(g, geo, m, pos, o);
+  const legH = legs === 'block' ? 0.05 : 0.14, legMat = legs === 'metal' ? metal : wood, base = 0.16, y0 = legH + base;
+  for (const lx of [0.12, L - 0.1]) for (const lz of [-W / 2 + 0.09, W / 2 - 0.09]) p(new T.CylinderGeometry(0.024, 0.016, legH, 10), legMat, [lx, legH / 2, lz]);
+  p(soft(L - 0.04, base, W + 0.04, 0.02), wood, [L / 2 + 0.02, legH + base / 2, 0]);
+  p(soft(0.09, 1.02, W + 0.1, 0.035), head, [0.045, 0.51, 0]);                                   // upholstered headboard
+  p(soft(L - 0.12, 0.24, W - 0.04, 0.07), linen, [L / 2 + 0.04, y0 + 0.12, 0]);                    // mattress
+  const dl = (L - 0.12) * 0.66;
+  p(soft(dl, 0.09, W + 0.06, 0.04), duvet, [L - 0.04 - dl / 2, y0 + 0.265, 0]);                   // duvet
+  p(soft(0.2, 0.1, W + 0.07, 0.045), linen, [L - 0.04 - dl + 0.08, y0 + 0.285, 0]);               // folded-back edge
+  p(soft(0.55, 0.045, W + 0.1, 0.02), throwMat, [L - 0.42, y0 + 0.325, 0], { rot: [0, 0.03, 0] });   // throw across the foot
+  const n = W >= 1.3 ? 2 : 1, pw = Math.min(0.68, W / n - 0.08);
+  for (let i = 0; i < n; i++) {
+    const z = n === 1 ? 0 : (i === 0 ? -1 : 1) * (W / 4 - 0.01);
+    p(soft(0.4, 0.15, pw, 0.07), linen, [0.36, y0 + 0.29, z], { rot: [0, 0, 0.32] });
+  }
+  if (n === 2) p(soft(0.3, 0.13, 0.42, 0.06), throwMat, [0.52, y0 + 0.3, 0.02], { rot: [0, 0.1, 0.38] });
 }
 
 const BOOK_COLOURS = ['#e9e2d4', '#c9b79c', '#7d8b74', '#a8643d', '#3d4a52', '#d6cbb8', '#8c7a63', '#efe9df'];

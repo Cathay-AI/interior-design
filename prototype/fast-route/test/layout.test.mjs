@@ -43,3 +43,23 @@ test('furniture stays inside the walls from a tiny room to a hall; what does not
   const tiny = roomLayout({ w: 2, d: 2, h: 2.2 }).layout;
   assert.deepEqual([tiny.table, tiny.chair, tiny.sideboard, tiny.plant, tiny.sidetable], [null, null, null, null, null]);
 });
+
+test('臥室：一定有床，家具都在牆內、不互相重疊；放不下的不放', () => {
+  const steps = [2, 2.4, 2.8, 3.2, 3.6, 4.2, 5, 8, 18, 60];
+  const hit = (a, b) => Math.abs(a.x - b.x) < (a.sx + b.sx) / 2 - 0.01 && Math.abs(a.z - b.z) < (a.sz + b.sz) / 2 - 0.01;
+  for (const w of steps) for (const d of steps) {
+    const { layout, cabinet } = roomLayout({ w, d, h: 2.8, space: '臥室' }), at = `${w}x${d}`;
+    assert.ok(layout.bed && !layout.sofa && !layout.table, `a bed instead of a sofa at ${at}`);
+    for (const [name, o] of Object.entries(layout)) {
+      if (!o) continue;
+      const hx = (o.sx ?? 0.3) / 2, hz = (o.sz ?? 0.3) / 2;
+      assert.ok(o.x - hx >= -w / 2 - 0.01 && o.x + hx <= w / 2 + 0.01, `${name} x at ${at}`);
+      assert.ok(o.z - hz >= -d / 2 - 0.01 && o.z + hz <= d / 2 + 0.01, `${name} z at ${at}`);
+    }
+    assert.ok(layout.bed.z - layout.bed.sz / 2 >= -d / 2 + cabinet.depth - 0.01, `bed clears the wardrobe at ${at}`);
+    const solid = ['bed', 'nightA', 'nightB', 'chair', 'sideboard'].filter((k) => layout[k]);
+    for (const a of solid) for (const b of solid) if (a < b) assert.ok(!hit(layout[a], layout[b]), `${a} and ${b} overlap at ${at}`);
+  }
+  assert.equal(roomLayout({ w: 2.6, d: 2.6, h: 2.6, space: '臥室' }).layout.bed.sz, 1.05, 'a short room gets a single bed');
+  assert.equal(roomLayout({ w: 4.2, d: 3.8, h: 2.7, space: '臥室' }).layout.bed.sz, 1.5);
+});

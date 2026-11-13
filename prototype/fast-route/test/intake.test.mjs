@@ -49,3 +49,13 @@ test('一句話講完我家的條件', async () => {
   assert.deepEqual(parseHome('我住 5 樓，8 坪'), { ping: '8' }, '住幾樓不等於建物總樓層');
   assert.deepEqual(parseHome('我想要溫暖一點'), {}, 'nothing recognisable stays empty');
 });
+
+test('一句話裡的空間：先講到的優先；還沒支援的也認得出來', async () => {
+  const { parseHome } = await import('../lib/intake.js');
+  assert.equal(parseHome('只想裝潢主臥').space, '臥室');
+  assert.equal(parseHome('客廳和廚房都要').space, '客廳');
+  assert.equal(parseHome('廚房想重做').space, '廚房');
+  assert.equal(parseHome('浴室漏水').space, '衛浴');
+  assert.equal(parseHome('全室翻新，30 坪').space, '全室');
+  assert.equal(parseHome('8 坪').space, undefined);
+});
