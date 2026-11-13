@@ -6,8 +6,8 @@ const STEPS = 4;
 
 /** @returns {string} JSON：只留可還原的欄位 */
 export function serialize(S) {
-  const { step, reached, scores, swiped, liked, cond, said, versions, v, view, unlocked } = S;
-  return JSON.stringify({ step, reached, scores, swiped, liked, cond, said, versions, v, view, unlocked, hadDocs: S.docs.length });
+  const { step, reached, scores, swiped, liked, cond, said, versions, v, view, unlocked, history, reasons } = S;
+  return JSON.stringify({ step, reached, scores, swiped, liked, cond, said, versions, v, view, unlocked, history, reasons, hadDocs: S.docs.length });
 }
 
 /**
@@ -25,6 +25,8 @@ export function restore(json, blank) {
     if (!Array.isArray(d.versions) || d.versions.some((x) => !x?.look?.name) || !['A', 'B', 'C'].includes(d.view)) return blank;
     if (d.step >= 3 && (!d.versions.length || !int(d.v, 0, d.versions.length - 1) || !d.cond.style)) return blank;
     return { ...blank, step: d.step, reached: d.reached, scores: d.scores, swiped: d.swiped, liked: d.liked, cond: { ...blank.cond, ...d.cond },
+      history: Array.isArray(d.history) ? d.history.filter((x) => Array.isArray(x) && x[0] in blank.scores && typeof x[1] === 'boolean').slice(-d.swiped) : [],
+      reasons: Array.isArray(d.reasons) ? d.reasons.filter((x) => typeof x === 'string').slice(0, 20) : [],
       said: String(d.said ?? ''), versions: d.versions, v: d.versions.length ? d.v : 0, view: d.view, unlocked: d.unlocked === true, lostDocs: d.hadDocs > 0 };
   } catch {
     return blank;

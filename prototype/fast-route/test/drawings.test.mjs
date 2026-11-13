@@ -14,7 +14,7 @@ test('six sheets, each a labelled SVG with a title block', () => {
   for (const s of sheets) {
     assert.match(s.svg, /^<svg[^>]+viewBox="0 0 840 594"/);
     assert.ok(s.svg.includes(s.title) && s.svg.includes('圖號 ' + s.no));
-    assert.ok(s.svg.includes('草稿・待設計師與施工團隊覆核'), 'every sheet says it is a draft awaiting professional review');
+    assert.ok(s.svg.includes('AI 初稿・需現場丈量，經專業團隊確認後才是可施工的圖'), 'every sheet says it is an AI first draft until measured and confirmed');
     assert.ok(!/NaN|undefined/.test(s.svg), s.no);
     assert.match(s.file, /^[A-Z]-\d\d-[a-z-]+\.svg$/, 'download name is plain ASCII');
   }

@@ -143,6 +143,15 @@ main[data-step="2"]{max-width:720px}
 .sheetbtn{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#fdfdfb;padding:0;aspect-ratio:840/594;display:block;width:100%}
 .sheetbtn svg{width:100%;height:100%}
 .locked .sheetbtn svg{filter:blur(5px);transform:scale(1.04)}
+.badge{justify-self:start;font-size:13px;font-weight:700;color:#5a3a26;background:#f8e9dd;border:1px solid var(--accent);border-radius:999px;padding:3px 12px}
+.why{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;min-height:40px}.why .chip{min-height:34px;padding:4px 12px;font-size:14px}
+.scene.flat{cursor:default;touch-action:auto}
+.stages{list-style:none;padding:0;display:grid;gap:10px}
+.stages li{border:1px solid var(--line);border-radius:14px;padding:10px 14px;display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center}
+.stages li.now{border-color:var(--green);background:#f1f5f0}
+.stages p{grid-column:1/-1;font-size:14px;color:#5a5047;line-height:1.55}
+.pill{font-size:12px;font-weight:700;border-radius:999px;padding:2px 10px;background:var(--green);color:#fff}.pill.tbd{background:none;border:1px dashed var(--muted);color:var(--muted)}
+[hidden]{display:none!important}
 .sheetbtn .tag{position:absolute;left:6px;bottom:6px;font-size:11px;font-weight:600;background:rgba(43,38,33,.82);color:#fff;border-radius:999px;padding:2px 8px}
 .sheetbtn .lock{position:absolute;inset:0;display:grid;place-items:center;font-size:22px;background:rgba(253,253,251,.25)}
 .unlockrow{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
@@ -189,16 +198,16 @@ dialog.viewer{max-width:min(96vw,1100px);width:100%}dialog.viewer svg{width:100%
   <button class="ghostbtn" id="restart" hidden>重新開始</button>
 </div></header>
 <main id="app" aria-live="polite"></main>
-<footer>原型：靈感圖來自 Pinterest，版權屬原作者；金額為參考行情量級；施工圖與法規評估為草稿，由專業團隊覆核後定案。　<a href="./privacy/">隱私說明</a>　<a href="./terms/">使用說明</a></footer>
+<footer>原型：靈感圖來自 Pinterest，版權屬原作者；金額為參考行情量級；施工圖為 AI 初稿，法規評估為提醒，皆需專業確認。</footer>
 
 <dialog id="unlock"><div class="dlg">
-  <h2>解鎖你家尺寸的施工圖草稿</h2>
+  <h2>解鎖你家尺寸的施工圖初稿</h2>
   <p class="price">NT$ 1,990 <small>示意價格</small></p>
-  <ul><li>六張圖清晰可放大、可下載，依你家的尺寸配置</li><li>逐項估價明細表</li><li>消防法規與室內裝修許可的評估</li><li>由設計師與施工團隊覆核</li></ul>
-  <p class="note">解鎖後先拿到的是草稿；經我們的設計師與施工團隊依現場覆核確認後，才作為施工依據。這是原型的模擬付款，不會扣款。</p>
+  <ul><li>六張 AI 初稿，清晰可放大、可下載，依你填的尺寸配置</li><li>逐項估價明細表</li></ul>
+  <p class="note"><b>這次解鎖的是第 1 階段的 AI 初稿，不是可以直接施工的圖。</b>專業團隊的現場丈量與確認（第 2、3 階段）流程還在確認中，目前不包含在內。這是原型的模擬付款，不會扣款。</p>
   <div class="actions"><button class="btn ghost" id="payCancel">先不要</button><button class="btn" id="payOk">模擬付款並解鎖</button></div>
 </div></dialog>
-<dialog id="viewer" class="viewer"><div class="dlg"><div id="viewerBody"></div><div class="actions"><a class="btn ghost" id="viewerDownload" href="#">下載這張圖（SVG）</a><button class="btn" onclick="this.closest('dialog').close()">關閉</button></div></div></dialog>
+<dialog id="viewer" class="viewer"><div class="dlg"><div id="viewerBody"></div><p class="note" id="viewerNote"></p><div class="actions"><a class="btn ghost" id="viewerDownload" href="#">下載這張圖（SVG）</a><button class="btn" onclick="this.closest('dialog').close()">關閉</button></div></div></dialog>
 
 <script type="module" src="./app.js"></script>
 </body>

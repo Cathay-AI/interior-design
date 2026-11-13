@@ -16,14 +16,14 @@ export function pingFromDims(len, wid) {
  */
 export function contextScore(cond, docs = {}) {
   const dims = Boolean(num(cond.len) && num(cond.wid));
+  // 只算「現在真的會改變 3D、草圖、估價或法規評估」的條件。上傳的圖目前不會被判讀，所以不計分。
   const items = [
-    { key: 'size', label: dims ? '空間長寬' : '坪數', done: dims || Boolean(num(cond.ping)), weight: dims ? 0.3 : 0.2 },
-    { key: 'height', label: '天花板高度', done: Boolean(num(cond.height)), weight: 0.1 },
-    { key: 'age', label: '屋況', done: Boolean(cond.ageSet), weight: 0.1 },
-    { key: 'building', label: '樓層與隔間', done: Boolean(num(cond.floors) && cond.partition), weight: 0.1 },
-    { key: 'plan', label: '格局／平面圖', done: Boolean(docs.plan), weight: 0.25 },
-    { key: 'mep', label: '機電圖', done: Boolean(docs.mep), weight: 0.15 },
+    { key: 'size', label: dims ? '空間長寬' : '坪數', done: dims || Boolean(num(cond.ping)), weight: dims ? 0.4 : 0.25 },
+    { key: 'height', label: '天花板高度', done: Boolean(num(cond.height)), weight: 0.15 },
+    { key: 'age', label: '屋況', done: Boolean(cond.ageSet), weight: 0.15 },
+    { key: 'building', label: '樓層與隔間', done: Boolean(num(cond.floors) && cond.partition), weight: 0.3 },
   ];
+  void docs;
   const score = Math.round(items.reduce((a, i) => a + (i.done ? i.weight : 0), 0) * 100) / 100;
   return { score, items };
 }
@@ -46,10 +46,15 @@ export function tighten(est, score) {
 }
 
 /**
- * 施工圖能不能開放付費解鎖：至少要有這個家的長寬，或一張格局／平面圖。
- * 兩者都沒有時，畫出來的只是範例空間，不該賣。
- * @param {{len?:string, wid?:string}} cond @param {{plan?:number}} docs
+ * 草圖是不是「這個家的」：要有手動填的長和寬。上傳的平面圖目前不會被判讀，所以不算。
+ * 沒有長寬時，畫出來的只是範例空間，不該賣。
+ * @param {{len?:string, wid?:string}} cond
  */
-export function aboutThisHome(cond, docs = {}) {
-  return Boolean((num(cond.len) && num(cond.wid)) || docs.plan);
+export function aboutThisHome(cond) {
+  return Boolean(num(cond.len) && num(cond.wid));
+}
+
+/** 要產生這個家的草圖還缺什麼（給畫面列出來）。 */
+export function missingForHome(cond) {
+  return [['len', '長'], ['wid', '寬']].filter(([k]) => !num(cond[k])).map(([, label]) => label);
 }

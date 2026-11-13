@@ -64,3 +64,11 @@ test('滑卡前兩名：兩種各喜歡一些時第二名不會被丟掉；沒�
   s = applySwipe(emptyScores(), 'dark', true);
   assert.deepEqual(topStyles(s), { first: 'dark', second: null, liked: true });
 });
+
+test('撤回滑卡會回到滑之前的分數', async () => {
+  const { applySwipe, undoSwipe, emptyScores } = await import('../lib/taste.js');
+  const s0 = emptyScores();
+  assert.deepEqual(undoSwipe(applySwipe(s0, 'warm', true), 'warm', true), s0);
+  assert.deepEqual(undoSwipe(applySwipe(s0, 'dark', false), 'dark', false), s0);
+  assert.throws(() => undoSwipe(s0, 'nope', true));
+});
