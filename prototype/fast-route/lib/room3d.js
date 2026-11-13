@@ -18,7 +18,6 @@ import { ROOM as DEFAULT_ROOM } from './layout.js';
 // Camera set-ups for the default room; scaled with the room so a bigger room still fits the frame.
 const TARGET = [-0.35, 0.85, -0.2];
 export const VIEWS = { A: [5.9, 3.6, 6.2], B: [1.2, 2.2, 8.2], C: [7.8, 4.8, 2.4] };
-const BACKDROP = '#ebe4d8';
 
 let hdri = null; // decoded once, reused by every mount
 const loadHDRI = () => (hdri ??= new EXRLoader().loadAsync(new URL('../assets/env/apartment.exr', import.meta.url).href)
@@ -30,15 +29,18 @@ const loadHDRI = () => (hdri ??= new EXRLoader().loadAsync(new URL('../assets/en
  * @param {object} look one entry of STYLES (possibly edited)
  * @param {'A'|'B'|'C'} view
  * @param {{w:number, d:number, h:number}} size room size in metres
- * @returns {{setView:(v:'A'|'B'|'C')=>void, dispose:()=>void, stats:()=>object}}
+ * @returns {{setView:(v:'A'|'B'|'C')=>void, update:(look:object, size:object)=>void, dispose:()=>void, stats:()=>object}}
+ *   update 換一個設計或尺寸：同一個 canvas、同一個 renderer，只重建場景並把鏡頭移到新的大小（舞台全程不重掛）
  */
 /** Start downloading a look's furniture and materials ahead of time (cached for the session). */
 export const preload = (look) => { loadAssets(look).catch(() => {}); loadHDRI().catch(() => {}); };
 
 export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM) {
-  const f = Math.max(size.w / DEFAULT_ROOM.w, size.d / DEFAULT_ROOM.d, size.h / DEFAULT_ROOM.h, 0.7);
+  const scaleOf = (sz) => Math.max(sz.w / DEFAULT_ROOM.w, sz.d / DEFAULT_ROOM.d, sz.h / DEFAULT_ROOM.h, 0.7);
+  let f = scaleOf(size), gen = 0;
   const viewPos = (v) => new T.Vector3(...VIEWS[v]).multiplyScalar(f);
-  const renderer = new T.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  const renderer = new T.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+  renderer.setClearColor(0x000000, 0);   // 背景透明：舞台的底色直接透出來，不被色調處理洗灰
   renderer.outputColorSpace = T.SRGBColorSpace;
   renderer.toneMapping = T.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
@@ -54,7 +56,6 @@ export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM) {
   // the room appears as soon as its furniture models and materials are in (cached after the first time)
   let room = null, env = null, ready = false;
   const stage = new T.Scene();
-  stage.background = new T.Color(BACKDROP);
   const camera = new T.PerspectiveCamera(32, 1, 0.1, 60 * f);
   camera.position.copy(viewPos(view));
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -94,7 +95,6 @@ export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM) {
     room?.dispose();
     room = buildScene(look, { assets, size });
     if (lite) room.sun.shadow.mapSize.set(1024, 1024);
-    room.scene.background = new T.Color(BACKDROP);
     room.scene.environmentIntensity = 0.55;
     room.scene.environment = env;
     renderPass.scene = room.scene; ao.scene = room.scene;
@@ -103,9 +103,13 @@ export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM) {
     scheduler.request();
   };
   // Only pay for the stand-in when the real assets are not already cached.
-  const standIn = setTimeout(() => show(null, false), 120);
-  loadAssets(look).then((a) => { clearTimeout(standIn); show(a); },
-    () => { clearTimeout(standIn); if (!room) show(null, false); ready = true; container.dataset.ready = 'true'; }); // offline or blocked: keep the hand-built room
+  const standIn = setTimeout(() => { if (!room) show(null, false); }, 120);
+  const load = () => {
+    const mine = ++gen;
+    loadAssets(look).then((a) => { clearTimeout(standIn); if (mine === gen) show(a); },
+      () => { clearTimeout(standIn); if (mine !== gen) return; show(null, false); ready = true; container.dataset.ready = 'true'; }); // offline or blocked: the hand-built room
+  };
+  load();
   loadHDRI().then((t) => {
     if (disposed) return;
     const pmrem = new T.PMREMGenerator(renderer);
@@ -129,21 +133,34 @@ export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM) {
   renderer.shadowMap.needsUpdate = true;
   renderer.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault());
 
-  return {
-    setView(v) {
-      const from = camera.position.clone(), to = viewPos(v), t0 = performance.now();
+  let current = view;
+  const flyTo = (to, ms) => {
+      const from = camera.position.clone(), t0 = performance.now();
       const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
       const mine = tween = {};
       scheduler.start();
       const step = (now) => {
         if (disposed || tween !== mine) return;
-        const t = reduced ? 1 : Math.min(1, (now - t0) / 520), q = t * t * (3 - 2 * t);
+        const t = reduced ? 1 : Math.min(1, (now - t0) / ms), q = t * t * (3 - 2 * t);
         camera.position.lerpVectors(from, to, q);
         controls.update();
         scheduler.request();
         if (t < 1) requestAnimationFrame(step); else scheduler.end();
       };
       requestAnimationFrame(step);
+  };
+  return {
+    setView(v) { current = v; flyTo(viewPos(v), 520); },
+    update(nextLook, nextSize) {
+      const resized = nextSize.w !== size.w || nextSize.d !== size.d || nextSize.h !== size.h;
+      look = nextLook; size = nextSize;
+      if (resized) {                      // 房間變大變小：鏡頭跟著拉遠或拉近，讓整個房間留在畫面裡
+        f = scaleOf(size);
+        camera.far = 60 * f; camera.updateProjectionMatrix();
+        controls.target.set(...TARGET).multiplyScalar(f);
+        flyTo(viewPos(current), 600);
+      }
+      load();                             // 素材通常已在快取：下一個畫面就是新的房間；舊的房間留到新的準備好
     },
     stats: () => ({ ready, size, frames, calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, pixelRatio: renderer.getPixelRatio() }),
     dispose() {

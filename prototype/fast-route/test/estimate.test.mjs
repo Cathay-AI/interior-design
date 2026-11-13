@@ -51,3 +51,16 @@ test('臥室的工項跟客廳不同；家具可以不計', async () => {
   assert.equal(bare.items.some((i) => i.key === 'furniture'), false);
   assert.ok(bare.high < bed.high);
 });
+
+test('餐廳、書房、廚房、衛浴各有自己的工項', async () => {
+  const { designEstimate } = await import('../lib/estimate.js');
+  const { STYLES } = await import('../lib/taste.js');
+  const names = (space) => designEstimate({ space, ping: '3', age: '新成屋' }, STYLES.warm).items.map((i) => i.name);
+  assert.ok(names('廚房').includes('廚具') && names('廚房').includes('給排水與瓦斯') && !names('廚房').includes('家具軟裝') && !names('廚房').includes('窗簾'));
+  assert.ok(names('衛浴').includes('衛浴設備') && names('衛浴').includes('防水與給排水') && names('衛浴').includes('浴櫃與鏡櫃') && !names('衛浴').includes('家具軟裝'));
+  assert.ok(names('餐廳').includes('餐櫃與備餐櫃') && names('餐廳').includes('家具軟裝'));
+  assert.ok(names('書房').includes('書櫃與低櫃'));
+  const kitchen = designEstimate({ space: '廚房', ping: '3', age: '新成屋' }, STYLES.warm), noRug = designEstimate({ space: '廚房', ping: '3', age: '新成屋' }, { ...STYLES.warm, rug: null });
+  assert.equal(kitchen.high, noRug.high, 'a kitchen has no rug to remove');
+  assert.match(kitchen.items.find((i) => i.key === 'floor').basis, /磁磚/);
+});

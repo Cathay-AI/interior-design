@@ -75,9 +75,14 @@ function furniture() {
     const pillows = Array.from({ length: n }, (_, i) => r({ x: bx + 0.4, z: bed.z - bed.sz / 2 + (bed.sz / n) * (i + 0.5), sx: 0.4, sz: pw }, 5)).join('');
     return `${r(bed, 3)}${r({ x: bx + 0.04, z: bed.z, sx: 0.08, sz: bed.sz }, 0)}${pillows}<path d="M${px(bx + 0.78)} ${pz(bed.z - bed.sz / 2)}v${bed.sz * S}M${px(bx + 0.95)} ${pz(bed.z - bed.sz / 2)}v${bed.sz * S}"/>${[nightA, nightB].filter(Boolean).map((t) => r(t, 2)).join('')}`;
   };
-  return `<g class="thin">${RUG ? `<g class="dash">${r(rug, 0)}</g>` : ''}
-${r(cab, 0)}<path d="M${px(CABINET.x0)} ${pz(-ROOM.d / 2)}L${px(CABINET.x1)} ${pz(-ROOM.d / 2 + CABINET.depth)}M${px(CABINET.x0 + cab.sx / 3)} ${pz(-ROOM.d / 2)}v${CABINET.depth * S}M${px(CABINET.x0 + (cab.sx * 2) / 3)} ${pz(-ROOM.d / 2)}v${CABINET.depth * S}"/>
-${sideboard ? r(sideboard, 1) : ''}${sofa ? sofaSVG() : ''}${bed ? bedSVG() : ''}
+  // 餐廳、書房、廚房、衛浴的家具與設備
+  const FIX = { dtable: 6, dchair: 6, desk: 2, counter: 0, upper: 0, fridge: 2, vanity: 2, toilet: 10, shower: 0 };
+  const fixSVG = (LAYOUT.fixtures ?? []).map((f) => (f.t === 'upper' ? `<g class="dash">${r(f, 0)}</g>`
+    : r(f, FIX[f.t]) + (f.t === 'counter' ? `<circle cx="${px(f.x)}" cy="${pz(f.z - f.sz / 2 + 0.55)}" r="${0.18 * S}"/><rect x="${px(f.x - 0.22)}" y="${pz(f.z + f.sz / 2 - 0.8)}" width="${0.44 * S}" height="${0.5 * S}"/>`
+      : f.t === 'vanity' ? `<circle cx="${px(f.x)}" cy="${pz(f.z)}" r="${0.17 * S}"/>` : f.t === 'shower' ? `<path d="M${px(f.x - f.sx / 2)} ${pz(f.z - f.sz / 2)}L${px(f.x + f.sx / 2)} ${pz(f.z + f.sz / 2)}"/>` : ''))).join('');
+  return `<g class="thin">${RUG && rug ? `<g class="dash">${r(rug, 0)}</g>` : ''}${fixSVG}
+${LAYOUT.noCabinet ? '' : `${r(cab, 0)}<path d="M${px(CABINET.x0)} ${pz(-ROOM.d / 2)}L${px(CABINET.x1)} ${pz(-ROOM.d / 2 + CABINET.depth)}M${px(CABINET.x0 + cab.sx / 3)} ${pz(-ROOM.d / 2)}v${CABINET.depth * S}M${px(CABINET.x0 + (cab.sx * 2) / 3)} ${pz(-ROOM.d / 2)}v${CABINET.depth * S}"/>
+`}${sideboard ? r(sideboard, 1) : ''}${sofa ? sofaSVG() : ''}${bed ? bedSVG() : ''}
 ${table ? `<ellipse cx="${px(table.x)}" cy="${pz(table.z)}" rx="${(table.sx / 2) * S}" ry="${(table.sz / 2) * S}"/>` : ''}
 ${chair ? `<g transform="rotate(-20 ${px(chair.x)} ${pz(chair.z)})">${r(chair, 8)}<path d="M${px(chair.x + chair.sx / 2 - 0.2)} ${pz(chair.z - chair.sz / 2 + 0.1)}v${(chair.sz - 0.2) * S}"/></g>` : ''}
 ${lamp ? `<circle cx="${px(lamp.x)}" cy="${pz(lamp.z)}" r="${0.2 * S}"/>` : ''}
@@ -104,18 +109,24 @@ const at = (x, z, sym, cls = '') => `<g class="${cls}" transform="translate(${px
 const tagSym = (n) => `<circle r="7.5" style="fill:#fdfdfb"/><text text-anchor="middle" y="3.4" style="font-size:9.5px;font-weight:700">${n}</text>`;
 const tag = (n, x, z) => `<g transform="translate(${px(x)} ${pz(z)})">${tagSym(n)}</g>`;
 function planSheet(meta, dm) {
-  const { sofa, table, chair, sideboard, bed } = LAYOUT, back = pz(-ROOM.d / 2), main = sofa ?? bed;
+  const { sofa, table, chair, sideboard, bed, anchor } = LAYOUT, back = pz(-ROOM.d / 2), fx = LAYOUT.fixtures ?? [], k = meta.kind;
+  const TALL = { 臥室: '衣櫃（高櫃）', 餐廳: '餐櫃（高櫃）', 書房: '書櫃（高櫃）' }, LOW = { 臥室: '窗下斗櫃', 餐廳: '窗下備餐櫃' };
+  const MAIN = { dtable: '餐桌', desk: '書桌', counter: '流理台（水槽、爐具）', vanity: '洗手台浴櫃' }, OTHER = { fridge: '冰箱', toilet: '馬桶', shower: '淋浴間', upper: '吊櫃（虛線）' };
   // 編號標在家具裡面，名稱放圖例：不會壓到旁邊的家具或尺寸線
-  const tags = [['1', bed ? '衣櫃（高櫃）' : '收納高櫃', (CABINET.x0 + CABINET.x1) / 2, -ROOM.d / 2 + CABINET.depth / 2],
-    ...(sideboard ? [['2', bed ? '窗下斗櫃' : '窗下低櫃', sideboard.x, sideboard.z]] : []),
-    bed ? ['3', bed.sz >= 1.3 ? '雙人床 150×200' : '單人床 105×200', bed.x + 0.35, bed.z] : ['3', sofa.sz < 1.9 ? '雙人沙發' : '三人沙發', sofa.x + 0.12, sofa.z - sofa.sz / 2 + 0.3],
-    ...(chair ? [['4', '單椅', chair.x, chair.z]] : [])];
+  const named = [...(LAYOUT.noCabinet ? [] : [[TALL[k] ?? '收納高櫃', (CABINET.x0 + CABINET.x1) / 2, -ROOM.d / 2 + CABINET.depth / 2]]),
+    ...(sideboard ? [[LOW[k] ?? '窗下低櫃', sideboard.x, sideboard.z]] : []),
+    ...(bed ? [[bed.sz >= 1.3 ? '雙人床 150×200' : '單人床 105×200', bed.x + 0.35, bed.z]] : sofa ? [[sofa.sz < 1.9 ? '雙人沙發' : '三人沙發', sofa.x + 0.12, sofa.z - sofa.sz / 2 + 0.3]] : [[MAIN[anchor.t], anchor.x, anchor.z]]),
+    ...Object.keys(OTHER).filter((t) => fx.some((f) => f.t === t)).map((t) => { const f = fx.find((x) => x.t === t); return [OTHER[t], f.x, f.t === 'upper' ? f.z + f.sz / 2 - 0.2 : f.z]; }),
+    ...(fx.some((f) => f.t === 'dchair') ? [[k === '餐廳' ? `餐椅 ×${fx.filter((f) => f.t === 'dchair').length}` : '工作椅', fx.find((f) => f.t === 'dchair').x, fx.find((f) => f.t === 'dchair').z]] : []),
+    ...(chair ? [[k === '書房' ? '閱讀椅' : '單椅', chair.x, chair.z]] : [])];
+  const tags = named.map(([label, x, z], i) => [String(i + 1), label, x, z]);
+  const main = sofa ?? bed ?? anchor;
   return sheet({ ...meta, no: 'A-01', title: '平面配置圖' }, shell() + furniture() + roomDimsSVG(dm)
-    + dimH(px(CABINET.x0), px(CABINET.x1), back - 14, String(dm.mm(CABINET.x1 - CABINET.x0)))
+    + (LAYOUT.noCabinet ? '' : dimH(px(CABINET.x0), px(CABINET.x1), back - 14, String(dm.mm(CABINET.x1 - CABINET.x0))))
     + dimH(px(WINDOW.x0), px(WINDOW.x1), back - 14, String(dm.mm(WINDOW.x1 - WINDOW.x0)))
     + (table ? dimH(px(sofa.x + sofa.sx / 2), px(table.x - table.sx / 2), pz(sofa.z + table.sz / 2) + 14, String(dm.mm(table.x - table.sx / 2 - (sofa.x + sofa.sx / 2)))) : '')
     + (sofa ? dimV(pz(sofa.z - sofa.sz / 2), pz(sofa.z + sofa.sz / 2), px(sofa.x - sofa.sx / 2) + 16, String(dm.mm(sofa.sz)))
-      : dimV(pz(bed.z - bed.sz / 2), pz(bed.z + bed.sz / 2), px(bed.x + bed.sx / 2) - 14, String(dm.mm(bed.sz))) + dimH(px(bed.x - bed.sx / 2), px(bed.x + bed.sx / 2), pz(bed.z + bed.sz / 2) + 16, String(dm.mm(bed.sx))))
+      : dimV(pz(main.z - main.sz / 2), pz(main.z + main.sz / 2), px(main.x + main.sx / 2) + (bed ? -14 : 16), String(dm.mm(main.sz))) + (bed || main.sx >= 0.9 ? dimH(px(main.x - main.sx / 2), px(main.x + main.sx / 2), pz(main.z + main.sz / 2) + 16, String(dm.mm(main.sx))) : ''))
     + tags.map(([n, , x, z]) => tag(n, x, z)).join('')
     + legend([...(RUG ? [['<path class="dash" d="M-10 0h20"/>', '地毯範圍']] : []), ['<rect x="-8" y="-4" width="16" height="8"/>', '固定櫃體（木作／系統）'], ['<circle r="6"/>', '活動家具'],
       ...tags.map(([n, label]) => [tagSym(n), label]), ['<path d="M-10 0h20"/>', '門、窗位置為示意，以現場為準']]));
@@ -142,26 +153,39 @@ ${text(px(R) - 44, pz(swz) + 16, 'S1 S2')}${downs.length <= 16 ? downs.map(([x, 
     + legend([[SYM.down, `嵌燈 Ø95　9W 3000K ×${downs.length}`], [SYM.pendant, '吊燈　E27 ×1'], [SYM.strip, '層板 LED 燈條 2700K'], ...(LAYOUT.lamp ? [[SYM.floor, '立燈（插座迴路）']] : []), [SYM.sw, '單切開關 H=1200']].map(([sym, l]) => [`<g class="red">${sym}</g>`, l])));
 }
 function powerSheet(meta, dm) {
-  const b = -ROOM.d / 2 + 0.06, l = -ROOM.w / 2 + 0.08, r = ROOM.w / 2 - 0.08, bed = LAYOUT.bed, sofa = LAYOUT.sofa ?? bed, wc = (WINDOW.x0 + WINDOW.x1) / 2;
-  const sz0 = sofa.z - sofa.sz / 2 - 0.15, sz1 = sofa.z + sofa.sz / 2 + 0.15;       // 沙發（或床頭）兩端各一組
-  const pts = [[l, sz0, SYM.socketD, bed ? 'H600 床頭' : 'H300'], [l, sz1, SYM.socketD, bed ? 'H600 床頭' : 'H300'],
-    [(CABINET.x0 + CABINET.x1) / 2, b + CABINET.depth, SYM.socket, 'H1000 櫃內'], [wc - 0.3, b + 0.42, SYM.socketD, 'H450'], [wc + 0.3, b + 0.42, SYM.net, 'H450'],
-    ...(bed ? [[r, sofa.z - 0.15, SYM.socketD, 'H300'], [r, sofa.z + 0.15, SYM.net, 'H300']]
-      : [[r, sofa.z - 0.45, SYM.socketD, 'H300'], [r, sofa.z - 0.15, SYM.tv, 'H1100'], [r, sofa.z + 0.15, SYM.net, 'H1100'], [r, sofa.z + 0.45, SYM.socketD, 'H1100']])];
+  const b = -ROOM.d / 2 + 0.06, l = -ROOM.w / 2 + 0.08, r = ROOM.w / 2 - 0.08, bed = LAYOUT.bed, tv = Boolean(LAYOUT.sofa), sofa = LAYOUT.sofa ?? bed ?? LAYOUT.anchor, wc = (WINDOW.x0 + WINDOW.x1) / 2, k = meta.kind;
+  const sz0 = sofa.z - sofa.sz / 2 - 0.15, sz1 = sofa.z + sofa.sz / 2 + 0.15;       // 主要家具（沙發、床頭、書桌、流理台…）兩端各一組
+  const H = { 臥室: 'H600 床頭', 書房: 'H900 桌面上', 廚房: 'H1100 檯面上', 衛浴: 'H1200 防水蓋板', 餐廳: 'H300' }[k] ?? 'H300';
+  const NOTE = { 臥室: '床頭兩側：插座＋雙切開關（進門與床頭都能關燈）', 書房: '書桌：插座 ×2＋網路', 廚房: '檯面：家電插座 ×2；冰箱、爐具、抽油煙機各一專用迴路', 衛浴: '洗手台：防水插座＋漏電斷路器；暖風機專用迴路', 餐廳: '餐桌旁：地插或牆插（火鍋、電器）' }[k];
+  const pts = [[l, sz0, SYM.socketD, H], [l, sz1, SYM.socketD, H],
+    ...(LAYOUT.noCabinet ? [] : [[(CABINET.x0 + CABINET.x1) / 2, b + CABINET.depth, SYM.socket, 'H1000 櫃內']]), ...(k === '衛浴' ? [] : [[wc - 0.3, b + 0.42, SYM.socketD, 'H450'], [wc + 0.3, b + 0.42, SYM.net, 'H450']]),
+    ...(tv ? [[r, sofa.z - 0.45, SYM.socketD, 'H300'], [r, sofa.z - 0.15, SYM.tv, 'H1100'], [r, sofa.z + 0.15, SYM.net, 'H1100'], [r, sofa.z + 0.45, SYM.socketD, 'H1100']]
+      : k === '衛浴' ? [] : [[r, sofa.z - 0.15, SYM.socketD, 'H300'], [r, sofa.z + 0.15, SYM.net, 'H300']])];
   return sheet({ ...meta, no: 'E-02', title: '插座與弱電配置圖' }, shell() + `<g style="opacity:.28">${furniture()}</g>` + roomDimsSVG(dm)
     + `<g class="blue">${pts.map(([x, z, sym, t]) => at(x, z, sym) + text(px(x) + (x > r - 0.5 ? -46 : 10), pz(z) + 4, t, 'style="font-size:8px"')).join('')}
-<path class="dash thin" style="stroke-width:.6" d="M${px(l)} ${pz(sz0)}V${pz(sz1)}${bed ? '' : `M${px(r)} ${pz(sofa.z - 0.45)}V${pz(sofa.z + 0.45)}`}"/></g>`
-    + (bed ? text(px(l) + 12, pz(sz0) - 10, '床頭兩側：插座＋雙切開關（進門與床頭都能關燈）', 'style="font-size:9px"') : text(px(r) - 96, pz(sofa.z - 0.45) - 12, '電視牆（預留管 2 吋）'))
-    + text(px(-ROOM.w / 2) + 6, pz(ROOM.d / 2) - 8, '專用迴路：冷氣 1、插座 2（2.0mm² ／ 20A）')
-    + legend([[SYM.socket, '單聯插座 110V'], [SYM.socketD, '雙聯插座 110V（接地）'], [SYM.net, '網路出線口 CAT6'], ...(bed ? [] : [[SYM.tv, '電視出線口']])].map(([sym, lbl]) => [`<g class="blue">${sym}</g>`, lbl])));
+<path class="dash thin" style="stroke-width:.6" d="M${px(l)} ${pz(sz0)}V${pz(sz1)}${tv ? `M${px(r)} ${pz(sofa.z - 0.45)}V${pz(sofa.z + 0.45)}` : ''}"/></g>`
+    + (tv ? text(px(r) - 96, pz(sofa.z - 0.45) - 12, '電視牆（預留管 2 吋）') : text(px(l) + 12, pz(sz0) - 10, NOTE, 'style="font-size:9px"'))
+    + text(px(-ROOM.w / 2) + 6, pz(ROOM.d / 2) - 8, k === '衛浴' ? '專用迴路：暖風機 1、插座 1（漏電斷路器）' : k === '廚房' ? '專用迴路：冰箱、爐具、抽油煙機、檯面插座' : '專用迴路：冷氣 1、插座 2（2.0mm² ／ 20A）')
+    + legend([[SYM.socket, '單聯插座 110V'], [SYM.socketD, '雙聯插座 110V（接地）'], [SYM.net, '網路出線口 CAT6'], ...(tv ? [[SYM.tv, '電視出線口']] : [])].map(([sym, lbl]) => [`<g class="blue">${sym}</g>`, lbl])));
 }
 function elevationSheet(meta, dm) {
   const EN = SCALES.find((n) => (ROOM.w * 2000) / n <= 640 && (ROOM.h * 2000) / n <= 300) ?? SCALES.at(-1), E = 2000 / EN;
   const ex = (x) => +(100 + (640 - ROOM.w * E) / 2 + (x + ROOM.w / 2) * E).toFixed(1), ey = (y) => +(110 + (ROOM.h - y) * E).toFixed(1);
   const cw = CABINET.x1 - CABINET.x0, bay = cw / 3, c0 = CABINET.x0, sb = LAYOUT.sideboard;
   const rect = (x0, y0, x1, y1, o = '') => `<rect x="${ex(x0)}" y="${ey(y1)}" width="${((x1 - x0) * E).toFixed(1)}" height="${((y1 - y0) * E).toFixed(1)}" ${o}/>`;
+  const ELEV = { 臥室: '衣櫃', 餐廳: '餐櫃', 書房: '書櫃', 廚房: '廚房', 衛浴: '衛浴' }[meta.kind] ?? '收納櫃';
+  const frame = `<path style="stroke-width:1.8" d="M${ex(-ROOM.w / 2)} ${ey(0)}H${ex(ROOM.w / 2)}M${ex(-ROOM.w / 2)} ${ey(ROOM.h)}H${ex(ROOM.w / 2)}M${ex(-ROOM.w / 2)} ${ey(0)}V${ey(ROOM.h)}M${ex(ROOM.w / 2)} ${ey(0)}V${ey(ROOM.h)}"/>`;
+  const fire = meta.sprinkler === 'no' ? '' : `<g class="red"><path class="dash" d="M${ex(-ROOM.w / 2)} ${ey(ROOM.h - 0.45)}H${ex(ROOM.w / 2)}"/>${text(ex(-ROOM.w / 2) + 8, ey(ROOM.h - 0.45) + 11, `撒水頭淨空：迴水板下方 450、水平 300 內不得有櫃體或天花造型（${meta.sprinkler === 'yes' ? '屋主回報有撒水頭，位置待現場標註' : '有無撒水頭待現場確認'}）`, 'style="font-size:8px"')}</g>`;
+  if (LAYOUT.noCabinet) {   // 廚房、衛浴：這面牆只有窗；流理台、吊櫃、浴櫃沿側牆，高度用文字註明
+    const side = meta.kind === '廚房' ? ['流理台檯面 H900（沿左牆，見平面圖）', 0.9, '吊櫃底 H1500、頂 H2200', 1.5] : ['洗手台檯面 H830（沿左牆，見平面圖）', 0.83, '壁磚到頂；淋浴間拉門 H1950', 1.95];
+    return sheet({ ...meta, no: 'A-02', title: `${ELEV}窗牆立面圖`, scale: `1 : ${EN}` }, frame
+      + `<g class="thin">${rect(WINDOW.x0, WINDOW.y0, WINDOW.x1, WINDOW.y1)}<path d="M${ex((WINDOW.x0 + WINDOW.x1) / 2)} ${ey(WINDOW.y0)}V${ey(WINDOW.y1)}"/><path class="dash" d="M${ex(-ROOM.w / 2)} ${ey(side[1])}h${0.7 * E}M${ex(-ROOM.w / 2)} ${ey(side[3])}h${0.7 * E}"/></g>`
+      + dimH(ex(WINDOW.x0), ex(WINDOW.x1), ey(ROOM.h) - 16, String(dm.mm(WINDOW.x1 - WINDOW.x0))) + dimH(ex(-ROOM.w / 2), ex(ROOM.w / 2), ey(ROOM.h) - 40, String(dm.w)) + dimV(ey(ROOM.h), ey(0), ex(-ROOM.w / 2) - 30, String(dm.h))
+      + text(ex(-ROOM.w / 2) + 8, ey(side[1]) - 5, side[0], 'style="font-size:9px"') + text(ex(-ROOM.w / 2) + 8, ey(side[3]) - 5, side[2], 'style="font-size:9px"')
+      + fire + text(ex(WINDOW.x0) + 8, ey(WINDOW.y1) + 16, '既有鋁窗（不更動）'));
+  }
   const hatch = []; for (let i = 0; i < Math.max(0, Math.floor((bay * E - 8) / 6)); i++) hatch.push(`M${ex(c0 + bay) + 4 + i * 6} ${ey(1.8) + 3}v${0.92 * E - 6}`);
-  return sheet({ ...meta, no: 'A-02', title: `${meta.bedroom ? '衣櫃' : '收納櫃'}與窗牆立面圖`, scale: `1 : ${EN}` },
+  return sheet({ ...meta, no: 'A-02', title: `${ELEV}與窗牆立面圖`, scale: `1 : ${EN}` },
     `<path style="stroke-width:1.8" d="M${ex(-ROOM.w / 2)} ${ey(0)}H${ex(ROOM.w / 2)}M${ex(-ROOM.w / 2)} ${ey(ROOM.h)}H${ex(ROOM.w / 2)}M${ex(-ROOM.w / 2)} ${ey(0)}V${ey(ROOM.h)}M${ex(ROOM.w / 2)} ${ey(0)}V${ey(ROOM.h)}"/>
 <g class="thin">${rect(c0, 0.08, c0 + bay, ROOM.h)}${rect(c0 + bay * 2, 0.08, CABINET.x1, ROOM.h)}${rect(c0 + bay, 0.08, c0 + bay * 2, 0.88)}${rect(c0 + bay, 1.8, c0 + bay * 2, ROOM.h)}${rect(c0, 0, CABINET.x1, 0.08)}
 <path d="M${ex(c0 + bay)} ${ey(1.33)}h${bay * E}"/><g class="hatch"><path d="${hatch.join('')}"/></g>
@@ -171,7 +195,7 @@ ${sb ? `${rect(sb.x - sb.sx / 2, 0.11, sb.x + sb.sx / 2, 0.47)}<path d="M${ex(sb
     + dimH(ex(c0), ex(c0 + bay), ey(ROOM.h) - 16, String(dm.mm(bay))) + dimH(ex(c0 + bay), ex(c0 + bay * 2), ey(ROOM.h) - 16, String(dm.mm(bay))) + dimH(ex(c0 + bay * 2), ex(CABINET.x1), ey(ROOM.h) - 16, String(dm.mm(bay)))
     + dimH(ex(WINDOW.x0), ex(WINDOW.x1), ey(ROOM.h) - 16, String(dm.mm(WINDOW.x1 - WINDOW.x0))) + dimH(ex(-ROOM.w / 2), ex(ROOM.w / 2), ey(ROOM.h) - 40, String(dm.w))
     + dimV(ey(ROOM.h), ey(0), ex(-ROOM.w / 2) - 30, String(dm.h)) + dimV(ey(1.8), ey(0.88), ex(c0 + bay) - 8, '920') + dimV(ey(0.88), ey(0.08), ex(c0 + bay) - 8, '800')
-    + text(ex(c0 + bay) + 6, ey(1.5), meta.bedroom ? '開放格（包包、摺衣）' : '開放層格', 'style="font-size:9px"') + text(ex(c0 + bay) + 6, ey(1.86), 'LED 燈條', 'style="font-size:8px"')
+    + text(ex(c0 + bay) + 6, ey(1.5), meta.bedroom ? '開放格（包包、摺衣）' : meta.kind === '書房' ? '開放書格' : '開放層格', 'style="font-size:9px"') + text(ex(c0 + bay) + 6, ey(1.86), 'LED 燈條', 'style="font-size:8px"')
     + text(ex(c0) + 6, ey(0.3), `門片：${meta.cabinet}`, 'style="font-size:9px"') + text(ex(c0) + 6, ey(0.02) + 12, '踢腳 H80 內縮 30')
     + (meta.sprinkler === 'no' ? '' : `<g class="red"><path class="dash" d="M${ex(-ROOM.w / 2)} ${ey(ROOM.h - 0.45)}H${ex(ROOM.w / 2)}"/>${text(ex(CABINET.x1) + 8, ey(ROOM.h - 0.45) + 11, `撒水頭淨空：迴水板下方 450、水平 300 內不得有櫃體或天花造型（${meta.sprinkler === 'yes' ? '屋主回報有撒水頭，位置待現場標註' : '有無撒水頭待現場確認'}）`, 'style="font-size:8px"')}${text(ex(c0) + 6, ey(ROOM.h - 0.45) + 11, '櫃頂進入淨空處需降低', 'style="font-size:8px"')}</g>`)
     + text(ex(WINDOW.x0) + 8, ey(WINDOW.y1) + 16, '既有鋁窗（不更動）') + (sb ? text(ex(sb.x - sb.sx / 2), ey(0.5) - 4, `${meta.bedroom ? '斗櫃' : '低櫃'} W${dm.mm(sb.sx)}×D400×H470`, 'style="font-size:9px"') : ''));
@@ -216,13 +240,13 @@ export function drawingSet(cond, look, est, date) {
   useRoom({ ...size, space: cond.space });
   RUG = Boolean(look.rug);
   const dm = roomDims(size);
-  const meta = { bedroom: cond.space === '臥室', sprinkler: cond.sprinkler ?? '', project: `${cond.space}・${look.name}`, date, age: cond.age, ping: est.ping, floorType: look.floorType ?? 'wood',
+  const meta = { kind: cond.space, bedroom: cond.space === '臥室', sprinkler: cond.sprinkler ?? '', project: `${cond.space}・${look.name}`, date, age: cond.age, ping: est.ping, floorType: look.floorType ?? 'wood',
     floorName: look.floorType === 'concrete' ? '礦物塗料地坪' : '超耐磨木地板', cabinet: look.cabinetWood ? '木皮板' : '烤漆板' };
   return [
     ['A-01', '平面配置圖', planSheet(meta, dm)],
     ['E-01', '天花板燈具配置圖', lightingSheet(meta, dm)],
     ['E-02', '插座與弱電配置圖', powerSheet(meta, dm)],
-    ['A-02', `${meta.bedroom ? '衣櫃' : '收納櫃'}與窗牆立面圖`, elevationSheet(meta, dm)],
+    ['A-02', `${{ 臥室: '衣櫃與', 餐廳: '餐櫃與', 書房: '書櫃與', 廚房: '廚房', 衛浴: '衛浴' }[cond.space] ?? '收納櫃與'}窗牆立面圖`, elevationSheet(meta, dm)],
     ['A-03', '地坪材料計畫圖', floorSheet(meta, dm)],
     ['Q-01', '工程估價明細表', costSheet(meta, est)],
   ].map(([no, title, svg]) => ({ no, title, svg, file: `${no}-${FILE[no]}.svg` }));

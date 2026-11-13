@@ -6,14 +6,14 @@ import { roomLayout } from '../lib/layout.js';
 
 test('滑卡回話：喜歡會回應風格，滑夠了會邀請看成果', () => {
   let s = emptyScores();
-  assert.match(swipeReply({ space: '客廳', scores: s, swiped: 0, liked: 0 }).text, /好，客廳。挑喜歡的，接著看你家尺寸的 3D 和預算。不用滑完。/);
-  assert.match(swipeReply({ space: '臥室', scores: s, swiped: 0, liked: 0 }).text, /圖是客廳的，先挑風格就好/);
+  assert.match(swipeReply({ space: '客廳', scores: s, swiped: 0, liked: 0 }).text, /^挑你喜歡的。$/);
+  assert.match(swipeReply({ space: '臥室', scores: s, swiped: 0, liked: 0 }).text, /^圖是客廳的，先挑風格。$/);
   s = applySwipe(s, 'warm', true);
-  assert.deepEqual(swipeReply({ space: '客廳', scores: s, swiped: 1, liked: 1, last: ['warm', true] }), { text: '收到，你家客廳會偏暖木色、柔和的布面。', ready: false });
-  assert.equal(swipeReply({ space: '客廳', scores: s, swiped: 2, liked: 1, last: ['dark', false] }).text, '了解，這種先不要。');
+  assert.deepEqual(swipeReply({ space: '客廳', scores: s, swiped: 1, liked: 1, last: ['warm', true] }), { text: '房間換成暖木色、柔和的布面了。', ready: false });
+  assert.equal(swipeReply({ space: '客廳', scores: s, swiped: 2, liked: 1, last: ['dark', false] }).text, '這種不要，了解。');
   s = applySwipe(applySwipe(s, 'nordic', true), 'warm', true);
   const done = swipeReply({ space: '客廳', scores: s, swiped: 4, liked: 3, last: ['warm', true] });
-  assert.deepEqual(done, { text: '我知道你的方向了：溫暖木質。要看我幫你配的樣子嗎？', ready: true });
+  assert.deepEqual(done, { text: '方向有了：溫暖木質。', ready: true });
 });
 
 test('第 2 步：一次只問最有用、還沒回答的那一項', () => {
@@ -61,4 +61,14 @@ test('用說的改設計：一句話好幾件事，聽不懂的每一段都回�
   assert.deepEqual(parseEdit('我不要地毯，衣櫃換成白色', ['床頭換淺色', '牆換暖白', '地毯拿掉', '地板換深色']),
     { edits: [{ edit: 2, on: true }], style: null, unknown: ['衣櫃換成白色'] });
   assert.deepEqual(parseEdit('不要地毯然後牆換白', labels).edits, [{ edit: 2, on: true }, { edit: 1, on: true }]);
+});
+
+test('每一種空間都有設計說明，數字來自配置', () => {
+  const note = (space, w, d) => designNotes({ space }, STYLES.warm, roomLayout({ w, d, h: 2.8, space })).join('');
+  assert.match(note('餐廳', 3.4, 3), /餐桌放中間，配 4 張椅子；桌邊到牆還有 \d+ 公分/);
+  assert.match(note('書房', 3, 3), /書桌靠牆、長 \d+ 公分/);
+  assert.match(note('廚房', 3.4, 2.4), /一字型流理台沿牆 \d+ 公分[\s\S]*冰箱要另外找位置/);
+  assert.match(note('廚房', 3.4, 3), /冰箱放在流理台前端/);
+  assert.match(note('衛浴', 2.4, 2), /洗手台和馬桶沿同一面牆[\s\S]*淋浴間 \d+ 公分見方/);
+  for (const space of ['客廳', '臥室', '餐廳', '書房', '廚房', '衛浴']) assert.ok(!/undefined|NaN|null/.test(note(space, 2, 2) + note(space, 6, 5)), space);
 });

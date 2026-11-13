@@ -57,11 +57,17 @@ jobs:
     steps:
       - name: Mark ready and merge the commit that was tested
         run: |
+          # The job condition above only sees the labels the pull request had when this run started.
+          # Read them again here, so a "hold" label added right after opening still stops the merge.
+          if gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '.labels[].name' | grep -qx hold; then
+            echo "This pull request has the hold label: tests passed, not merging."
+            exit 0
+          fi
           gh pr ready "$PR" --repo "$GITHUB_REPOSITORY"
           gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --merge --match-head-commit "$SHA"
       # A merge made with the workflow token does not start other workflows, so publish the deck by hand if it changed.
       - name: Publish the deck if this pull request changed it
         run: |
-          if gh pr diff "$PR" --repo "$GITHUB_REPOSITORY" --name-only | grep -q '^docs/proposal/deck-v3/'; then
+          if [ "$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json state --jq .state)" = MERGED ] && gh pr diff "$PR" --repo "$GITHUB_REPOSITORY" --name-only | grep -q '^docs/proposal/deck-v3/'; then
             gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main
           fi

@@ -9,7 +9,7 @@ export const TRAIT = {
 const names = (keys) => keys.map((k) => STYLES[k].name).join('、');
 
 /** 開場：先問想弄哪裡。 */
-export const GREETING = '嗨，我來幫你設計你家。想先弄哪裡？';
+export const GREETING = '想先弄哪裡？';
 
 /**
  * 滑卡時的回話。
@@ -18,11 +18,11 @@ export const GREETING = '嗨，我來幫你設計你家。想先弄哪裡？';
  */
 export function swipeReply({ space, scores, swiped, liked, last }) {
   // 滑卡的圖目前都是客廳：選了別的空間要先講，不要讓人以為弄錯了
-  if (!last) return { text: space === '客廳' ? '好，客廳。挑喜歡的，接著看你家尺寸的 3D 和預算。不用滑完。' : `好，${space}。圖是客廳的，先挑風格就好，接著看你家${space}的 3D 和預算。不用滑完。`, ready: false };
+  if (!last) return { text: space === '客廳' ? '挑你喜歡的。' : '圖是客廳的，先挑風格。', ready: false };
   const top = topStyles(scores).top;
-  if (liked >= 3 || (swiped >= 5 && liked >= 1)) return { text: `我知道你的方向了：${names(top)}。要看我幫你配的樣子嗎？`, ready: true };
-  if (last[1]) return { text: `收到，你家${space}會偏${TRAIT[last[0]]}。`, ready: false };
-  return { text: liked ? '了解，這種先不要。' : '了解，這種不要，再看幾張。', ready: false };
+  if (liked >= 3 || (swiped >= 5 && liked >= 1)) return { text: `方向有了：${names(top)}。`, ready: true };
+  if (last[1]) return { text: `房間換成${TRAIT[last[0]]}了。`, ready: false };
+  return { text: '這種不要，了解。', ready: false };
 }
 
 /**
@@ -32,7 +32,7 @@ export function swipeReply({ space, scores, swiped, liked, last }) {
 export function nextQuestion(cond) {
   const has = (k) => String(cond[k] ?? '').trim() !== '';
   const house = cond.housing === 'house';
-  if (!(has('len') && has('wid'))) return { key: 'len', text: `你家${cond.space}的長和寬大概幾公尺？有了尺寸，3D 和圖就照你家畫，不是範例。` };
+  if (!(has('len') && has('wid'))) return { key: 'len', text: `你家${cond.space}的長和寬大概幾公尺？` };
   if (!has('floors')) return { key: 'floors', text: house ? '你家總共幾層樓？' : '你家是幾層樓的大樓？這會影響要不要申請裝修許可、窗簾要不要用防焰的。' };
   if (!house && !has('partition')) return { key: 'partition', text: '這次會動隔間，或加廁所、浴室嗎？會的話申請的手續不一樣。' };
   if (!has('sprinkler')) return { key: 'sprinkler', text: '抬頭看一下，天花板有撒水頭嗎？有的話，櫃子和新天花板要讓出空間。' };
@@ -53,7 +53,14 @@ const cm = (m) => Math.round((m * 100) / 5) * 5;
 export function designNotes(cond, look, { room, layout, cabinet }, reasons = []) {
   const R = room.w / 2, B = -room.d / 2, out = [];
   const cabW = cm(cabinet.x1 - cabinet.x0), care = reasons.includes('收納') ? '你說在意收納，所以' : '';
-  if (layout.bed) {
+  const fx = layout.fixtures ?? [], has = (t) => fx.find((f) => f.t === t);
+  if (layout.anchor) {
+    const a = layout.anchor, front = cm(R - (a.x + a.sx / 2));
+    if (a.t === 'dtable') { out.push(`餐桌放中間，配 ${fx.filter((f) => f.t === 'dchair').length} 張椅子；桌邊到牆還有 ${front} 公分，椅子拉得開。`); out.push(`${care}餐櫃做在窗戶旁那面牆，寬 ${cabW} 公分、做到頂${layout.sideboard ? '；窗下是備餐的低櫃' : ''}。`); }
+    if (a.t === 'desk') { out.push(`書桌靠牆、長 ${cm(a.sz)} 公分，椅子後面還有 ${cm(R - (a.x + a.sx / 2) - 0.6)} 公分可以走。`); out.push(`${care}書櫃做在窗戶旁那面牆，寬 ${cabW} 公分、做到頂${layout.chair ? '；窗邊再放一張閱讀椅' : ''}。`); }
+    if (a.t === 'counter') { out.push(`一字型流理台沿牆 ${cm(a.sz)} 公分，水槽靠窗、爐具在另一端；檯面前留 ${front} 公分走道。`); out.push(has('fridge') ? '冰箱放在流理台前端，吊櫃做在檯面上方。' : '空間比較短，冰箱要另外找位置；吊櫃做在檯面上方。'); }
+    if (a.t === 'vanity') { out.push(`洗手台和馬桶沿同一面牆，前面留 ${front} 公分。`); out.push(has('shower') ? `淋浴間 ${cm(has('shower').sx)} 公分見方放在角落，乾濕分離。` : '空間不夠放獨立淋浴間，建議做淋浴拉簾。'); }
+  } else if (layout.bed) {
     const bed = layout.bed, foot = cm(R - (bed.x + bed.sx / 2)), front = cm(bed.z - bed.sz / 2 - (B + cabinet.depth));
     out.push(`床頭靠牆，放${bed.sz >= 1.3 ? '雙人床' : '單人床（房間比較短）'}；床尾到對面牆還有 ${foot} 公分可以走。`);
     out.push(`${care}衣櫃做在窗戶旁那面牆，寬 ${cabW} 公分、做到頂；衣櫃前留了 ${front} 公分${front >= 60 ? '，開門拿衣服夠用' : '，比較窄，建議做拉門'}。`);

@@ -63,3 +63,23 @@ test('臥室：一定有床，家具都在牆內、不互相重疊；放不下�
   assert.equal(roomLayout({ w: 2.6, d: 2.6, h: 2.6, space: '臥室' }).layout.bed.sz, 1.05, 'a short room gets a single bed');
   assert.equal(roomLayout({ w: 4.2, d: 3.8, h: 2.7, space: '臥室' }).layout.bed.sz, 1.5);
 });
+
+test('餐廳、書房、廚房、衛浴：都有主要家具，全部在牆內，主要的幾件不互相重疊', () => {
+  const steps = [2, 2.4, 2.8, 3.4, 4.2, 6, 12];
+  const hit = (a, b) => Math.abs(a.x - b.x) < (a.sx + b.sx) / 2 - 0.01 && Math.abs(a.z - b.z) < (a.sz + b.sz) / 2 - 0.01;
+  const main = { 餐廳: 'dtable', 書房: 'desk', 廚房: 'counter', 衛浴: 'vanity' };
+  for (const [space, type] of Object.entries(main)) for (const w of steps) for (const d of steps) {
+    const { layout } = roomLayout({ w, d, h: 2.8, space }), at = `${space} ${w}x${d}`;
+    assert.equal(layout.anchor.t, type, at);
+    assert.ok(!layout.sofa && !layout.bed && layout.pendant, at);
+    for (const f of layout.fixtures) {
+      assert.ok(f.x - f.sx / 2 >= -w / 2 - 0.01 && f.x + f.sx / 2 <= w / 2 + 0.01, `${f.t} x at ${at}`);
+      assert.ok(f.z - f.sz / 2 >= -d / 2 - 0.01 && f.z + f.sz / 2 <= d / 2 + 0.01, `${f.t} z at ${at}`);
+    }
+    const solid = layout.fixtures.filter((f) => f.t !== 'upper' && f.t !== 'dchair');
+    for (const a of solid) for (const b of solid) if (a !== b) assert.ok(!hit(a, b), `${a.t} and ${b.t} overlap at ${at}`);
+    if (space === '廚房' || space === '衛浴') assert.ok(layout.noCabinet && layout.rug === null, `${at}: no storage wall, no rug`);
+  }
+  assert.equal(roomLayout({ w: 3.4, d: 3, h: 2.8, space: '餐廳' }).layout.fixtures.filter((f) => f.t === 'dchair').length, 4);
+  assert.ok(roomLayout({ w: 2.4, d: 2, h: 2.6, space: '衛浴' }).layout.fixtures.some((f) => f.t === 'shower'));
+});
