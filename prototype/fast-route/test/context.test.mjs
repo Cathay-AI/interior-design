@@ -15,7 +15,9 @@ test('什麼都沒給是 0；給得越多越高；全給是 1；上傳的圖不�
   const some = contextScore({ ping: '8', ageSet: true }).score;
   const more = contextScore({ len: '5.6', wid: '4.7', height: '2.8', ageSet: true }).score;
   assert.ok(0 < some && some < more && more < 1);
-  const all = { len: '5.6', wid: '4.7', height: '2.8', ageSet: true, floors: '12', partition: 'no' };
+  const all = { len: '5.6', wid: '4.7', height: '2.8', ageSet: true, floors: '12', partition: 'no', unitFloor: '8', sprinkler: 'no' };
+  assert.equal(contextScore({ ...all, sprinkler: '' }).score, 0.9, '撒水頭還沒回答');
+  assert.equal(contextScore({ floors: '5', partition: 'no', sprinkler: 'no' }).score, 0.3, '總樓層不到 11 層就不用再問所在樓層');
   assert.equal(contextScore(all).score, 1);
   assert.ok(contextScore({ floors: '12' }).score === 0 && contextScore({ floors: '12', partition: 'yes' }).score > 0, '樓層和隔間都講了才算');
   assert.ok(contextScore({ len: '5', wid: '4' }).score > contextScore({ ping: '6' }).score, '實際長寬比只給坪數更有把握');

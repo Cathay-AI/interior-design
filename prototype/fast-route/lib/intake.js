@@ -74,7 +74,7 @@ export function normalizeNumbers(text) {
 
 /**
  * @param {string} text 例：「客廳大概八坪，長五米六、寬四米七，天花板兩米八，中古屋」
- * @returns {Partial<{space:string, ping:string, len:string, wid:string, height:string, age:string, floors:string, partition:'yes'|'no'}>} 只回傳聽得出來的欄位
+ * @returns {Partial<{space:string, ping:string, len:string, wid:string, height:string, age:string, floors:string, partition:'yes'|'no', unitFloor:string, sprinkler:'yes'|'no', housing:'house'}>} 只回傳聽得出來的欄位
  */
 export function parseHome(text) {
   const t = normalizeNumbers(text), out = {};
@@ -92,6 +92,11 @@ export function parseHome(text) {
   const floors = grab(new RegExp('(?:共|總共|總樓層|樓高|地上)\\s*' + N + '\\s*(?:層|樓)'))
     || grab(new RegExp(N + '\\s*(?:層樓?|樓)(?:高)?(?:的)?(?:電梯)?(?:大樓|公寓|華廈|建築|透天)'));
   if (floors) out.floors = floors;
+  const unitFloor = grab(new RegExp('(?:住在?|我家在|家在|位於|位在)\\s*第?\\s*(\\d+)\\s*樓(?!高)'));
+  if (unitFloor) out.unitFloor = unitFloor;
+  if (/(?:沒有?|無)(?:裝)?(?:自動)?[撒灑]水/.test(t)) out.sprinkler = 'no';
+  else if (/[撒灑]水(?:頭|設備)/.test(t)) out.sprinkler = 'yes';
+  if (/透天|獨棟|別墅/.test(t)) out.housing = 'house';
   if (/不(?:會)?(?:動|改|拆|變更)隔間|隔間不(?:動|改|變)/.test(t)) out.partition = 'no';
   else if (/(?:動|改|拆|變更|打掉)隔間|隔間(?:要|會)?(?:動|改|重做|打掉)|(?:加|增設|多做)(?:一間)?(?:廁所|浴室)/.test(t)) out.partition = 'yes';
   // 講到哪個空間（先講到的優先）。全室／廚房／衛浴認得出來，但目前只做客廳與臥室，由畫面說明。

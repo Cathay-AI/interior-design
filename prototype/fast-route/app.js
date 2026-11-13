@@ -2,7 +2,7 @@
 // Decision logic lives in ./lib (pure, unit-tested); this file owns state, rendering and browser APIs.
 import { STYLES, SWIPE_ORDER, REASONS, emptyScores, applySwipe, undoSwipe, pickStyle, topStyles } from './lib/taste.js';
 import { designEstimate, resolvePing } from './lib/estimate.js';
-import { STATES, ruleFindings } from './lib/rules.js';
+import { STATES, CERTAINTY, CHECKED, LAWS, lawUrl, ruleFindings, regSummary } from './lib/rules.js';
 import { AGES, parseHome } from './lib/intake.js';
 import { drawingSet } from './lib/drawings.js';
 import { roomSize } from './lib/layout.js';
@@ -35,9 +35,9 @@ const STATE_COLOR = { ok: '#5f7a6a', conflict: '#b5653a', missing: '#b08a4f', re
 /* ================= state ================= */
 const fresh = () => ({
   step: 1, reached: 1, scores: emptyScores(), swiped: 0, liked: 0,
-  cond: { space: '客廳', style: null, ping: '', len: '', wid: '', height: '', age: '新成屋', ageSet: false, floors: '', partition: '', noFurniture: false },
+  cond: { space: '客廳', style: null, ping: '', len: '', wid: '', height: '', age: '新成屋', ageSet: false, floors: '', partition: '', unitFloor: '', sprinkler: '', housing: '', noFurniture: false },
   docs: [], docError: '', said: '', heard: null, history: [], reasons: [],
-  versions: [], v: 0, view: 'A', generated: false, unlocked: false,
+  versions: [], v: 0, view: 'A', generated: false, unlocked: false, regsOpen: false,
   bad: {},   // 填錯的欄位：{ 欄位: { value, msg } }，不存檔
 });
 // 進度存在這台瀏覽器：重整頁面不會從頭來（上傳的檔案除外）
@@ -79,12 +79,13 @@ function render() {
   live?.dispose(); live = null;
   // 重畫後把鍵盤焦點放回同一個位置（同一步內），用 Tab 操作的人不會被丟回頁首
   const FOCUSABLE = 'button:not(:disabled),input,textarea,a[href]';
-  const at = Number(app.dataset.step) === S.step ? [...app.querySelectorAll(FOCUSABLE)].indexOf(document.activeElement) : -1;
+  const sig = (el) => el && (el.id || `${el.tagName}:${el.textContent.trim().slice(0, 24)}`);
+  const at = Number(app.dataset.step) === S.step ? [...app.querySelectorAll(FOCUSABLE)].indexOf(document.activeElement) : -1, was = sig(document.activeElement);
   pending = false;
   app.replaceChildren();
   app.dataset.step = S.step;
   SCREENS[S.step]();
-  if (at >= 0) app.querySelectorAll(FOCUSABLE)[at]?.focus({ preventScroll: true });
+  if (at >= 0) { const el = app.querySelectorAll(FOCUSABLE)[at]; if (sig(el) === was) el.focus({ preventScroll: true }); }   // 位置上換了別的東西就不硬放
   save();
 }
 // 欄位改完會重畫整頁。如果這時手指或滑鼠正按在某個按鈕上，馬上重畫會把那顆按鈕換掉、那一下就落空，
@@ -111,6 +112,35 @@ const shareBtn = () => {
   return btn;
 };
 const backBtn = (n) => h('button', { class: 'back', onclick: () => go(n) }, '‹ 上一步');
+
+/* ---- 法規與施工條件：3D 頁和估價頁共用的清單 ---- */
+const findingsNow = () => ruleFindings({ ...S.cond, ping: estimateNow().ping }, look(), summarize(S.docs));
+// 差一個答案的項目，直接在那一項底下回答，不用回上一頁
+function askInline(key) {
+  const c = S.cond, set = (k, v) => { c[k] = v; render(); };
+  const yesNo = (k, yes, no) => h('div', { class: 'inline ask', role: 'group' }, ...[['yes', yes], ['no', no]].map(([v, label]) => h('button', { class: 'chip', 'aria-pressed': String(c[k] === v), onclick: () => set(k, v) }, label)));
+  const number = (k, label) => {
+    const input = h('input', { type: 'number', inputmode: 'numeric', min: 1, step: 1, placeholder: '—', 'aria-label': label, id: 'ask-' + k });
+    const err = h('span', { class: 'err', role: 'alert' });
+    const ok = () => { const msg = fieldError(k, input.value) || (input.value ? '' : '請填數字'); err.textContent = msg; if (!msg) set(k, input.value.trim()); };
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') ok(); });
+    return h('div', { class: 'inline ask' }, h('span', { class: 'note' }, label), input, h('button', { class: 'chip', onclick: ok }, '確定'), err);
+  };
+  return { sprinkler: () => yesNo('sprinkler', '有撒水頭', '沒有'), partition: () => yesNo('partition', '會動隔間或加廁所浴室', '不會'),
+    unitFloor: () => number('unitFloor', '你家在第幾樓'), floors: () => number('floors', '建物總共幾層') }[key]?.() ?? null;
+}
+function regsList(findings) {
+  const asked = new Set();
+  const item = (f) => h('li', {}, h('span', { class: 'state', style: `background:${STATE_COLOR[f.state]}` }, STATES[f.state]),
+    h('div', {}, h('b', {}, f.title), h('p', {}, f.detail),
+      f.ask && !asked.has(f.ask) && asked.add(f.ask) ? askInline(f.ask) : null,   // 同一題只問一次
+      f.law ? h('small', {}, '依據：', ...f.law.flatMap((k, i) => [i ? '、' : '', h('a', { href: lawUrl(k), target: '_blank', rel: 'noopener' }, `${LAWS[k].name}${LAWS[k].art}`)]),
+        `（最近修正 ${[...new Set(f.law.map((k) => LAWS[k].amended))].join('、')}）・${CHECKED} 查證・${CERTAINTY[f.certainty]}`) : null));
+  const legal = findings.filter((f) => f.source), site = findings.filter((f) => !f.source && f.state !== 'ok');
+  const rank = { action: 0, conflict: 0, review: 1, missing: 2, na: 3, ok: 4 };
+  return h('ul', { class: 'regs' }, ...[...legal].sort((a, b) => rank[a.state] - rank[b.state]).map(item), ...site.map(item));
+}
+const REG_NOTE = '這是依台灣消防與建築法規整理的提醒，不是合格判定。條文已對照全國法規資料庫；實際適用與申請，由專業人員逐項確認。';
 
 /* ================= screens ================= */
 const SCREENS = [];
@@ -192,7 +222,7 @@ SCREENS[1] = () => {
   draw();
   (window.requestIdleCallback ?? setTimeout)(preload);   // 等第一張顯示後才去暖後面幾張
   deck.addEventListener('transitionend', preload);
-  app.append(h('h1', { class: 'sr' }, '滑卡挑風格'), deck,
+  app.append(h('h1', { class: 'sr' }, '滑卡挑風格'), h('p', { class: 'pitch', id: 'pitch' }, '先知道這個設計在你家能不能做、要花多少、要辦什麼，再去找設計師。'), deck,
     h('div', { class: 'swipebar' },
       h('button', { class: 'round nope', 'aria-label': '不喜歡', onclick: () => decide(false) }, '✕'), count,
       h('button', { class: 'round like', 'aria-label': '喜歡', onclick: () => decide(true) }, '♥')),
@@ -229,18 +259,20 @@ SCREENS[2] = () => {
   if (!c.style) setStyle(pickStyle(S.scores));
   warm3D();
   // 用說的（或打一句話）：聽得出來的欄位直接填進下面，其餘不動
-  const LABEL = { space: ['空間', ''], ping: ['坪數', '坪'], len: ['長', '公尺'], wid: ['寬', '公尺'], height: ['天花板高', '公尺'], age: ['屋況', ''], floors: ['建物總樓層', '層'], partition: ['隔間', ''] };
+  const LABEL = { space: ['空間', ''], ping: ['坪數', '坪'], len: ['長', '公尺'], wid: ['寬', '公尺'], height: ['天花板高', '公尺'], age: ['屋況', ''], floors: ['建物總樓層', '層'], partition: ['隔間', ''], unitFloor: ['所在樓層', '樓'], sprinkler: ['撒水頭', ''], housing: ['房屋', ''] };
   const applySaid = (text) => {
     S.said = text.trim();
     if (!S.said) { S.heard = null; return renderSoon(); }
     const got = parseHome(S.said);
-    S.heard = Object.entries(got).sort(([a], [b]) => (b === 'space') - (a === 'space')).map(([key, v]) => `${LABEL[key][0]} ${key === 'partition' ? (v === 'yes' ? '會動' : '不動') : v}${LABEL[key][1] ? ' ' + LABEL[key][1] : ''}`);
+    S.heard = Object.entries(got).sort(([a], [b]) => (b === 'space') - (a === 'space')).map(([key, v]) => `${LABEL[key][0]} ${key === 'partition' ? (v === 'yes' ? '會動' : '不動') : key === 'sprinkler' ? (v === 'yes' ? '有' : '沒有') : key === 'housing' ? '透天' : v}${LABEL[key][1] ? ' ' + LABEL[key][1] : ''}`);
     const space = got.space; delete got.space;
     const ready = SPACE_OPTIONS.find(([name]) => name === space)?.[1];
     if (space && ready && space !== c.space) { c.space = space; S.generated = false; }
     for (const key of NUMERIC) if (key in got) setField(key, got[key]);
     if (got.age) { c.age = got.age; c.ageSet = true; }
     if (got.partition) c.partition = got.partition;
+    if (got.sprinkler) c.sprinkler = got.sprinkler;
+    if (got.housing) c.housing = got.housing;
     const p = pingFromDims(c.len, c.wid);
     if (p && (got.len || got.wid)) {
       c.ping = String(p); delete S.bad.ping;
@@ -250,9 +282,11 @@ SCREENS[2] = () => {
     renderSoon();
   };
   // 一個欄位的值：合理就收下，不合理就留在欄位上並說明原因（不拿去算）
-  const NUMERIC = ['ping', 'len', 'wid', 'height', 'floors'];
+  const NUMERIC = ['ping', 'len', 'wid', 'height', 'floors', 'unitFloor'];
   const setField = (key, value) => {
-    const msg = fieldError(key, value);
+    const other = key === 'unitFloor' ? c.floors : key === 'floors' ? c.unitFloor : '';
+    const [unit, total] = key === 'unitFloor' ? [Number(value), Number(other)] : [Number(other), Number(value)];
+    const msg = fieldError(key, value) || (String(value).trim() && other && unit > total ? '所在樓層不能高於建物總樓層' : '');
     if (msg) { S.bad[key] = { value: String(value), msg }; c[key] = ''; } else { delete S.bad[key]; c[key] = String(value).trim(); }
     return !msg;
   };
@@ -279,6 +313,7 @@ SCREENS[2] = () => {
   const field = (key, label, unit, attrs = {}) => h('label', { class: 'field' }, h('span', {}, label),
     h('input', { type: 'number', inputmode: 'decimal', step: 'any', value: S.bad[key]?.value ?? c[key], id: 'f-' + key, placeholder: '—', ...attrs,
       'aria-invalid': S.bad[key] ? 'true' : false, 'aria-describedby': S.bad[key] ? 'e-' + key : false,
+      oninput: (e) => { if (!S.bad[key]) return; e.target.removeAttribute('aria-invalid'); $('#e-' + key)?.remove(); },   // 一改就先收起舊的錯誤，改完再檢查
       onchange: (e) => {
         const ok = setField(key, e.target.value);
         const p = pingFromDims(c.len, c.wid);
@@ -319,9 +354,13 @@ SCREENS[2] = () => {
       ...errors('ping', 'len', 'wid', 'height'),
       dimsPing ? h('p', { class: 'note', id: 'pingnote' }, `坪數依長 × 寬換算：${c.len} × ${c.wid} 公尺 ≈ ${dimsPing} 坪。`) : null,
       h('div', { class: 'inline' }, h('span', { class: 'note' }, '屋況'), ...AGES.map((a) => h('button', { class: 'chip', 'aria-pressed': String(c.ageSet && c.age === a), onclick: () => { c.age = a; c.ageSet = true; render(); } }, a)))),
-    h('div', { class: 'cardbox' }, h('b', {}, '建物與工程'), h('span', { class: 'note' }, '用來評估消防法規與室內裝修許可。'),
-      h('div', { class: 'fields' }, field('floors', '建物總樓層', '層', { step: 1 })),
-      ...errors('floors'),
+    h('div', { class: 'cardbox' }, h('b', {}, '建物與工程'), h('span', { class: 'note' }, '用來評估消防法規與室內裝修許可：要不要申請、窗簾地毯要不要防焰、櫃子會不會擋到撒水頭。'),
+      h('div', { class: 'inline', role: 'group', 'aria-label': '房屋類型' }, h('span', { class: 'note' }, '房屋類型'),
+        ...[['apt', '公寓／大樓'], ['house', '透天獨棟']].map(([v, label]) => h('button', { class: 'chip', id: 'house-' + v, 'aria-pressed': String((c.housing || 'apt') === v), onclick: () => { c.housing = v; render(); } }, label))),
+      h('div', { class: 'fields' }, field('floors', '建物總樓層', '層', { step: 1 }), c.housing === 'house' ? null : field('unitFloor', '你家在第幾樓', '樓', { step: 1 })),
+      ...errors('floors', 'unitFloor'),
+      h('div', { class: 'inline', role: 'group', 'aria-label': '天花板有撒水頭嗎' }, h('span', { class: 'note' }, '天花板有撒水頭嗎'),
+        ...[['yes', '有'], ['no', '沒有']].map(([v, label]) => h('button', { class: 'chip', id: 'spr-' + v, 'aria-pressed': String(c.sprinkler === v), onclick: () => { c.sprinkler = c.sprinkler === v ? '' : v; render(); } }, label))),
       h('div', { class: 'inline', role: 'group', 'aria-label': '會動隔間嗎' }, h('span', { class: 'note' }, '會動隔間或加廁所浴室嗎'),
         ...[['yes', '會'], ['no', '不會']].map(([v, label]) => h('button', { class: 'chip', id: 'part-' + v, 'aria-pressed': String(c.partition === v), onclick: () => { c.partition = c.partition === v ? '' : v; render(); } }, label)))),
     h('div', { class: 'cardbox' }, h('b', {}, '參考圖（留給專業團隊看的）'),
@@ -339,6 +378,7 @@ SCREENS[3] = () => {
   if (!S.cond.style) setStyle(pickStyle(S.scores));
   if (!S.generated) return generating();
   const c = S.cond, current = look(), est = estimateNow(), size = roomSize(c, est.ping);
+  const findings = findingsNow(), summary = regSummary(findings);
   const stage = h('div', { class: 'scene', role: 'img', 'aria-label': '3D 空間，可拖曳旋轉' });
   const views = h('div', { class: 'seg', role: 'group', 'aria-label': '視角' }, h('span', { class: 'note' }, '視角'), ...Object.entries(VIEW_NAMES).map(([v, label]) => h('button', { 'aria-pressed': String(S.view === v), 'aria-label': `視角 ${v}：${label}`, 'data-view': v,
     onclick: () => { S.view = v; live?.setView(v); views.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === v))); save(); } }, label)));
@@ -364,8 +404,11 @@ SCREENS[3] = () => {
       h('p', { class: 'pricetag' }, '預估', h('b', { id: 'teaser' }, `${est.low}–${est.high} 萬`)),
       h('p', { class: 'note', id: 'assume' }, `以 ${est.ping} 坪${est.assumedPing ? '（預設）' : ''}、${c.age}${c.ageSet ? '' : '（預設）'}估算。`,
         est.assumedPing || !c.ageSet ? '坪數和屋況會讓金額差很多，' : '', h('button', { class: 'link', onclick: () => go(2) }, est.assumedPing || !c.ageSet ? '填我家的' : '修改')),
-      ...ruleFindings({ ...c, ping: est.ping }, current, summarize(S.docs)).filter((f) => f.state === 'conflict')
-        .map((f) => h('p', { class: 'warn', role: 'status' }, h('b', {}, `${f.title}：`), f.detail)),
+      h('div', { class: 'regbox' + (S.regsOpen ? ' open' : ''), id: 'regbox' },
+        h('button', { class: 'regsum', id: 'regsum', 'aria-expanded': String(S.regsOpen), 'aria-controls': 'regdetail', onclick: () => { S.regsOpen = !S.regsOpen; render(); } },
+          h('span', { class: 'dot ' + summary.permit, 'aria-hidden': 'true' }), h('span', {}, summary.text), h('span', { class: 'chev', 'aria-hidden': 'true' }, S.regsOpen ? '收起' : '看細節')),
+        S.regsOpen ? h('div', { id: 'regdetail' }, regsList(findings), h('p', { class: 'note' }, REG_NOTE)) : null),
+      ...findings.filter((f) => f.state === 'conflict').map((f) => h('p', { class: 'warn', role: 'status' }, h('b', {}, `${f.title}：`), f.detail)),
       cta('看估價與施工圖初稿', () => go(4)), shareBtn())));
   stage.append(h('span', { class: 'hint' }, '拖曳旋轉'));
   load3D().then((m) => { if (S.step === 3 && stage.isConnected) { live = m.mountRoom3D(stage, current, S.view, { ...size, space: c.space }); window.__room = live; } })
@@ -448,16 +491,12 @@ SCREENS[4] = () => {
       fromHTML(s.svg), h('span', { class: 'tag' }, !mine ? `${s.title}・範例` : s.title), mine && !S.unlocked ? h('span', { class: 'lock', 'aria-hidden': 'true' }, '🔒') : null))),
     !mine ? h('button', { class: 'chip', id: 'makemine', onclick: () => go(2) }, `產生我家的初稿（還缺${missing.join('、')}）`) : null,
     h('b', {}, '從初稿到可以施工'), stages);
-  // 法規與施工條件評估：依台灣法規整理的提醒；由我們的設計與施工團隊逐項確認
-  const item = (f) => h('li', {}, h('span', { class: 'state', style: `background:${STATE_COLOR[f.state]}` }, STATES[f.state]),
-    h('div', {}, h('b', {}, f.title), h('p', {}, f.detail), f.source ? h('small', {}, `依據：${f.source}`) : null));
-  const legal = findings.filter((f) => f.source), site = findings.filter((f) => !f.source && f.state !== 'ok');
+  // 法規與施工條件評估：和 3D 頁同一份清單，這裡完整列出
   const regs = h('div', { class: 'cardbox', id: 'regs' },
     h('h2', {}, '法規與施工條件評估'),
-    h('p', { class: 'note' }, c.floors ? `依 ${c.floors} 層建物${c.partition ? (c.partition === 'yes' ? '、會動隔間' : '、不動隔間') : ''}評估。` : '還不知道建物總樓層，以下多數項目無法判斷。', ' ',
-      h('button', { class: 'link', onclick: () => go(2) }, c.floors && c.partition ? '修改' : '補樓層與隔間')),
-    h('ul', { class: 'regs' }, ...legal.map(item), ...site.map(item)),
-    h('p', { class: 'note' }, '這是依台灣消防與建築法規整理的提醒，不是合格判定；實際適用條文與申請，需由專業人員逐項確認。'));
+    h('p', { class: 'note', id: 'regline' }, regSummary(findings).text, '。 ', h('button', { class: 'link', onclick: () => go(2) }, '修改建物條件')),
+    regsList(findings),
+    h('p', { class: 'note' }, REG_NOTE));
   app.append(h('div', { class: 'shead' }, backBtn(3), h('h1', {}, '估價與施工圖初稿'), shareBtn()),
     h('div', { class: 'two' }, money, drawings),
     regs,

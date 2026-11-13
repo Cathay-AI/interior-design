@@ -46,7 +46,7 @@ test('一句話講完我家的條件', async () => {
   assert.deepEqual(parseHome('大概 10 坪的新成屋'), { ping: '10', age: '新成屋' });
   assert.deepEqual(parseHome('十二層樓的大樓，隔間不動'), { floors: '12', partition: 'no' });
   assert.deepEqual(parseHome('公寓總共 5 層，想打掉隔間'), { floors: '5', partition: 'yes' });
-  assert.deepEqual(parseHome('我住 5 樓，8 坪'), { ping: '8' }, '住幾樓不等於建物總樓層');
+  assert.deepEqual(parseHome('我住 5 樓，8 坪'), { ping: '8', unitFloor: '5' }, '住幾樓是所在樓層，不是建物總樓層');
   assert.deepEqual(parseHome('我想要溫暖一點'), {}, 'nothing recognisable stays empty');
 });
 
@@ -58,4 +58,12 @@ test('一句話裡的空間：先講到的優先；還沒支援的也認得出�
   assert.equal(parseHome('浴室漏水').space, '衛浴');
   assert.equal(parseHome('全室翻新，30 坪').space, '全室');
   assert.equal(parseHome('8 坪').space, undefined);
+});
+
+test('一句話裡的消防條件：所在樓層、撒水頭、透天', async () => {
+  const { parseHome } = await import('../lib/intake.js');
+  assert.deepEqual(parseHome('12 樓高的大樓，我家在 8 樓，天花板有撒水頭'), { floors: '12', unitFloor: '8', sprinkler: 'yes' });
+  assert.deepEqual(parseHome('住在十五樓，沒有灑水頭'), { unitFloor: '15', sprinkler: 'no' });
+  assert.deepEqual(parseHome('三層樓的透天'), { floors: '3', housing: 'house' });
+  assert.equal(parseHome('12 樓高的大樓').unitFloor, undefined, '樓高不是所在樓層');
 });
