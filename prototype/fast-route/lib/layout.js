@@ -60,16 +60,18 @@ export function roomLayout({ w, d, h }) {
   const sofa = { x: L + 0.48, z: Math.min(sz, F - sofaLen / 2 - 0.1), sx: 0.96, sz: sofaLen };
   const table = w >= 2.8 ? { x: L + 1.65, z: sofa.z, sx: 0.62, sz: Math.min(1.05, sofaLen - 0.4) } : null;
   const chairX = Math.min(L + 3.35, R - 0.75);
+  const chair = w >= 3.6 && d >= 3 ? { x: chairX, z: Math.max(sofa.z - 0.8, B + 0.95), sx: 0.85, sz: 0.85 } : null;
   return {
     room: { w, d, h }, window, cabinet,
     layout: {
       sofa, table, pendant: { x: Math.min(L + 1.65, R - 0.5), z: sofa.z },
       rug: { x: L + 0.8 + Math.min(2.0, w - 0.9) / 2, z: sofa.z, sx: Math.min(2.0, w - 0.9), sz: Math.min(2.6, d - 0.5) },
-      chair: w >= 3.6 && d >= 3 ? { x: chairX, z: Math.max(sofa.z - 0.8, B + 0.95), sx: 0.85, sz: 0.85 } : null,
+      chair,
       sideboard: x1 - x0 >= 1.8 ? { x: (x0 + x1) / 2, z: B + 0.2, sx: 1.6, sz: 0.4 } : null,
       lamp: d >= 3.2 ? { x: L + 0.35, z: Math.min(sofa.z + 1.5, F - 0.3) } : null,
       sidetable: d >= 3.6 ? { x: L + 0.3, z: Math.max(sofa.z - 1.5, B + 0.8) } : null,
-      plant: w >= 3.2 ? { x: R - 0.4, z: B + 0.55 } : null,
+      // 盆栽放窗邊角落；會和單椅擠在一起就不放（另一個角落是門）
+      plant: w >= 3.2 && (!chair || Math.hypot(R - 0.4 - chair.x, B + 0.55 - chair.z) >= 1.25) ? { x: R - 0.4, z: B + 0.55 } : null,
     },
   };
 }

@@ -56,7 +56,8 @@ function shell() {
 <rect class="wall" x="${x0 - t}" y="${z0}" width="${t}" height="${z1 - z0 + t}"/><rect class="wall" x="${x1}" y="${z0}" width="${t}" height="${z1 - z0 - door - 12}"/>
 <rect class="wall" x="${x1}" y="${z1 - 12}" width="${t}" height="${12 + t}"/><rect class="wall" x="${x0}" y="${z1}" width="${x1 - x0}" height="${t}"/>
 <g class="thin"><rect x="${wx0}" y="${z0 - t}" width="${wx1 - wx0}" height="${t}"/><path d="M${wx0} ${z0 - t / 2}H${wx1}M${(wx0 + wx1) / 2} ${z0 - t}v${t}"/>
-<path d="M${x1} ${z1 - 12}h${-door}" /><path class="dash" d="M${x1 - door} ${z1 - 12}A${door} ${door} 0 0 1 ${x1} ${z1 - 12 - door}"/></g></g>`;
+<path d="M${x1} ${z1 - 12}h${-door}" /><path class="dash" d="M${x1 - door} ${z1 - 12}A${door} ${door} 0 0 1 ${x1} ${z1 - 12 - door}"/></g>
+${text(x1 + t + 6, z1 - 12 - door / 2, '門（示意）', 'style="font-size:9px"')}${text(wx1 + 6, z0 - t - 4, '窗（示意）', 'style="font-size:9px"')}</g>`;
 }
 function furniture() {
   const r = (L, rx = 4) => `<rect x="${px(L.x - L.sx / 2)}" y="${pz(L.z - L.sz / 2)}" width="${(L.sx * S).toFixed(1)}" height="${(L.sz * S).toFixed(1)}" rx="${Math.min(rx, S / 12)}"/>`;
@@ -90,16 +91,23 @@ const SYM = {
 };
 const at = (x, z, sym, cls = '') => `<g class="${cls}" transform="translate(${px(x)} ${pz(z)})">${sym}</g>`;
 
+const tagSym = (n) => `<circle r="7.5" style="fill:#fdfdfb"/><text text-anchor="middle" y="3.4" style="font-size:9.5px;font-weight:700">${n}</text>`;
+const tag = (n, x, z) => `<g transform="translate(${px(x)} ${pz(z)})">${tagSym(n)}</g>`;
 function planSheet(meta, dm) {
   const { sofa, table, chair, sideboard } = LAYOUT, back = pz(-ROOM.d / 2);
+  // 編號標在家具裡面，名稱放圖例：不會壓到旁邊的家具或尺寸線
+  const tags = [['1', '收納高櫃', (CABINET.x0 + CABINET.x1) / 2, -ROOM.d / 2 + CABINET.depth / 2],
+    ...(sideboard ? [['2', '窗下低櫃', sideboard.x, sideboard.z]] : []),
+    ['3', sofa.sz < 1.9 ? '雙人沙發' : '三人沙發', sofa.x + 0.12, sofa.z - sofa.sz / 2 + 0.3],
+    ...(chair ? [['4', '單椅', chair.x, chair.z]] : [])];
   return sheet({ ...meta, no: 'A-01', title: '平面配置圖' }, shell() + furniture() + roomDimsSVG(dm)
     + dimH(px(CABINET.x0), px(CABINET.x1), back - 14, String(dm.mm(CABINET.x1 - CABINET.x0)))
     + dimH(px(WINDOW.x0), px(WINDOW.x1), back - 14, String(dm.mm(WINDOW.x1 - WINDOW.x0)))
     + (table ? dimH(px(sofa.x + sofa.sx / 2), px(table.x - table.sx / 2), pz(sofa.z + table.sz / 2) + 14, String(dm.mm(table.x - table.sx / 2 - (sofa.x + sofa.sx / 2)))) : '')
     + dimV(pz(sofa.z - sofa.sz / 2), pz(sofa.z + sofa.sz / 2), px(sofa.x - sofa.sx / 2) + 16, String(dm.mm(sofa.sz)))
-    + text(px(CABINET.x0) + 4, back + CABINET.depth * S + 12, '①收納高櫃') + (sideboard ? text(px(sideboard.x) - 22, back + sideboard.sz * S + 14, '②窗下低櫃') : '')
-    + text(px(sofa.x) - 14, pz(sofa.z + sofa.sz / 2) + 12, sofa.sz < 1.9 ? '③雙人沙發' : '③三人沙發') + (chair ? text(px(chair.x) - 12, pz(chair.z + chair.sz / 2) + 16, '④單椅') : '')
-    + legend([['<path class="dash" d="M-10 0h20"/>', '地毯範圍'], ['<rect x="-8" y="-4" width="16" height="8"/>', '固定櫃體（木作／系統）'], ['<circle r="6"/>', '活動家具']]));
+    + tags.map(([n, , x, z]) => tag(n, x, z)).join('')
+    + legend([['<path class="dash" d="M-10 0h20"/>', '地毯範圍'], ['<rect x="-8" y="-4" width="16" height="8"/>', '固定櫃體（木作／系統）'], ['<circle r="6"/>', '活動家具'],
+      ...tags.map(([n, label]) => [tagSym(n), label]), ['<path d="M-10 0h20"/>', '門、窗位置為示意，以現場為準']]));
 }
 /** 嵌燈依房間大小排成格點：約每 2.2 m 一盞，離牆半個間距。 */
 export function downlights(room) {

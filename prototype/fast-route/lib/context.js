@@ -58,3 +58,25 @@ export function aboutThisHome(cond) {
 export function missingForHome(cond) {
   return [['len', '長'], ['wid', '寬']].filter(([k]) => !num(cond[k])).map(([, label]) => label);
 }
+
+/* ---------- 欄位防呆：合理範圍與看得懂的錯誤原因 ---------- */
+const RANGE = {
+  ping: [1, 500, '坪'], len: [2, 60, '公尺'], wid: [2, 60, '公尺'], height: [2, 12, '公尺'], floors: [1, 120, '層'],
+};
+const NAME = { ping: '坪數', len: '長', wid: '寬', height: '天花板高', floors: '建物總樓層' };
+
+/**
+ * @param {'ping'|'len'|'wid'|'height'|'floors'} key @param {string} value 使用者輸入（空字串＝沒填，允許）
+ * @returns {string} 錯誤原因；可以接受時回空字串
+ */
+export function fieldError(key, value) {
+  const raw = String(value ?? '').trim();
+  if (raw === '') return '';
+  const n = Number(raw), [lo, hi, unit] = RANGE[key];
+  if (!Number.isFinite(n)) return `${NAME[key]}請填數字`;
+  if (n <= 0) return `${NAME[key]}要大於 0`;
+  if (key === 'floors' && !Number.isInteger(n)) return '樓層請填整數';
+  if (n < lo) return `${NAME[key]}至少 ${lo} ${unit}${key === 'len' || key === 'wid' ? '（再小放不下家具）' : ''}`;
+  if (n > hi) return `${NAME[key]}最多 ${hi} ${unit}，請確認單位是${unit}`;
+  return '';
+}

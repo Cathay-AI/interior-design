@@ -37,6 +37,7 @@ test('furniture stays inside the walls from a tiny room to a hall; what does not
     assert.ok(layout.sofa.sz >= 1.5, `sofa is at least a two-seater at ${at}`);
     assert.ok(window.x0 >= cabinet.x1 + 0.29 && window.x1 - window.x0 >= 0.5 && window.x1 < w / 2, `window at ${at}`);
     assert.ok(window.y1 < h && window.y1 > window.y0 + 1, `window height at ${at}`);
+    if (layout.chair && layout.plant) assert.ok(Math.hypot(layout.plant.x - layout.chair.x, layout.plant.z - layout.chair.z) >= 1.2, `plant clears the armchair at ${at}`);
     if (layout.chair && layout.table) assert.ok(layout.chair.x - 0.43 > layout.table.x + 0.3, `chair clears the table at ${at}`);
   }
   const tiny = roomLayout({ w: 2, d: 2, h: 2.2 }).layout;

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { contextScore, pingFromDims, tighten, aboutThisHome, missingForHome } from '../lib/context.js';
+import { contextScore, pingFromDims, tighten, aboutThisHome, missingForHome, fieldError } from '../lib/context.js';
 import { designEstimate } from '../lib/estimate.js';
 import { STYLES } from '../lib/taste.js';
 
@@ -40,4 +40,15 @@ test('沒有手動填的長寬，就只是範例；上傳平面圖不算，並�
   assert.deepEqual(missingForHome({}), ['長', '寬']);
   assert.deepEqual(missingForHome({ len: '5.6' }), ['寬']);
   assert.deepEqual(missingForHome({ len: '5.6', wid: '4.7' }), []);
+});
+
+test('欄位防呆：空白可以，離譜的值說得出原因', () => {
+  for (const [k, v] of [['len', ''], ['len', '4.2'], ['ping', '5'], ['height', '2.7'], ['floors', '12'], ['len', '60']]) assert.equal(fieldError(k, v), '', `${k}=${v}`);
+  assert.match(fieldError('len', '500'), /最多 60 公尺，請確認單位是公尺/);
+  assert.match(fieldError('len', '-3'), /要大於 0/);
+  assert.match(fieldError('wid', '0'), /要大於 0/);
+  assert.match(fieldError('len', '1.2'), /至少 2 公尺/);
+  assert.match(fieldError('height', '270'), /最多 12 公尺/);
+  assert.match(fieldError('floors', '3.5'), /整數/);
+  assert.match(fieldError('ping', 'abc'), /請填數字/);
 });

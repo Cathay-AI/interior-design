@@ -103,7 +103,12 @@ main[data-step="2"]{max-width:720px}
 .docs .chip{min-height:30px;padding:2px 10px;font-size:13px}
 .docs .rm{width:32px;height:32px;border-radius:50%;background:var(--card);font-size:18px;flex:none}
 .err{color:#b3261e;font-size:14px}
-.link{font-size:14px;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+.field input[aria-invalid="true"]{border-color:#b3261e;background:#fff6f5}
+.send{flex:none;align-self:center;min-height:44px;padding:0 16px;border-radius:999px;background:var(--ink);color:#fff;font-size:15px;font-weight:600}
+.check{display:flex;align-items:center;gap:10px;min-height:44px;font-size:15px;cursor:pointer}.check input{width:20px;height:20px;accent-color:var(--accent);flex:none}
+iframe.printer{position:fixed;width:0;height:0;border:0;visibility:hidden}
+/* 文字連結看起來小，但可按範圍撐到 44px，手機好按 */
+.link,.back{position:relative}.link::after,.back::after{content:"";position:absolute;inset:-12px -6px}
 
 /* 3 3D */
 .result{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,1fr);gap:28px;align-items:start}
@@ -114,7 +119,7 @@ main[data-step="2"]{max-width:720px}
 .scene>svg,.scene>img.photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .hint{position:absolute;right:12px;top:12px;z-index:1;font-size:12px;color:#5a5047;background:rgba(251,249,244,.85);border-radius:999px;padding:4px 10px;pointer-events:none}
 .stagebar{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap}
-.seg{display:flex;gap:6px}
+.seg{display:flex;gap:6px;align-items:center}
 .seg button{min-width:48px;height:38px;padding:0 14px;border-radius:999px;background:var(--card);font-size:15px}
 .seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
 .panel{display:grid;gap:18px}
@@ -162,7 +167,7 @@ main[data-step="2"]{max-width:720px}
 .regs .state{font-size:12px;font-weight:700;color:#fff;border-radius:999px;padding:3px 0;text-align:center}
 .regs p{font-size:14px;color:#5a5047;line-height:1.6;margin-top:2px}.regs small{font-size:12px;color:var(--muted)}
 
-dialog{border:none;border-radius:22px;padding:0;max-width:min(92vw,420px);background:var(--surface);color:var(--ink)}
+dialog{margin:auto;border:none;border-radius:22px;padding:0;max-width:min(92vw,420px);background:var(--surface);color:var(--ink)}
 dialog::backdrop{background:rgba(43,38,33,.55)}
 .dlg{padding:24px;display:grid;gap:12px}.dlg ul{padding-left:1.2em;line-height:1.8}
 dialog.viewer{max-width:min(96vw,1100px);width:100%}dialog.viewer svg{width:100%;height:auto}.viewer .dlg{padding:14px}
@@ -207,7 +212,7 @@ dialog.viewer{max-width:min(96vw,1100px);width:100%}dialog.viewer svg{width:100%
   <p class="note"><b>這次解鎖的是第 1 階段的 AI 初稿，不是可以直接施工的圖。</b>專業團隊的現場丈量與確認（第 2、3 階段）流程還在確認中，目前不包含在內。這是原型的模擬付款，不會扣款。</p>
   <div class="actions"><button class="btn ghost" id="payCancel">先不要</button><button class="btn" id="payOk">模擬付款並解鎖</button></div>
 </div></dialog>
-<dialog id="viewer" class="viewer"><div class="dlg"><div id="viewerBody"></div><p class="note" id="viewerNote"></p><div class="actions"><a class="btn ghost" id="viewerDownload" href="#">下載這張圖（SVG）</a><button class="btn" onclick="this.closest('dialog').close()">關閉</button></div></div></dialog>
+<dialog id="viewer" class="viewer"><div class="dlg"><div id="viewerBody"></div><p class="note" id="viewerNote"></p><div class="actions"><a class="btn ghost" id="viewerDownload" href="#">下載 SVG</a><button class="btn ghost" id="viewerPrint" hidden>存成 PDF</button><button class="btn" onclick="this.closest('dialog').close()">關閉</button></div></div></dialog>
 
 <script type="module" src="./app.js"></script>
 </body>

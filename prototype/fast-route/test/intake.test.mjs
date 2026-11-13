@@ -39,7 +39,9 @@ test('口語數字與單位：八坪、五米六、兩百八十公分', async ()
 
 test('一句話講完我家的條件', async () => {
   const { parseHome } = await import('../lib/intake.js');
-  assert.deepEqual(parseHome('客廳大概八坪，長五米六、寬四米七，天花板兩米八，中古屋'), { ping: '8', len: '5.6', wid: '4.7', height: '2.8', age: '中古屋' });
+  assert.deepEqual(parseHome('客廳大概八坪，長五米六、寬四米七，天花板兩米八，中古屋'), { space: '客廳', ping: '8', len: '5.6', wid: '4.7', height: '2.8', age: '中古屋' });
+  assert.deepEqual(parseHome('只想裝潢主臥，大概 5 坪，長 4 米 2、寬 3 米 8，天花板 2 米 7，老屋，12 樓高的大樓，不動隔間'),
+    { space: '臥室', ping: '5', len: '4.2', wid: '3.8', height: '2.7', floors: '12', partition: 'no', age: '老屋' });
   assert.deepEqual(parseHome('5.6 x 4.7 公尺，挑高 3 米的老公寓'), { len: '5.6', wid: '4.7', height: '3', age: '老屋' });
   assert.deepEqual(parseHome('大概 10 坪的新成屋'), { ping: '10', age: '新成屋' });
   assert.deepEqual(parseHome('十二層樓的大樓，隔間不動'), { floors: '12', partition: 'no' });
