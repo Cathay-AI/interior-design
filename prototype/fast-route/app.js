@@ -5,10 +5,11 @@ import { designEstimate, resolvePing } from './lib/estimate.js';
 import { STATES, CERTAINTY, CHECKED, LAWS, lawUrl, ruleFindings, regSummary } from './lib/rules.js';
 import { AGES, parseHome } from './lib/intake.js';
 import { drawingSet } from './lib/drawings.js';
-import { roomSize } from './lib/layout.js';
+import { roomSize, roomLayout } from './lib/layout.js';
 import { MASCOT, roomSVG } from './lib/art.js';
 import { PINS } from './lib/pins.js';
 import { contextScore, pingFromDims, tighten, aboutThisHome, missingForHome, fieldError } from './lib/context.js';
+import { GREETING, swipeReply, nextQuestion, designNotes, editReply, parseEdit } from './lib/voice.js';
 import { KEY, serialize, restore, toShare, fromShare } from './lib/persist.js';
 import { KINDS, ACCEPT, MAX_FILES, MAX_MB, guessKind, rejectReason, summarize } from './lib/docs.js';
 
@@ -18,7 +19,8 @@ const load3D = () => (room3d ??= import('./lib/room3d.js'));
 let live = null; // the mounted 3D room, disposed whenever the screen changes
 
 /* ================= content ================= */
-const STEPS = [null, { name: '滑卡' }, { name: '我家的條件' }, { name: '3D 示意' }, { name: '估價與施工圖初稿' }];
+// 步驟名稱以「你家」為主詞
+const STEPS = [null, { name: '選喜歡的風格' }, { name: '告訴我你家' }, { name: '看你家的設計' }, { name: '知道要花多少' }];
 // 18 cards, three per style; PINS is already interleaved so neighbouring cards differ.
 const DECK = PINS.slice(0, 18);
 const EDITS = [
@@ -37,14 +39,14 @@ const fresh = () => ({
   step: 1, reached: 1, scores: emptyScores(), swiped: 0, liked: 0,
   cond: { space: '客廳', style: null, ping: '', len: '', wid: '', height: '', age: '新成屋', ageSet: false, floors: '', partition: '', unitFloor: '', sprinkler: '', housing: '', noFurniture: false },
   docs: [], docError: '', said: '', heard: null, history: [], reasons: [],
-  versions: [], v: 0, view: 'A', generated: false, unlocked: false, regsOpen: false,
+  versions: [], v: 0, view: 'A', generated: false, unlocked: false, regsOpen: false, started: false, note: '',
   bad: {},   // 填錯的欄位：{ 欄位: { value, msg } }，不存檔
 });
 // 進度存在這台瀏覽器：重整頁面不會從頭來（上傳的檔案除外）
 const stored = () => { try { return localStorage.getItem(KEY); } catch { return null; } };
 const save = () => { try { localStorage.setItem(KEY, serialize(S)); } catch { /* 私密模式或空間滿了：不存也能用 */ } };
 let S = restore(stored(), fresh());
-S.bad ??= {};
+S.bad ??= {}; S.note ??= ''; S.regsOpen ??= false;
 
 /* ================= dom helpers ================= */
 const $ = (s) => document.querySelector(s);
@@ -65,6 +67,7 @@ const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').match
 
 /* ================= navigation ================= */
 function go(step) {
+  S.note = '';
   S.step = step; S.reached = Math.max(S.reached, step);
   render();
   window.scrollTo({ top: 0 });
@@ -113,6 +116,10 @@ const shareBtn = () => {
 };
 const backBtn = (n) => h('button', { class: 'back', onclick: () => go(n) }, '‹ 上一步');
 
+/* ---- 設計師的對話框：每一步都有人在回應（話術在 lib/voice.js） ---- */
+const agent = (content, attrs = {}) => h('div', { class: 'agent', ...attrs }, fromHTML(MASCOT),
+  h('div', { class: 'bubble', 'aria-live': 'polite' }, ...(Array.isArray(content) ? content.map((t) => h('p', {}, t)) : [h('p', {}, content)])));
+
 /* ---- 法規與施工條件：3D 頁和估價頁共用的清單 ---- */
 const findingsNow = () => ruleFindings({ ...S.cond, ping: estimateNow().ping }, look(), summarize(S.docs));
 // 差一個答案的項目，直接在那一項底下回答，不用回上一頁
@@ -145,11 +152,29 @@ const REG_NOTE = '這是依台灣消防與建築法規整理的提醒，不是�
 /* ================= screens ================= */
 const SCREENS = [];
 
+/* ---- 開場：先講承諾、先給成果看、先問想弄哪裡 ---- */
+function intro() {
+  const sample = designEstimate({ space: '客廳', ping: '', age: '新成屋' }, STYLES.warm);
+  const pick = (name) => { S.cond.space = name; S.started = true; render(); };
+  app.append(h('div', { class: 'intro' },
+    h('div', { class: 'introtext' },
+      h('h1', {}, '滑幾張圖，我幫你設計你家'),
+      h('p', { class: 'lead', id: 'pitch' }, '先知道這個設計在你家能不能做、要花多少、要辦什麼，再去找設計師。'),
+      h('ul', { class: 'gets' }, ...['照你家尺寸的 3D', '逐項的預估花費', '施工圖初稿', '要辦的手續'].map((t) => h('li', {}, t))),
+      agent(GREETING, { id: 'greeting' }),
+      h('div', { class: 'chips', role: 'group', 'aria-label': '想先弄哪裡', id: 'where' }, ...SPACE_OPTIONS.map(([name, ready]) => h('button', { class: 'chip big', disabled: !ready, onclick: () => pick(name) }, ready ? name : `${name}（之後）`)))),
+    h('figure', { class: 'preview', id: 'preview' },
+      h('img', { src: 'assets/preview-living.jpg', width: 688, height: 516, alt: '成果範例：溫暖木質客廳的 3D 示意', fetchpriority: 'high' }),
+      h('figcaption', {}, h('span', {}, '你會拿到像這樣的成果'), h('b', {}, `預估 ${sample.low}–${sample.high} 萬`), h('span', { class: 'note' }, `範例：${sample.ping} 坪客廳・溫暖木質`)))));
+}
+
 /* ---- 1 滑卡：一張一張看，右滑喜歡、左滑跳過 ---- */
 SCREENS[1] = () => {
+  if (!S.started) return intro();
   const total = DECK.length;
   const deck = h('div', { class: 'deck', role: 'group', 'aria-label': '靈感卡片，右滑喜歡、左滑跳過' });
   const count = h('span', { class: 'count', 'aria-live': 'polite' });
+  const talk = agent('', { id: 'talk' });
   const skip = h('button', { class: 'link', id: 'skip', onclick: () => finish() });
   const undo = h('button', { class: 'link', id: 'undo', onclick: () => {
     if (busy) return;
@@ -177,7 +202,10 @@ SCREENS[1] = () => {
   const draw = () => {
     deck.replaceChildren(...DECK.slice(S.swiped, S.swiped + 3).map((p, i) => makeCard(p, i)).reverse());
     count.textContent = `${Math.min(S.swiped + 1, total)} / ${total}`;
-    skip.textContent = S.liked ? '夠了，下一步' : '跳過選風格';
+    const reply = swipeReply({ space: S.cond.space, scores: S.scores, swiped: S.swiped, liked: S.liked, last: S.history.at(-1) });
+    talk.querySelector('.bubble p').textContent = reply.text;
+    skip.textContent = reply.ready ? '看我幫你配的樣子' : S.liked ? '夠了，看我幫你配的樣子' : '跳過選風格';
+    skip.classList.toggle('ready', reply.ready);
     undo.hidden = !S.history.length;
     drawWhy();
     const top = deck.lastElementChild;
@@ -222,7 +250,7 @@ SCREENS[1] = () => {
   draw();
   (window.requestIdleCallback ?? setTimeout)(preload);   // 等第一張顯示後才去暖後面幾張
   deck.addEventListener('transitionend', preload);
-  app.append(h('h1', { class: 'sr' }, '滑卡挑風格'), h('p', { class: 'pitch', id: 'pitch' }, '先知道這個設計在你家能不能做、要花多少、要辦什麼，再去找設計師。'), deck,
+  app.append(h('h1', { class: 'sr' }, '滑卡挑風格'), talk, deck,
     h('div', { class: 'swipebar' },
       h('button', { class: 'round nope', 'aria-label': '不喜歡', onclick: () => decide(false) }, '✕'), count,
       h('button', { class: 'round like', 'aria-label': '喜歡', onclick: () => decide(true) }, '♥')),
@@ -329,7 +357,7 @@ SCREENS[2] = () => {
     render();                                   // 有填錯的欄位：不前進，帶到那一格並說明原因
     const el = $('#f-' + wrong); el.focus(); el.scrollIntoView({ block: 'center', behavior: reducedMotion() ? 'auto' : 'smooth' });
   };
-  app.append(h('div', { class: 'shead' }, backBtn(1), h('h1', {}, '多告訴我一點你家'), h('p', { class: 'lead' }, '都是選填。你填的尺寸和條件會直接改變 3D、圖面和估價。')),
+  app.append(h('div', { class: 'shead' }, backBtn(1), h('h1', {}, '多告訴我一點你家'), agent(nextQuestion(c).text, { id: 'asking' }), h('p', { class: 'lead' }, '都是選填。你填的尺寸和條件會直接改變 3D、圖面和估價。')),
     (() => {
       const top = topStyles(S.scores), names = (ks) => ks.map((k) => STYLES[k].name).join('、'), pick = (k) => h('button', { class: 'chip', 'aria-pressed': String(c.style === k), onclick: () => { setStyle(k); S.generated = false; render(); } }, STYLES[k].name);
       return h('div', { class: 'taste', id: 'taste' },
@@ -384,21 +412,40 @@ SCREENS[3] = () => {
     onclick: () => { S.view = v; live?.setView(v); views.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === v))); save(); } }, label)));
   // 改細節是開關：再按一次就取消。每一步都留著，可以復原。
   const done = S.versions[S.v].edits ?? [];
+  const editLabel = (i) => (c.space === '臥室' ? EDITS[i][0].replace('沙發', '床頭') : EDITS[i][0]);
+  const actions = (fs) => fs.filter((f) => f.law && f.state === 'action').map((f) => f.title);
   const edit = (i) => {
-    const edits = done.includes(i) ? done.filter((x) => x !== i) : [...done, i];
+    const on = !done.includes(i), edits = on ? [...done, i] : done.filter((x) => x !== i);
     S.versions = [...S.versions.slice(0, S.v + 1), { look: edits.reduce((l, n) => EDITS[n][1]({ ...l }), { ...STYLES[c.style] }), edits }];
-    S.v = S.versions.length - 1; render();
+    S.v = S.versions.length - 1;
+    // 改完回一句：錢差多少、法規上多了或少了什麼
+    S.note = editReply({ label: editLabel(i), on, before: est, after: estimateNow(), legalBefore: actions(findings), legalAfter: actions(findingsNow()) });
+    render();
   };
+  // 用說的改：聽得懂的就是上面那幾個修改和六種風格；聽不懂就照實說
+  const told = (text) => {
+    if (!text.trim()) return;
+    const got = parseEdit(text, EDITS.map((_, i) => editLabel(i)));
+    if (!got) { S.note = `「${text.trim()}」我還不會改。現在可以改的是：${EDITS.map((_, i) => editLabel(i)).join('、')}，或換一種風格。`; return render(); }
+    if (got.style) { if (got.style !== c.style) setStyle(got.style); S.note = `好，換成${STYLES[got.style].name}，3D、估價和法規評估都重算了。`; return render(); }
+    if (done.includes(got.edit) === got.on) { S.note = `${editLabel(got.edit)}已經是你要的樣子了。`; return render(); }
+    edit(got.edit);
+  };
+  const tell = h('input', { type: 'text', id: 'tell', class: 'tell', placeholder: '或直接說：我不要地毯', 'aria-label': '用說的改設計', enterkeyhint: 'send',
+    onkeydown: (e) => { if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) told(e.target.value); } });
+  const notes = designNotes(c, current, roomLayout({ ...size, space: c.space }), S.reasons);
   app.append(h('div', { class: 'result' },
     h('div', { class: 'stagewrap' }, stage, h('div', { class: 'stagebar' }, views)),
     h('div', { class: 'panel' },
       h('div', { class: 'shead' }, backBtn(2), h('h1', {}, `${c.space}・${STYLES[c.style].name}`)),
+      agent(S.note ? [S.note] : notes, { id: 'designer' }),
       h('div', { class: 'tweak' }, h('b', {}, '換風格'),
-        h('div', { class: 'chips' }, ...SWIPE_ORDER.map((k) => h('button', { class: 'chip', 'aria-pressed': String(c.style === k), onclick: () => { setStyle(k); render(); } }, STYLES[k].name)))),
+        h('div', { class: 'chips' }, ...SWIPE_ORDER.map((k) => h('button', { class: 'chip', 'aria-pressed': String(c.style === k), onclick: () => { setStyle(k); S.note = `好，換成${STYLES[k].name}，3D、估價和法規評估都重算了。`; render(); } }, STYLES[k].name)))),
       h('div', { class: 'tweak' }, h('b', {}, '改細節'),
-        h('div', { class: 'chips' }, ...EDITS.map(([label], i) => h('button', { class: 'chip', 'aria-pressed': String(done.includes(i)), onclick: () => edit(i) }, c.space === '臥室' ? label.replace('沙發', '床頭') : label))),
+        h('div', { class: 'chips' }, ...EDITS.map((_, i) => h('button', { class: 'chip', 'aria-pressed': String(done.includes(i)), onclick: () => edit(i) }, editLabel(i)))),
         S.v > 0 ? h('p', { class: 'note', id: 'edits' }, done.length ? `已改 ${done.length} 項，再按一次可取消。` : '已回到原本的設計。', ' ',
-          h('button', { class: 'link', id: 'undoedit', onclick: () => { S.versions = S.versions.slice(0, S.v); S.v -= 1; render(); } }, '↩ 復原上一步')) : null),
+          h('button', { class: 'link', id: 'undoedit', onclick: () => { S.versions = S.versions.slice(0, S.v); S.v -= 1; S.note = '好，復原了上一步。'; render(); } }, '↩ 復原上一步')) : null,
+        h('div', { class: 'tellrow' }, tell, h('button', { class: 'send', 'aria-label': '送出修改', onclick: () => told(tell.value) }, '送出'))),
       h('p', { class: 'note', id: 'ctx' }, `這個房間：${size.w} × ${size.d} 公尺、高 ${size.h} 公尺（${est.ping} 坪${est.assumedPing ? '，預設' : ''}）・掌握度 ${Math.round(knowledge().score * 100)}%。`,
         size.clamped ? '這個尺寸放不下一張沙發或超過 60 公尺，3D 取了最接近的大小。' : '', ' ', h('button', { class: 'link', onclick: () => go(2) }, c.len && c.wid ? '修改尺寸' : '填你家的尺寸')),
       h('p', { class: 'pricetag' }, '預估', h('b', { id: 'teaser' }, `${est.low}–${est.high} 萬`)),
@@ -514,7 +561,7 @@ if (shared) {
   let cur = { ...STYLES[shared.style] };
   shared.edits.forEach((i, n) => { cur = EDITS[i][1]({ ...cur }); S.versions.push({ look: cur, edits: shared.edits.slice(0, n + 1) }); });
   S.v = S.versions.length - 1;
-  S.step = 3; S.reached = 4; S.swiped = 0;
+  S.step = 3; S.reached = 4; S.swiped = 0; S.started = true;
   history.replaceState(null, '', location.pathname);
 }
 render();
