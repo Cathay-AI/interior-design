@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://i.pinimg.com">
 <!-- 第一張卡片（lib/pins.js 的第一筆）提前載入，不必等程式跑完；test/assets.test.mjs 會檢查兩邊一致 -->
 <link rel="preload" as="image" href="https://i.pinimg.com/474x/92/0f/bd/920fbde632d7565361feb9f94d962291.jpg" imagesrcset="https://i.pinimg.com/474x/92/0f/bd/920fbde632d7565361feb9f94d962291.jpg 474w, https://i.pinimg.com/736x/92/0f/bd/920fbde632d7565361feb9f94d962291.jpg 736w" imagesizes="(max-width: 520px) 92vw, 480px" fetchpriority="high" referrerpolicy="no-referrer">
-<link rel="modulepreload" href="./app.js"><link rel="modulepreload" href="./lib/taste.js"><link rel="modulepreload" href="./lib/estimate.js"><link rel="modulepreload" href="./lib/rules.js"><link rel="modulepreload" href="./lib/intake.js"><link rel="modulepreload" href="./lib/drawings.js"><link rel="modulepreload" href="./lib/layout.js"><link rel="modulepreload" href="./lib/art.js"><link rel="modulepreload" href="./lib/pins.js"><link rel="modulepreload" href="./lib/context.js"><link rel="modulepreload" href="./lib/persist.js"><link rel="modulepreload" href="./lib/docs.js">
+<link rel="modulepreload" href="./app.js"><link rel="modulepreload" href="./lib/taste.js"><link rel="modulepreload" href="./lib/estimate.js"><link rel="modulepreload" href="./lib/rules.js"><link rel="modulepreload" href="./lib/intake.js"><link rel="modulepreload" href="./lib/drawings.js"><link rel="modulepreload" href="./lib/layout.js"><link rel="modulepreload" href="./lib/art.js"><link rel="modulepreload" href="./lib/pins.js"><link rel="modulepreload" href="./lib/context.js"><link rel="modulepreload" href="./lib/persist.js"><link rel="modulepreload" href="./lib/voice.js"><link rel="modulepreload" href="./lib/docs.js">
 <style>
 :root{
   --paper:#f3eee5;--surface:#fbf9f4;--card:#ece5d8;--ink:#2b2621;--muted:#675d53;--accent:#b5653a;--accent-d:#8f4c2a;
@@ -60,7 +60,7 @@ footer{max-width:1160px;width:100%;margin:0 auto;padding:0 20px 20px;font-size:1
 
 /* 1 滑卡 */
 main[data-step="1"]{max-width:520px;align-items:center}
-.deck{position:relative;width:min(100%,calc((100dvh - 250px)*.72));aspect-ratio:18/25;touch-action:pan-y}
+.deck{position:relative;width:min(100%,calc((100dvh - 330px)*.72));aspect-ratio:18/25;touch-action:pan-y}
 .card{position:absolute;inset:0;border-radius:24px;overflow:hidden;background:var(--card);box-shadow:0 14px 40px rgba(43,38,33,.22);user-select:none;-webkit-user-select:none;cursor:grab;will-change:transform}
 .card img{width:100%;height:100%;object-fit:cover;pointer-events:none}
 .card .meta{position:absolute;left:0;right:0;bottom:0;padding:44px 18px 16px;color:#fff;background:linear-gradient(transparent,rgba(20,16,12,.72));display:grid;gap:6px}
@@ -165,6 +165,19 @@ iframe.printer{position:fixed;width:0;height:0;border:0;visibility:hidden}
 .regs{list-style:none;padding:0;display:grid}
 .regs li{display:grid;grid-template-columns:5.2em 1fr;gap:12px;padding:12px 0;align-items:start}.regs li+li{border-top:1px solid var(--line)}
 .regs .state{font-size:12px;font-weight:700;color:#fff;border-radius:999px;padding:3px 0;text-align:center}
+.agent{display:flex;align-items:flex-start;gap:10px;max-width:38em}
+.agent .mascot{width:40px;height:40px;flex:none}
+.bubble{background:var(--surface);border:1px solid var(--line);border-radius:4px 18px 18px 18px;padding:10px 14px;display:grid;gap:6px;font-size:15px;line-height:1.55}
+#talk{align-self:center;min-height:62px}#talk .bubble{min-width:min(100%,17em)}
+.intro{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:clamp(20px,4vw,48px);align-items:center;flex:1}
+.introtext{display:grid;gap:16px;justify-items:start}.intro h1{font-size:clamp(30px,5vw,46px);line-height:1.2;letter-spacing:-.01em}
+.gets{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:8px}.gets li{font-size:14px;border:1px solid var(--line);border-radius:999px;padding:4px 12px;background:var(--surface)}
+.chip.big{min-height:52px;padding:0 24px;font-size:18px;font-weight:600;background:var(--ink);color:#fff}.chip.big:disabled{background:var(--card);color:var(--muted);font-weight:400;font-size:15px;min-height:44px;padding:0 16px}
+.preview{position:relative;border-radius:24px;overflow:hidden;background:#ebe4d8;border:1px solid var(--line)}.preview img{display:block;width:100%;height:auto}
+.preview figcaption{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;padding:12px 16px;background:var(--surface);font-size:14px}.preview figcaption b{font-size:20px;color:var(--accent)}
+#skip.ready{color:#fff;background:var(--accent);text-decoration:none;border-radius:999px;padding:10px 20px;font-weight:600;font-size:15px}
+.tellrow{display:flex;gap:8px}.tell{flex:1;min-width:0;height:44px;border:1px solid var(--line);border-radius:999px;padding:0 16px;background:#fff;font-size:15px}
+@media (max-width:820px){.intro{grid-template-columns:1fr;align-items:start}.intro .preview{order:-1}.preview img{max-height:34dvh;object-fit:cover}}
 .pitch{text-align:center;font-size:14px;color:var(--muted);line-height:1.5;max-width:30em;margin:0 auto}
 .regs small a{color:inherit}.regs .ask{margin-top:8px}.ask input{width:88px;height:40px;border:1px solid var(--line);border-radius:10px;padding:0 10px;font-size:16px;background:#fff}
 .regbox{border:1px solid var(--line);border-radius:18px;background:var(--surface);overflow:hidden}.regbox.open{padding-bottom:14px}.regbox #regdetail{padding:0 16px}

@@ -21,8 +21,15 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.goto(base);
   await page.evaluate(() => localStorage.clear()); await page.reload();   // 從乾淨的狀態開始
 
+  // 開場：一句承諾、成果預覽、設計師先問想弄哪裡（只多一次點擊）
+  await page.getByRole('heading', { name: '滑幾張圖，我幫你設計你家' }).waitFor();
+  assert.match(await page.locator('#greeting').innerText(), /我來幫你設計你家。想先弄哪裡？/);
+  assert.match(await page.locator('#preview').innerText(), /預估 \d+–\d+ 萬/);
+  await snap('0-intro'); await noOverflow('0');
+  await page.locator('#where').getByRole('button', { name: '客廳' }).click();
   // 1 滑卡：按鈕、鍵盤、拖曳三種方式；卡片是 Pinterest 的圖並附來源
   await page.locator('.card').first().waitFor();
+  assert.match(await page.locator('#talk').innerText(), /好，客廳。右滑喜歡、左滑跳過/);
   assert.match(await page.locator('.count').innerText(), /1 \/ 18/);
   assert.match(await page.locator('.card img').last().getAttribute('src'), /^https:\/\/i\.pinimg\.com\//);
   assert.match(await page.locator('.card a').last().getAttribute('href'), /^https:\/\/www\.pinterest\.com\//);
@@ -45,11 +52,13 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.mouse.move(box.x + box.width / 2 + 220, box.y + box.height / 2, { steps: 6 });
   await page.mouse.up();
   await page.waitForFunction(() => document.querySelector('.count').textContent.startsWith('4 '));
-  await page.getByRole('button', { name: '夠了，下一步' }).click();
+  assert.match(await page.locator('#talk').innerText(), /收到，你家客廳會偏|我大概知道你的方向了/);
+  await page.locator('#skip').click();
 
   // 2 我家的條件：都是選填；給得越多掌握度越高
   await page.getByRole('heading', { name: '多告訴我一點你家' }).waitFor();
   assert.match(await page.locator('#score').innerText(), /掌握度 0%/);
+  assert.match(await page.locator('#asking').innerText(), /你家客廳的長和寬大概幾公尺？/);   // 設計師先問最有用的那一項
   await page.getByRole('button', { name: '先跳過，生成 3D' }).waitFor();
   // 用一句話（語音辨識的結果走同一條路）：聽得出來的欄位自動填好
   assert.match(await page.locator('#taste').innerText(), /你喜歡的是日光北歐。在意的是採光。/);
@@ -63,6 +72,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   assert.equal(await page.inputValue('#f-wid'), '4.7');
   await page.waitForFunction(() => document.querySelector('#f-ping').value === '8');   // 長×寬 換算坪數
   assert.match(await page.locator('#pingnote').innerText(), /5.6 × 4.7 公尺 ≈ 8 坪/);
+  assert.match(await page.locator('#asking').innerText(), /天花板有撒水頭嗎/, 'the designer moves on to the next unanswered item');
   assert.match(await page.locator('#score').innerText(), /掌握度 60%/);
   await page.setInputFiles('#docFile', [
     { name: '3F 機電圖.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') },
@@ -96,6 +106,8 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   assert.equal(await page.evaluate(() => window.__room.stats().frames), idle, `${name}: 3D must not render while idle`);
   await page.getByRole('button', { name: '視角 B' }).click();
   await page.waitForTimeout(900);
+  // 設計師解釋這個配置是怎麼決定的
+  assert.match(await page.locator('#designer').innerText(), /沙發靠牆[\s\S]*和茶几之間留 40 公分[\s\S]*高櫃做在窗戶旁那面牆/);
   // 法規評估就在金額旁邊：一行結論，點開看細節；跟設計連動
   assert.equal(await page.locator('#regsum').innerText().then((t) => t.replace(/\s+/g, ' ')), '這個設計需申請室內裝修許可・3 項要注意・再回答 2 題就能判斷完 看細節');
   await page.locator('#regsum').click();
@@ -109,6 +121,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.getByRole('button', { name: '地毯拿掉' }).click();
   await page.locator('#undoedit').waitFor();
   assert.equal(await page.locator('#regdetail li', { hasText: '防焰地毯' }).count(), 0, 'removing the rug removes its fire-safety item');
+  assert.match(await page.locator('#designer').innerText(), /好，地毯拿掉。預估少約 [\d.]+ 萬；不用再處理防焰地毯。/, 'the designer reports the cost and regulatory effect of the change');
   await page.waitForFunction(() => document.querySelector('#regsum').textContent.includes('3 項要注意'));
   await page.locator('#regsum').click();                                       // 收起
   assert.equal(await page.getByRole('button', { name: '地毯拿掉' }).getAttribute('aria-pressed'), 'true', 'an applied edit looks selected');
@@ -184,6 +197,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
 
   // 什麼都沒給的人：圖只是範例，不賣；先請他補尺寸或平面圖
   await page.getByRole('button', { name: '重新開始' }).click();
+  await page.locator('#where').getByRole('button', { name: '客廳' }).click();
   await page.locator('#skip').click();
   await page.getByRole('button', { name: '先跳過，生成 3D' }).click();
   assert.match(await page.locator('#assume').innerText(), /以 8 坪（預設）、新成屋（預設）估算/);
@@ -214,6 +228,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.addInitScript(() => { const get = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (type, ...a) { return /webgl/.test(type) ? null : get.call(this, type, ...a); }; });
   await page.route('https://i.pinimg.com/**', (route) => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="5"/>' }));
   await page.goto(base);
+  await page.locator('#where').getByRole('button', { name: '客廳' }).click();
   await page.locator('#skip').click();
   await page.getByRole('button', { name: '先跳過，生成 3D' }).click();
   await page.getByText('2D 示意圖（這台裝置無法顯示 3D）').waitFor({ timeout: 30000 });
@@ -228,6 +243,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   page.on('pageerror', (e) => errors.push(`share: ${e.message}`));
   await page.route('https://i.pinimg.com/**', (route) => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="5"/>' }));
   await page.goto(base);
+  await page.locator('#where').getByRole('button', { name: '客廳' }).click();
   await page.locator('.round.like').click();                                    // 溫暖木質 ♥
   await page.waitForFunction(() => document.querySelector('.count').textContent.startsWith('2 '));
   await page.locator('#skip').click();
@@ -256,8 +272,11 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.fill('#f-wid', '4.3'); await page.locator('#f-wid').blur();
   await page.getByRole('button', { name: '老屋' }).click();
   await page.getByRole('button', { name: '生成 3D', exact: true }).click();
-  await page.getByRole('button', { name: '地毯拿掉' }).click();
+  await page.fill('#tell', '幫我加一個中島'); await page.press('#tell', 'Enter');          // 用說的改：聽不懂就照實說
+  await page.locator('#designer').getByText('我還不會改').waitFor();
+  await page.fill('#tell', '我不要地毯'); await page.press('#tell', 'Enter');
   await page.locator('#undoedit').waitFor();
+  assert.equal(await page.getByRole('button', { name: '地毯拿掉' }).getAttribute('aria-pressed'), 'true');
   const price = await page.locator('#teaser').innerText();
   await page.locator('#share').click();
   await page.getByText('已複製連結').waitFor();
