@@ -137,6 +137,7 @@ function lightingSheet(meta, dm) {
 <g class="thin"><path class="dash" d="${circuits}"/><path class="dash" d="M${px(LAYOUT.pendant.x)} ${pz(LAYOUT.pendant.z)}L${px(R) - 8} ${pz(swz - 0.15)}"/></g>
 ${at(R - 0.08, swz, SYM.sw)}${at(R - 0.08, swz - 0.15, SYM.sw)}
 ${text(px(R) - 44, pz(swz) + 16, 'S1 S2')}${downs.length <= 16 ? downs.map(([x, z], i) => text(px(x) + 9, pz(z) - 8, `L${i + 1}`)).join('') : ''}${text(px(LAYOUT.pendant.x) + 12, pz(LAYOUT.pendant.z) - 10, 'P1')}</g>`
+    + `<g class="red">${text(px(-ROOM.w / 2) + 6, pz(F) - 22, `天花板重做：火警偵測器／住宅用火災警報器${meta.sprinkler === 'no' ? '' : '、撒水頭'}位置待現場標註，嵌燈與造型需避開`, 'style="font-size:9px"')}</g>`
     + text(px(-ROOM.w / 2) + 6, pz(F) - 8, `現況淨高 ${dm.h}；完成天花板 CH=${dm.h - 200}（預留 200 走燈具與管線），窗簾盒深 180`)
     + legend([[SYM.down, `嵌燈 Ø95　9W 3000K ×${downs.length}`], [SYM.pendant, '吊燈　E27 ×1'], [SYM.strip, '層板 LED 燈條 2700K'], [SYM.floor, '立燈（插座迴路）'], [SYM.sw, '單切開關 H=1200']].map(([sym, l]) => [`<g class="red">${sym}</g>`, l])));
 }
@@ -172,6 +173,7 @@ ${sb ? `${rect(sb.x - sb.sx / 2, 0.11, sb.x + sb.sx / 2, 0.47)}<path d="M${ex(sb
     + dimV(ey(ROOM.h), ey(0), ex(-ROOM.w / 2) - 30, String(dm.h)) + dimV(ey(1.8), ey(0.88), ex(c0 + bay) - 8, '920') + dimV(ey(0.88), ey(0.08), ex(c0 + bay) - 8, '800')
     + text(ex(c0 + bay) + 6, ey(1.5), meta.bedroom ? '開放格（包包、摺衣）' : '開放層格', 'style="font-size:9px"') + text(ex(c0 + bay) + 6, ey(1.86), 'LED 燈條', 'style="font-size:8px"')
     + text(ex(c0) + 6, ey(0.3), `門片：${meta.cabinet}`, 'style="font-size:9px"') + text(ex(c0) + 6, ey(0.02) + 12, '踢腳 H80 內縮 30')
+    + (meta.sprinkler === 'no' ? '' : `<g class="red"><path class="dash" d="M${ex(-ROOM.w / 2)} ${ey(ROOM.h - 0.45)}H${ex(ROOM.w / 2)}"/>${text(ex(CABINET.x1) + 8, ey(ROOM.h - 0.45) + 11, `撒水頭淨空：迴水板下方 450、水平 300 內不得有櫃體或天花造型（${meta.sprinkler === 'yes' ? '屋主回報有撒水頭，位置待現場標註' : '有無撒水頭待現場確認'}）`, 'style="font-size:8px"')}${text(ex(c0) + 6, ey(ROOM.h - 0.45) + 11, '櫃頂進入淨空處需降低', 'style="font-size:8px"')}</g>`)
     + text(ex(WINDOW.x0) + 8, ey(WINDOW.y1) + 16, '既有鋁窗（不更動）') + (sb ? text(ex(sb.x - sb.sx / 2), ey(0.5) - 4, `${meta.bedroom ? '斗櫃' : '低櫃'} W${dm.mm(sb.sx)}×D400×H470`, 'style="font-size:9px"') : ''));
 }
 function floorSheet(meta, dm) {
@@ -213,7 +215,7 @@ export function drawingSet(cond, look, est, date) {
   const size = roomSize(cond, est.ping);
   useRoom({ ...size, space: cond.space });
   const dm = roomDims(size);
-  const meta = { bedroom: cond.space === '臥室', project: `${cond.space}・${look.name}`, date, age: cond.age, ping: est.ping, floorType: look.floorType ?? 'wood',
+  const meta = { bedroom: cond.space === '臥室', sprinkler: cond.sprinkler ?? '', project: `${cond.space}・${look.name}`, date, age: cond.age, ping: est.ping, floorType: look.floorType ?? 'wood',
     floorName: look.floorType === 'concrete' ? '礦物塗料地坪' : '超耐磨木地板', cabinet: look.cabinetWood ? '木皮板' : '烤漆板' };
   return [
     ['A-01', '平面配置圖', planSheet(meta, dm)],

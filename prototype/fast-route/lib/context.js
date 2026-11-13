@@ -21,7 +21,9 @@ export function contextScore(cond, docs = {}) {
     { key: 'size', label: dims ? '空間長寬' : '坪數', done: dims || Boolean(num(cond.ping)), weight: dims ? 0.4 : 0.25 },
     { key: 'height', label: '天花板高度', done: Boolean(num(cond.height)), weight: 0.15 },
     { key: 'age', label: '屋況', done: Boolean(cond.ageSet), weight: 0.15 },
-    { key: 'building', label: '樓層與隔間', done: Boolean(num(cond.floors) && cond.partition), weight: 0.3 },
+    { key: 'building', label: '樓層與隔間', done: Boolean(num(cond.floors) && cond.partition), weight: 0.2 },
+    // 消防條件：有沒有撒水頭，加上所在樓層（透天、或總樓層不到 11 層就不必再問所在樓層）
+    { key: 'fire', label: '所在樓層與撒水頭', done: Boolean(cond.sprinkler && (num(cond.unitFloor) || cond.housing === 'house' || (num(cond.floors) && num(cond.floors) < 11))), weight: 0.1 },
   ];
   void docs;
   const score = Math.round(items.reduce((a, i) => a + (i.done ? i.weight : 0), 0) * 100) / 100;
@@ -61,12 +63,12 @@ export function missingForHome(cond) {
 
 /* ---------- 欄位防呆：合理範圍與看得懂的錯誤原因 ---------- */
 const RANGE = {
-  ping: [1, 500, '坪'], len: [2, 60, '公尺'], wid: [2, 60, '公尺'], height: [2, 12, '公尺'], floors: [1, 120, '層'],
+  ping: [1, 500, '坪'], len: [2, 60, '公尺'], wid: [2, 60, '公尺'], height: [2, 12, '公尺'], floors: [1, 120, '層'], unitFloor: [1, 120, '樓'],
 };
-const NAME = { ping: '坪數', len: '長', wid: '寬', height: '天花板高', floors: '建物總樓層' };
+const NAME = { ping: '坪數', len: '長', wid: '寬', height: '天花板高', floors: '建物總樓層', unitFloor: '所在樓層' };
 
 /**
- * @param {'ping'|'len'|'wid'|'height'|'floors'} key @param {string} value 使用者輸入（空字串＝沒填，允許）
+ * @param {'ping'|'len'|'wid'|'height'|'floors'|'unitFloor'} key @param {string} value 使用者輸入（空字串＝沒填，允許）
  * @returns {string} 錯誤原因；可以接受時回空字串
  */
 export function fieldError(key, value) {
@@ -75,7 +77,7 @@ export function fieldError(key, value) {
   const n = Number(raw), [lo, hi, unit] = RANGE[key];
   if (!Number.isFinite(n)) return `${NAME[key]}請填數字`;
   if (n <= 0) return `${NAME[key]}要大於 0`;
-  if (key === 'floors' && !Number.isInteger(n)) return '樓層請填整數';
+  if ((key === 'floors' || key === 'unitFloor') && !Number.isInteger(n)) return '樓層請填整數';
   if (n < lo) return `${NAME[key]}至少 ${lo} ${unit}${key === 'len' || key === 'wid' ? '（再小放不下家具）' : ''}`;
   if (n > hi) return `${NAME[key]}最多 ${hi} ${unit}，請確認單位是${unit}`;
   return '';

@@ -63,7 +63,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   assert.equal(await page.inputValue('#f-wid'), '4.7');
   await page.waitForFunction(() => document.querySelector('#f-ping').value === '8');   // 長×寬 換算坪數
   assert.match(await page.locator('#pingnote').innerText(), /5.6 × 4.7 公尺 ≈ 8 坪/);
-  assert.match(await page.locator('#score').innerText(), /掌握度 70%/);
+  assert.match(await page.locator('#score').innerText(), /掌握度 60%/);
   await page.setInputFiles('#docFile', [
     { name: '3F 機電圖.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') },
     { name: '平面圖.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') },
@@ -72,7 +72,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.getByRole('alert').getByText('只收圖片或 PDF').waitFor();
   assert.equal(await page.locator('.docs li').count(), 2);
   assert.equal(await page.locator('.docs li').first().getByRole('button', { name: '機電圖', exact: true }).getAttribute('aria-pressed'), 'true');
-  assert.match(await page.locator('#score').innerText(), /掌握度 70%/, 'uploads are reference material: they do not raise the score');
+  assert.match(await page.locator('#score').innerText(), /掌握度 60%/, 'uploads are reference material: they do not raise the score');
   // 防呆：離譜的尺寸不收，欄位旁說明原因，也不會前進
   await page.fill('#f-len', '500');
   await page.getByRole('button', { name: '生成 3D', exact: true }).click();
@@ -96,9 +96,21 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   assert.equal(await page.evaluate(() => window.__room.stats().frames), idle, `${name}: 3D must not render while idle`);
   await page.getByRole('button', { name: '視角 B' }).click();
   await page.waitForTimeout(900);
+  // 法規評估就在金額旁邊：一行結論，點開看細節；跟設計連動
+  assert.equal(await page.locator('#regsum').innerText().then((t) => t.replace(/\s+/g, ' ')), '這個設計需申請室內裝修許可・3 項要注意・再回答 2 題就能判斷完 看細節');
+  await page.locator('#regsum').click();
+  await page.locator('#regdetail li', { hasText: '防焰地毯' }).waitFor();
+  await page.locator('#regdetail li', { hasText: '撒水頭淨空' }).getByRole('button', { name: '有撒水頭' }).click();   // 當場回答一題
+  await page.waitForFunction(() => document.querySelector('#regsum').textContent.includes('4 項要注意・再回答 1 題'));
+  await page.fill('#ask-unitFloor', '8'); await page.press('#ask-unitFloor', 'Enter');
+  await page.waitForFunction(() => /4 項要注意\s*收起/.test(document.querySelector('#regsum').textContent));
+  await snap('3-regs');
   const before = await page.locator('#teaser').innerText();
   await page.getByRole('button', { name: '地毯拿掉' }).click();
   await page.locator('#undoedit').waitFor();
+  assert.equal(await page.locator('#regdetail li', { hasText: '防焰地毯' }).count(), 0, 'removing the rug removes its fire-safety item');
+  await page.waitForFunction(() => document.querySelector('#regsum').textContent.includes('3 項要注意'));
+  await page.locator('#regsum').click();                                       // 收起
   assert.equal(await page.getByRole('button', { name: '地毯拿掉' }).getAttribute('aria-pressed'), 'true', 'an applied edit looks selected');
   assert.notEqual(await page.locator('#teaser').innerText(), before, 'editing the design changes the estimate');
   await page.locator('#undoedit').click();                                     // 復原、再套用
@@ -126,9 +138,12 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.getByRole('heading', { name: '你家尺寸的施工圖初稿' }).waitFor();
   // 法規與施工條件：12 層、不動隔間
   const regs = page.locator('#regs');
-  assert.match(await regs.locator('li', { hasText: '室內裝修許可' }).innerText(), /需辦理[\s\S]*12 層集合住宅[\s\S]*依據：建築物室內裝修管理辦法/);
-  assert.match(await regs.locator('li', { hasText: '防焰窗簾與地毯' }).innerText(), /需辦理[\s\S]*消防法第 11 條/);
-  assert.match(await regs.locator('li', { hasText: '撒水頭與火警設備' }).innerText(), /45 公分/);
+  assert.match(await regs.locator('li', { hasText: '室內裝修許可' }).innerText(), /需辦理[\s\S]*12 層集合住宅[\s\S]*依據：建築法第 77-2 條、建築物室內裝修管理辦法第 3 條[\s\S]*查證[\s\S]*解釋令/);
+  assert.match(await regs.locator('li', { hasText: '防焰窗簾' }).innerText(), /需辦理[\s\S]*消防法第 11 條[\s\S]*條文已核對，門檻明確/);
+  assert.equal(await regs.locator('li', { hasText: '防焰地毯' }).count(), 0, 'the rug was removed on the 3D page, so its item is gone');
+  assert.match(await regs.locator('li', { hasText: '撒水頭淨空' }).innerText(), /45 公分/);
+  assert.match(await regs.locator('a', { hasText: '消防法第 11 條' }).first().getAttribute('href'), /^https:\/\/law\.moj\.gov\.tw\//);
+  assert.ok((await page.locator('.sheetbtn').nth(3).innerHTML()).includes('撒水頭淨空'), 'the elevation marks the sprinkler clearance');
   const total = await page.locator('#total').innerText();
   await page.getByRole('button', { name: '中古屋' }).click();
   assert.notEqual(await page.locator('#total').innerText(), total);
@@ -188,7 +203,8 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.getByRole('button', { name: '增加坪數' }).click();                 // 沒填長寬的人仍可以直接調坪數
   assert.match(await page.locator('#ping').innerText(), /^9 坪$/);
   assert.notEqual(await page.locator('#total').innerText(), before9);
-  assert.match(await page.locator('#regs').innerText(), /還不知道建物總樓層/);
+  assert.match(await page.locator('#regline').innerText(), /要不要申請室內裝修許可，還差一個答案/);
+  assert.equal(await page.locator('#regs #ask-floors').count(), 1, 'the missing answer can be given right there');
   await page.locator('#needhome').click();
   await page.getByRole('heading', { name: '多告訴我一點你家' }).waitFor();
   await page.close();
