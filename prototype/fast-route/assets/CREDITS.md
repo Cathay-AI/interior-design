@@ -6,3 +6,8 @@
 - 家具與擺件：modern_arm_chair_01、mid_century_lounge_chair、modern_coffee_table_01、modern_coffee_table_02、coffee_table_round_01、industrial_coffee_table、modern_wooden_cabinet、side_table_01、modern_ceiling_lamp_01、hanging_industrial_lamp、potted_plant_02、potted_plant_04、ceramic_vase_01
 - 材質：laminate_floor_02、wood_floor、oak_wood_planks、herringbone_parquet、plastered_wall、concrete_wall_008、poly_wool_herringbone、velour_velvet、brown_leather、oak_veneer_01、walnut_veneer、black_oak_veneer、ash_veneer
 
+
+## 字體
+
+- `fonts/gensen-maru-tw-*.woff2`：源泉圓體（GenSenMaruGothicTW 1.301，ButTaiwan；改作自思源黑體 Source Han Sans），SIL Open Font License 1.1（http://scripts.sil.org/OFL）。這裡的檔案是只含介面用字的子集（`fonts/charset.txt`），重新產生：`python3 tools/subset_fonts.py <原始 TTF 的資料夾>`。
+- 英文與數字用 Nunito（SIL OFL 1.1），字集外的中文退回 Noto Sans TC（SIL OFL 1.1），兩者由 Google Fonts 載入。

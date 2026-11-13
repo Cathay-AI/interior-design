@@ -38,7 +38,7 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
 
   // 開場：一句承諾、成果預覽、設計師先問想弄哪裡（只多一次點擊）
   await page.getByRole('heading', { name: '滑幾張圖，我幫你設計你家' }).waitFor();
-  assert.match(await page.locator('#greeting').innerText(), /我來幫你設計你家。想先弄哪裡？/);
+  assert.match(await page.locator('#greeting').innerText(), /^\s*想先弄哪裡？\s*$/);
   // 房間從第一秒就在舞台上：同一個 canvas 一路用到最後一步
   await page.locator('.scene[data-ready] canvas').waitFor({ timeout: 30000 });
   await page.evaluate(() => { window.__canvas = document.querySelector('#scene canvas'); });
@@ -54,7 +54,7 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   await page.locator('#where').getByRole('button', { name: '客廳' }).click();
   // 1 滑卡：按鈕、鍵盤、拖曳三種方式；卡片是 Pinterest 的圖並附來源
   await page.locator('.card').first().waitFor();
-  assert.match(await page.locator('#talk').innerText(), /好，客廳。挑喜歡的，接著看你家尺寸的 3D 和預算。不用滑完。/);
+  assert.match(await page.locator('#talk').innerText(), /^\s*挑你喜歡的。\s*$/);
   assert.match(await page.locator('.count').innerText(), /1 \/ 18/);
   assert.match(await page.locator('.card img').last().getAttribute('src'), /^https:\/\/i\.pinimg\.com\//);
   assert.match(await page.locator('.card a').last().getAttribute('href'), /^https:\/\/www\.pinterest\.com\//);
@@ -63,7 +63,6 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   assert.match(await page.locator('#skip').innerText(), /跳過選風格/);
   await page.getByRole('button', { name: '喜歡', exact: true }).click();     // 溫暖木質 ♥ …
   await page.waitForFunction(() => document.querySelector('.count').textContent.startsWith('2 '));
-  await page.locator('#why').getByRole('button', { name: '採光' }).click();    // 選填：喜歡它的什麼
   await page.locator('#undo').click();                                         // … 撤回
   await page.waitForFunction(() => document.querySelector('.count').textContent.startsWith('1 '));
   assert.equal(await page.locator('#undo').isHidden(), true);
@@ -78,7 +77,7 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   await page.mouse.move(box.x + box.width / 2 + 220, box.y + box.height / 2, { steps: 6 });
   await page.mouse.up();
   await page.waitForFunction(() => document.querySelector('.count').textContent.startsWith('4 '));
-  assert.match(await page.locator('#talk').innerText(), /收到，你家客廳會偏|我知道你的方向了/);
+  assert.match(await page.locator('#talk').innerText(), /房間換成|方向有了/);
   await page.locator('#seeit:visible, #skip:visible').first().click();   // 設計師問了，回答的按鈕就在那句話旁邊
 
   // 2 我家的條件：都是選填；給得越多基本資料完整度越高

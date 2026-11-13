@@ -9,7 +9,7 @@ export const TRAIT = {
 const names = (keys) => keys.map((k) => STYLES[k].name).join('、');
 
 /** 開場：先問想弄哪裡。 */
-export const GREETING = '嗨，我來幫你設計你家。想先弄哪裡？';
+export const GREETING = '想先弄哪裡？';
 
 /**
  * 滑卡時的回話。
@@ -18,11 +18,11 @@ export const GREETING = '嗨，我來幫你設計你家。想先弄哪裡？';
  */
 export function swipeReply({ space, scores, swiped, liked, last }) {
   // 滑卡的圖目前都是客廳：選了別的空間要先講，不要讓人以為弄錯了
-  if (!last) return { text: space === '客廳' ? '好，客廳。挑喜歡的，接著看你家尺寸的 3D 和預算。不用滑完。' : `好，${space}。圖是客廳的，先挑風格就好，接著看你家${space}的 3D 和預算。不用滑完。`, ready: false };
+  if (!last) return { text: space === '客廳' ? '挑你喜歡的。' : '圖是客廳的，先挑風格。', ready: false };
   const top = topStyles(scores).top;
-  if (liked >= 3 || (swiped >= 5 && liked >= 1)) return { text: `我知道你的方向了：${names(top)}。要看我幫你配的樣子嗎？`, ready: true };
-  if (last[1]) return { text: `收到，你家${space}會偏${TRAIT[last[0]]}。`, ready: false };
-  return { text: liked ? '了解，這種先不要。' : '了解，這種不要，再看幾張。', ready: false };
+  if (liked >= 3 || (swiped >= 5 && liked >= 1)) return { text: `方向有了：${names(top)}。`, ready: true };
+  if (last[1]) return { text: `房間換成${TRAIT[last[0]]}了。`, ready: false };
+  return { text: '這種不要，了解。', ready: false };
 }
 
 /**

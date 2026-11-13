@@ -120,7 +120,6 @@ function rollPrice(low, high) {
   };
   rollTimer = requestAnimationFrame(step);
 }
-$('#about').addEventListener('click', () => $('#aboutdlg').showModal());
 
 /* ================= navigation ================= */
 function go(step) {
@@ -318,7 +317,6 @@ SCREENS[1] = () => {
     h('div', { class: 'swipebar' },
       h('button', { class: 'round nope', 'aria-label': '不喜歡', onclick: () => decide(false) }, '✕'), count,
       h('button', { class: 'round like', 'aria-label': '喜歡', onclick: () => decide(true) }, '♥')),
-    why,
     h('div', { class: 'inline', style: 'justify-content:center;gap:18px' }, undo, skip));
 };
 // Fetch the 3D code and the chosen style's furniture. Called once the user reaches 我家的條件, so the

@@ -9,21 +9,24 @@
 <script type="importmap">{"imports":{"three":"./vendor/three.module.min.js","three/addons/":"./vendor/addons/"}}</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect x='8' y='8' width='184' height='184' rx='40' fill='%2329251f'/%3E%3Cpath d='M68 116a32 32 0 0 0 64 0Z' fill='%23fff0cc'/%3E%3Cpath d='M100 52C66 52 44 80 41 116H159C156 80 134 52 100 52Z' fill='%23a2562d'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://i.pinimg.com">
-<!-- 字體：介面 Noto Sans TC、設計師的話 霞鶩文楷、數字 Barlow Semi Condensed。swap：字還沒到先用系統字，首屏與 3D 不等它 -->
+<!-- 字體：中文是源泉圓體（圓角、開放授權；只含介面用得到的字，放在 assets/fonts），英文與數字是 Nunito。
+     屋主自己打的、字集外的字退回 Noto Sans TC。swap：字還沒到先用系統字，首屏與 3D 不等它。 -->
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600&family=LXGW+WenKai+TC&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Nunito:wght@400;700;800&display=swap">
+<link rel="preload" as="font" type="font/woff2" href="assets/fonts/gensen-maru-tw-400.woff2" crossorigin>
 <link rel="preload" as="image" href="assets/preview-living.jpg">
 <!-- 第一張卡片（lib/pins.js 的第一筆）提前載入，不必等程式跑完；test/assets.test.mjs 會檢查兩邊一致 -->
 <link rel="preload" as="image" href="https://i.pinimg.com/474x/92/0f/bd/920fbde632d7565361feb9f94d962291.jpg" imagesrcset="https://i.pinimg.com/474x/92/0f/bd/920fbde632d7565361feb9f94d962291.jpg 474w, https://i.pinimg.com/736x/92/0f/bd/920fbde632d7565361feb9f94d962291.jpg 736w" imagesizes="(max-width: 520px) 92vw, 480px" fetchpriority="high" referrerpolicy="no-referrer">
 <link rel="modulepreload" href="./app.js"><link rel="modulepreload" href="./lib/taste.js"><link rel="modulepreload" href="./lib/estimate.js"><link rel="modulepreload" href="./lib/rules.js"><link rel="modulepreload" href="./lib/intake.js"><link rel="modulepreload" href="./lib/drawings.js"><link rel="modulepreload" href="./lib/layout.js"><link rel="modulepreload" href="./lib/art.js"><link rel="modulepreload" href="./lib/pins.js"><link rel="modulepreload" href="./lib/context.js"><link rel="modulepreload" href="./lib/persist.js"><link rel="modulepreload" href="./lib/voice.js"><link rel="modulepreload" href="./lib/summary.js"><link rel="modulepreload" href="./lib/docs.js">
 <style>
+@font-face{font-family:"GenSen Maru TW";font-weight:400;font-display:swap;src:url(assets/fonts/gensen-maru-tw-400.woff2) format("woff2")}
+@font-face{font-family:"GenSen Maru TW";font-weight:700;font-display:swap;src:url(assets/fonts/gensen-maru-tw-700.woff2) format("woff2")}
 /* 視覺語言：施工圖。介面退成圖紙色，房間的木色與布料是畫面上唯一的暖色；尺寸線是識別元素。
    圓角三級：4（輸入、選項、按鈕、標註）／12（右欄區塊）／24（舞台、滑卡圖片）。強調色只有捲尺黃，紅筆只給「需辦理」。 */
 :root{
   --paper:#f6f6f2;--surface:#fff;--stage:#ecede8;--ink:#1e2428;--muted:#6f797e;--line:#daddd8;--yellow:#f0be28;--red:#d2402e;
-  --font:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
-  --hand:"LXGW WenKai TC","Noto Sans TC","PingFang TC",serif;
-  --num:"Barlow Semi Condensed","Noto Sans TC",sans-serif;
+  --font:"Nunito","GenSen Maru TW","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --hand:var(--font);--num:var(--font);
   --head:57px;
 }
 *{box-sizing:border-box;margin:0}
@@ -69,7 +72,7 @@ header{position:sticky;top:0;z-index:10;height:var(--head);background:var(--pape
 .stagefoot{position:absolute;left:20px;right:20px;bottom:14px;height:52px;display:flex;align-items:flex-end;gap:20px}
 /* 尺寸線：兩端短斜線的細線，中間是毫米數字 */
 .dims{display:flex;gap:18px;align-items:flex-end}
-.dim{display:grid;gap:3px;justify-items:center;font-family:var(--num);font-weight:500;font-size:14px;line-height:1;color:var(--ink);min-width:86px}
+.dim{display:grid;gap:3px;justify-items:center;font-weight:500;font-size:13px;font-variant-numeric:tabular-nums;line-height:1;color:var(--ink);min-width:86px}
 .dim i{display:block;width:100%;height:9px;position:relative;font-style:normal;
   background:linear-gradient(var(--muted),var(--muted)) center/100% 1px no-repeat}
 .dim i::before,.dim i::after{content:"";position:absolute;top:0;width:1px;height:9px;background:var(--muted);transform:rotate(35deg)}
@@ -81,7 +84,7 @@ header{position:sticky;top:0;z-index:10;height:var(--head);background:var(--pape
 .swatch[aria-pressed="true"]::after{content:"";position:absolute;left:0;top:0;border:5px solid var(--yellow);border-right-color:transparent;border-bottom-color:transparent}
 .pricebox{margin-left:auto;text-align:right;line-height:1;display:grid;gap:4px;justify-items:end}
 .pricebox small{font-size:12px;color:var(--muted)}
-.pricebox b{font-family:var(--num);font-weight:600;font-size:40px;letter-spacing:.01em;white-space:nowrap}
+.pricebox b{font-weight:800;font-size:38px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .pricebox b.flash{background:linear-gradient(transparent 62%,var(--yellow) 62%)}
 .seg{position:absolute;left:32px;top:32px;z-index:1;display:flex;gap:4px;align-items:center}
 .seg .note{display:none}
@@ -113,7 +116,7 @@ h2{font-size:18px;line-height:1.4}
 /* 設計師的話：像寫在圖邊的手寫備註 */
 .agent{display:flex;align-items:flex-start;gap:10px}
 .agent .mascot{width:28px;height:28px;flex:none;margin-top:3px}
-.bubble{display:grid;gap:8px;font-family:var(--hand);font-size:20px;line-height:1.6}
+.bubble{display:grid;gap:8px;font-size:18px;font-weight:700;line-height:1.55}
 
 /* 0 開場 */
 .intro{display:grid;gap:18px}
@@ -191,7 +194,7 @@ iframe.printer{position:fixed;width:0;height:0;border:0;visibility:hidden}
 
 /* 4 花費與圖 */
 .two{display:grid;gap:16px}
-.big{font-family:var(--num);font-size:46px;font-weight:600;line-height:1.1}
+.big{font-size:40px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums}
 .badge{justify-self:start;font-size:12px;font-weight:700;border:1px solid var(--ink);border-radius:4px;padding:2px 8px}
 .stepper{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:4px;padding:2px}
 .stepper button{width:36px;height:36px;border-radius:4px;font-size:20px}
@@ -237,7 +240,7 @@ dialog.viewer{max-width:min(96vw,1100px);width:100%}dialog.viewer svg{width:100%
   .swatch{width:28px;height:28px}
   main{border-left:none;overflow:visible;padding:18px 16px calc(96px + env(safe-area-inset-bottom));gap:14px;min-height:calc(58dvh - var(--head))}
   main::after{display:none}
-  h1,.shead h1{font-size:26px}.bubble{font-size:18px}
+  h1,.shead h1{font-size:26px}.bubble{font-size:17px}
   .cta{position:fixed;left:16px;right:16px;width:auto;bottom:calc(14px + env(safe-area-inset-bottom));z-index:6;margin:0}
   main[data-step="1"]{padding-bottom:20px}
   .deck{width:min(100%,calc((58dvh - var(--head) - 190px)*.8));aspect-ratio:4/5}
@@ -251,7 +254,6 @@ dialog.viewer{max-width:min(96vw,1100px);width:100%}dialog.viewer svg{width:100%
 <header><div class="hwrap">
   <div class="brand" aria-label="回家之前"><svg viewBox="0 0 200 200" aria-hidden="true"><rect x="8" y="8" width="184" height="184" rx="24" fill="#1e2428"/><path d="M100 28v26" stroke="#daddd8" stroke-width="3"/><path d="M68 116a32 32 0 0 0 64 0Z" fill="#fff"/><path d="M100 52C66 52 44 80 41 116H159C156 80 134 52 100 52Z" fill="#f0be28"/></svg><span>回家之前</span></div>
   <ol id="steps" aria-label="進度"></ol>
-  <button class="ghostbtn" id="about">關於這個原型</button>
   <button class="ghostbtn" id="restart" hidden>重新開始</button>
 </div></header>
 <div class="bench">
@@ -268,11 +270,6 @@ dialog.viewer{max-width:min(96vw,1100px);width:100%}dialog.viewer svg{width:100%
   <main id="app" aria-live="polite"></main>
 </div>
 
-<dialog id="aboutdlg"><div class="dlg">
-  <h2>關於這個原型</h2>
-  <p class="note">靈感圖來自 Pinterest，版權屬原作者。金額是參考行情量級的初步估算，不是報價。施工圖是 AI 初稿；法規評估是提醒，不是合格判定。以上都需要專業人員確認。</p>
-  <div class="actions"><button class="btn" onclick="this.closest('dialog').close()">知道了</button></div>
-</div></dialog>
 <dialog id="unlock"><div class="dlg">
   <h2>解鎖你家尺寸的施工圖初稿</h2>
   <p class="price">NT$ 1,990 <small>示意價格</small></p>
