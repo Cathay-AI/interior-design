@@ -18,7 +18,6 @@ import { ROOM as DEFAULT_ROOM } from './layout.js';
 // Camera set-ups for the default room; scaled with the room so a bigger room still fits the frame.
 const TARGET = [-0.35, 0.85, -0.2];
 export const VIEWS = { A: [5.9, 3.6, 6.2], B: [1.2, 2.2, 8.2], C: [7.8, 4.8, 2.4] };
-const BACKDROP = '#ecede8';   // 舞台底色（製圖紙），和頁面的 --stage 一致
 
 let hdri = null; // decoded once, reused by every mount
 const loadHDRI = () => (hdri ??= new EXRLoader().loadAsync(new URL('../assets/env/apartment.exr', import.meta.url).href)
@@ -40,7 +39,8 @@ export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM) {
   const scaleOf = (sz) => Math.max(sz.w / DEFAULT_ROOM.w, sz.d / DEFAULT_ROOM.d, sz.h / DEFAULT_ROOM.h, 0.7);
   let f = scaleOf(size), gen = 0;
   const viewPos = (v) => new T.Vector3(...VIEWS[v]).multiplyScalar(f);
-  const renderer = new T.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  const renderer = new T.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+  renderer.setClearColor(0x000000, 0);   // 背景透明：舞台的底色直接透出來，不被色調處理洗灰
   renderer.outputColorSpace = T.SRGBColorSpace;
   renderer.toneMapping = T.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
@@ -56,7 +56,6 @@ export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM) {
   // the room appears as soon as its furniture models and materials are in (cached after the first time)
   let room = null, env = null, ready = false;
   const stage = new T.Scene();
-  stage.background = new T.Color(BACKDROP);
   const camera = new T.PerspectiveCamera(32, 1, 0.1, 60 * f);
   camera.position.copy(viewPos(view));
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -96,7 +95,6 @@ export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM) {
     room?.dispose();
     room = buildScene(look, { assets, size });
     if (lite) room.sun.shadow.mapSize.set(1024, 1024);
-    room.scene.background = new T.Color(BACKDROP);
     room.scene.environmentIntensity = 0.55;
     room.scene.environment = env;
     renderPass.scene = room.scene; ao.scene = room.scene;

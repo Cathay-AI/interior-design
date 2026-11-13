@@ -43,12 +43,3 @@ test('the import map comes before anything that starts loading modules', () => {
   assert.ok(map > 0 && map < html.indexOf('rel="modulepreload"') && map < html.indexOf('<script type="module"'),
     'browsers that do not accept a late import map would fail to resolve "three"');
 });
-
-test('介面用得到的字都在源泉圓體的字集裡（文案有新字要重跑 tools/subset_fonts.py）', () => {
-  const charset = new Set(readFileSync(new URL('../assets/fonts/charset.txt', import.meta.url), 'utf8'));
-  const dir = new URL('../lib/', import.meta.url);
-  const files = [new URL('../index.html', import.meta.url), new URL('../app.js', import.meta.url), ...readdirSync(dir).filter((f) => f.endsWith('.js')).map((f) => new URL(f, dir))];
-  const missing = new Set();
-  for (const f of files) for (const c of readFileSync(f, 'utf8')) if (c.codePointAt(0) > 0x7f && c.trim() && !charset.has(c)) missing.add(c);
-  assert.deepEqual([...missing], []);
-});

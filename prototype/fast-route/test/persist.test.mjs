@@ -51,3 +51,13 @@ test('分享連結：亂填或被改過的內容一律不接受', () => {
   }
   assert.deepEqual(fromShare(enc({ s: 'warm', e: [] }), known), { style: 'warm', edits: [], cond: {} });
 });
+
+test('整戶的房間清單會存回來；被改壞的就當作沒有', async () => {
+  const { templateRooms } = await import('../lib/home.js');
+  const base = JSON.parse(serialize({ ...blank(), started: true, docs: [], home: { rooms: templateRooms() }, room: 'r4' }));
+  const back = restore(JSON.stringify(base), blank());
+  assert.equal(back.home.rooms.length, 8); assert.equal(back.room, 'r4'); assert.equal(back.home.rooms[3].name, '主臥');
+  base.home.rooms[0].name = '<img src=x onerror=alert(1)>'.repeat(3);
+  assert.equal(restore(JSON.stringify(base), blank()).home, null);
+  assert.equal(restore(JSON.stringify({ ...base, home: { rooms: 'x' } }), blank()).home, null);
+});

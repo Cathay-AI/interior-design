@@ -6,8 +6,8 @@ const STEPS = 4;
 
 /** @returns {string} JSON：只留可還原的欄位 */
 export function serialize(S) {
-  const { step, reached, scores, swiped, liked, cond, said, versions, v, view, unlocked, history, reasons, started } = S;
-  return JSON.stringify({ step, reached, scores, swiped, liked, cond, said, versions, v, view, unlocked, history, reasons, started, hadDocs: S.docs.length });
+  const { step, reached, scores, swiped, liked, cond, said, versions, v, view, unlocked, history, reasons, started, home, room } = S;
+  return JSON.stringify({ step, reached, scores, swiped, liked, cond, said, versions, v, view, unlocked, history, reasons, started, home, room, hadDocs: S.docs.length });
 }
 
 /**
@@ -15,6 +15,14 @@ export function serialize(S) {
  * @param {object} blank 全新的狀態
  * @returns {object} 可以直接用的狀態；任何一處對不上就回 blank，不冒險拼湊
  */
+/** 整戶的房間清單：逐欄檢查，對不上就當作沒有（回到單一房間） */
+function homeOf(d) {
+  const rooms = d.home?.rooms, num = (v) => typeof v === 'string' && v.length < 8 && (v === '' || Number(v) > 0);
+  const ok = Array.isArray(rooms) && rooms.length > 0 && rooms.length <= 30 && rooms.every((r) => r && typeof r.id === 'string' && /^r\d{1,3}$/.test(r.id) && typeof r.name === 'string' && r.name.length > 0 && r.name.length <= 8
+    && num(r.len) && num(r.wid) && typeof r.on === 'boolean' && Array.isArray(r.edits) && r.edits.every((n) => Number.isInteger(n) && n >= 0 && n < 12));
+  if (!ok) return { home: null, room: null };
+  return { home: { rooms: rooms.map(({ id, name, len, wid, on, edits }) => ({ id, name, len, wid, on, edits })) }, room: rooms.some((r) => r.id === d.room) ? d.room : rooms[0].id };
+}
 /** 後來才加的條件欄位：舊存檔沒有也收，補預設值。 */
 const LATER = ['noFurniture', 'unitFloor', 'sprinkler', 'housing'];
 export function restore(json, blank) {
@@ -30,7 +38,7 @@ export function restore(json, blank) {
       history: Array.isArray(d.history) ? d.history.filter((x) => Array.isArray(x) && x[0] in blank.scores && typeof x[1] === 'boolean').slice(-d.swiped) : [],
       reasons: Array.isArray(d.reasons) ? d.reasons.filter((x) => typeof x === 'string').slice(0, 20) : [],
       said: String(d.said ?? ''), versions: d.versions, v: d.versions.length ? d.v : 0, view: d.view, unlocked: d.unlocked === true, lostDocs: d.hadDocs > 0,
-      started: d.started === true || d.swiped > 0 || d.reached > 1 };   // 舊存檔沒有 started：滑過或走過第一步就算開始了
+      started: d.started === true || d.swiped > 0 || d.reached > 1, ...homeOf(d) };   // 舊存檔沒有 started：滑過或走過第一步就算開始了
   } catch {
     return blank;
   }
