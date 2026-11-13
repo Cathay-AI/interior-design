@@ -398,7 +398,7 @@ SCREENS[2] = () => {
     input, drop,
     S.docError ? h('p', { class: 'err', role: 'alert' }, S.docError) : h('span', { hidden: true }),
     S.docs.length ? list : h('span', { hidden: true }));
-  app.append(h('div', { class: 'shead' }, backBtn(1), h('h1', {}, '多告訴我一點你家')),
+  app.append(...[h('div', { class: 'shead' }, backBtn(1), h('h1', {}, '多告訴我一點你家')),
     agent(q.text, { id: 'asking' }), quick,
     h('div', { class: 'voice' }, mic, h('div', { class: 'voicebody' }, say, micLabel), send),
     h('div', { class: 'inline more' },
@@ -407,7 +407,7 @@ SCREENS[2] = () => {
       docsCard ? null : h('button', { class: 'link', id: 'opendocs', onclick: () => { S.docsOpen = true; render(); } }, '附參考圖')),
     S.lostDocs && !S.docs.length ? h('p', { class: 'err', id: 'lostdocs' }, '重新整理後，先前附的圖要再附一次。') : null,
     ...form, docsCard,
-    cta(pct ? `生成${c.space}的 3D` : `先跳過，生成${c.space}的 3D`, start, pct ? 'accent' : '', { id: 'generate' }));
+    cta(pct ? `生成${c.space}的 3D` : `先跳過，生成${c.space}的 3D`, start, pct ? 'accent' : '', { id: 'generate' })].filter(Boolean));   // DOM 的 append 會把 null 印成字，先濾掉
 };
 
 /* ---- 3 3D 成品 ---- */

@@ -62,6 +62,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.locator('#generate').waitFor();
   // 用一句話（語音辨識的結果走同一條路）：聽得出來的欄位自動填好
   // 開頭只有一句問題、答案欄位和一句話輸入；完整欄位與參考圖收著
+  assert.ok(!/null|undefined/.test(await page.locator('#app').innerText()), 'nothing prints as null');
   assert.equal(await page.locator('#f-len').count(), 1, 'the answer to the question sits right under it');
   assert.equal(await page.locator('#f-floors').count() + await page.locator('#docFile').count() + await page.locator('#taste').count() + await page.locator('#spaces').count(), 0, 'the form, uploads and repeated style/space pickers are not shown up front');
   await page.fill('#say', '客廳長五米六、寬四米七，十二層樓的大樓，隔間不動'); await page.press('#say', 'Enter');   // Enter 直接送出
@@ -130,7 +131,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.getByRole('button', { name: '地毯拿掉' }).click();
   await page.locator('#undoedit').waitFor();
   assert.equal(await page.locator('#regdetail li', { hasText: '防焰地毯' }).count(), 0, 'removing the rug removes its fire-safety item');
-  assert.match(await page.locator('#designer').innerText(), /好，地毯拿掉。預估少約 [\d.]+ 萬；不用再處理防焰地毯。/, 'the designer reports the cost and regulatory effect of the change');
+  assert.match(await page.locator('#designer').innerText(), /好，地毯拿掉。預估少約 [\d.]+ 萬（家具軟裝）；不用再處理防焰地毯。/, 'the designer reports the cost and regulatory effect of the change');
   await page.waitForFunction(() => document.querySelector('#regsum').textContent.includes('另外 3 項要注意'));
   await page.locator('#regsum').click();                                       // 收起
   assert.equal(await page.getByRole('button', { name: '地毯拿掉' }).getAttribute('aria-pressed'), 'true', 'an applied edit looks selected');
