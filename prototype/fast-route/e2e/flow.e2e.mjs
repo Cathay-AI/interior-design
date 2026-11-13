@@ -7,13 +7,28 @@ const base = process.argv[2] ?? 'http://127.0.0.1:5173/';
 const shots = process.argv[3];
 const browser = await chromium.launch();
 const errors = [];
-for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['phone', { width: 390, height: 844 }]]) {
-  const page = await browser.newPage({ viewport });
+// 動態一律直接切換（prefers-reduced-motion），測的是結果不是補間；字體用空的樣式表代替，不依賴外部字體服務
+const quiet = { reducedMotion: 'reduce' };
+const stub = (page) => page.route(/fonts\.(googleapis|gstatic)\.com/, (route) => route.fulfill({ contentType: 'text/css', body: '' }));
+for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['phone', { width: 390, height: 844 }]]) {
+  const page = await browser.newPage({ viewport, ...quiet });
+  await stub(page);
   page.on('pageerror', (e) => errors.push(`${name}: ${e.message}`));
   page.on('response', (r) => { if (r.status() >= 400) errors.push(`${name}: ${r.status()} ${r.url()}`); });
   // the wall hot-links Pinterest's image host; serve a stand-in so the test does not depend on it
   await page.route('https://i.pinimg.com/**', (route) => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="50"><rect width="40" height="50" fill="#b9a58c"/></svg>' }));
   const snap = async (n) => { if (!shots) return; await page.waitForTimeout(450); await page.screenshot({ path: `${shots}/${name}-${n}.png` }); };
+  // 驗收：房間在首屏且至少佔視窗 35%；這個狀態的主要動作不用捲動就看得到
+  const onStage = async (at, action) => {
+    await page.evaluate(() => { scrollTo(0, 0); document.querySelector('#app').scrollTop = 0; });
+    const m = await page.evaluate((sel) => {
+      const r = document.querySelector('#scene').getBoundingClientRect(), a = document.querySelector(sel).getBoundingClientRect();
+      const w = Math.max(0, Math.min(r.right, innerWidth) - Math.max(r.left, 0)), hgt = Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(r.top, 0));
+      return { share: (w * hgt) / (innerWidth * innerHeight), top: a.top, bottom: a.bottom, vh: innerHeight };
+    }, action);
+    assert.ok(m.share >= 0.35, `${name} ${at}: the room takes ${Math.round(m.share * 100)}% of the screen`);
+    assert.ok(m.top >= 0 && m.bottom <= m.vh, `${name} ${at}: the main action (${action}) is on the first screen`);
+  };
   const noOverflow = async (at) => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     assert.ok(overflow <= 1, `${name} ${at}: horizontal overflow ${overflow}px`);
@@ -24,7 +39,17 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   // 開場：一句承諾、成果預覽、設計師先問想弄哪裡（只多一次點擊）
   await page.getByRole('heading', { name: '滑幾張圖，我幫你設計你家' }).waitFor();
   assert.match(await page.locator('#greeting').innerText(), /我來幫你設計你家。想先弄哪裡？/);
-  assert.match(await page.locator('#preview').innerText(), /預估 \d+–\d+ 萬/);
+  // 房間從第一秒就在舞台上：同一個 canvas 一路用到最後一步
+  await page.locator('.scene[data-ready] canvas').waitFor({ timeout: 30000 });
+  await page.evaluate(() => { window.__canvas = document.querySelector('#scene canvas'); });
+  assert.match(await page.locator('#pricekind').innerText(), /範例/);
+  const sample = await page.locator('#teaser').innerText();
+  assert.match(sample, /^\d+–\d+ 萬$/);
+  assert.deepEqual(await page.locator('#dims .dim').allInnerTexts().then((a) => a.map((t) => t.split('\n')[0])), ['5610', '4710', '2800'], 'dimension lines in millimetres');
+  await page.locator('#swatches').getByRole('button', { name: '深色現代' }).click();   // 還沒選空間就能玩：點色票，房間與金額都變
+  await page.waitForFunction((t) => document.querySelector('#teaser').textContent !== t, sample);
+  await page.locator('#swatches').getByRole('button', { name: '溫暖木質' }).click();
+  await onStage('0', '#where .tile');
   await snap('0-intro'); await noOverflow('0');
   await page.locator('#where').getByRole('button', { name: '客廳' }).click();
   // 1 滑卡：按鈕、鍵盤、拖曳三種方式；卡片是 Pinterest 的圖並附來源
@@ -33,6 +58,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   assert.match(await page.locator('.count').innerText(), /1 \/ 18/);
   assert.match(await page.locator('.card img').last().getAttribute('src'), /^https:\/\/i\.pinimg\.com\//);
   assert.match(await page.locator('.card a').last().getAttribute('href'), /^https:\/\/www\.pinterest\.com\//);
+  await onStage('1', '.round.like');
   await snap('1-swipe'); await noOverflow('1');
   assert.match(await page.locator('#skip').innerText(), /跳過選風格/);
   await page.getByRole('button', { name: '喜歡', exact: true }).click();     // 溫暖木質 ♥ …
@@ -58,6 +84,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   // 2 我家的條件：都是選填；給得越多基本資料完整度越高
   await page.getByRole('heading', { name: '多告訴我一點你家' }).waitFor();
   assert.match(await page.locator('#score').innerText(), /基本資料完整度 0%/);
+  await onStage('2', '#generate');
   assert.match(await page.locator('#asking').innerText(), /你家客廳的長和寬大概幾公尺？/);   // 設計師先問最有用的那一項
   await page.locator('#generate').waitFor();
   // 用一句話（語音辨識的結果走同一條路）：聽得出來的欄位自動填好
@@ -97,12 +124,16 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.fill('#f-len', '-3'); await page.locator('#f-len').blur();
   await page.locator('#e-len').getByText('長要大於 0').waitFor();
   await snap('2-error');
-  await page.fill('#f-len', '5.6');
+  await page.fill('#f-len', '5.6'); await page.locator('#f-len').blur();
+  // 填了尺寸，舞台上的房間和尺寸線當場變
+  await page.waitForFunction(() => document.querySelector('#dims').textContent.includes('5600') && window.__room.stats().size.w === 5.6);
   await snap('2-context'); await noOverflow('2');
+  await page.fill('#f-wid', '4.7');
   await page.locator('#generate').click();   // 游標還在欄位裡：按一次就要前進
 
   // 3 3D 示意：喜歡的那一種，靜止時不重畫
   await page.getByRole('heading', { name: '客廳・日光北歐' }).waitFor();
+  await onStage('3', '#tocost');
   await page.locator('.scene[data-ready] canvas').waitFor({ timeout: 30000 }); // furniture models and materials are in
   assert.equal(await page.evaluate(() => window.__room.stats().ready), true);
   await page.waitForTimeout(1500);
@@ -146,11 +177,12 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   assert.match(await page.locator('#ctx').innerText(), /這個房間：5.6 × 4.7 公尺、高 2.8 公尺（8 坪）。門窗、柱位待現場確認。/);
   assert.deepEqual(await page.evaluate(() => window.__room.stats().size), { w: 5.6, d: 4.7, h: 2.8, clamped: false, space: '客廳' }, '3D room uses the real size');
   await snap('3-3d'); await noOverflow('3');
-  await page.getByRole('button', { name: '看估價與施工圖' }).click();
+  await page.locator('#tocost').click();
 
   // 4 估價與施工圖：不問預算；坪數、屋況會改變金額；圖要付費才清楚
   await page.getByRole('heading', { name: '估價與施工圖' }).waitFor();
   assert.equal(await page.getByText('預算').count(), 0, 'never asks for a budget');
+  assert.equal(await page.evaluate(() => document.querySelector('#scene canvas') === window.__canvas && document.querySelectorAll('canvas').length), 1, 'the stage canvas was created once and never remounted');
   assert.match(await page.locator('#ping').innerText(), /8 坪・5.6 × 4.7 公尺/);
   assert.equal(await page.getByRole('button', { name: '增加坪數' }).count(), 0, 'no stepper that would discard the real dimensions');
   assert.match(await page.locator('#know').innerText(), /基本資料完整度 70%，區間已收窄 35%/);
@@ -221,7 +253,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.locator('#skip').click();
   await page.locator('#generate').click();
   assert.match(await page.locator('#assume').innerText(), /以 8 坪（預設）、新成屋（預設）估算/);
-  await page.getByRole('button', { name: '看估價與施工圖' }).click();
+  await page.locator('#tocost').click();
   await page.getByRole('heading', { name: '施工圖初稿（範例）' }).waitFor();
   assert.equal(await page.getByRole('button', { name: /解鎖/ }).count(), 0, 'nothing to buy without the home');
   assert.match(await page.locator('#estkind').innerText(), /範例估算，非正式報價/);
@@ -245,7 +277,8 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.close();
 }
 { // 開不了 3D 的裝置：明講是 2D 示意圖，並收起沒有作用的視角按鈕
-  const page = await browser.newPage({ viewport: { width: 1366, height: 860 } });
+  const page = await browser.newPage({ viewport: { width: 1366, height: 860 }, ...quiet });
+  await stub(page);
   await page.addInitScript(() => { const get = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (type, ...a) { return /webgl/.test(type) ? null : get.call(this, type, ...a); }; });
   await page.route('https://i.pinimg.com/**', (route) => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="5"/>' }));
   await page.goto(base);
@@ -258,9 +291,10 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.close();
 }
 { // 分享連結：別人打開就看到同一個設計與條件
-  const ctx = await browser.newContext({ viewport: { width: 1366, height: 860 } });
+  const ctx = await browser.newContext({ viewport: { width: 1366, height: 860 }, ...quiet });
   await ctx.grantPermissions(['clipboard-read', 'clipboard-write']);
   const page = await ctx.newPage();
+  await stub(page);
   page.on('pageerror', (e) => errors.push(`share: ${e.message}`));
   await page.route('https://i.pinimg.com/**', (route) => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="5"/>' }));
   await page.goto(base);
@@ -278,7 +312,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.getByRole('heading', { name: '臥室・溫暖木質' }).waitFor();
   await page.locator('.scene[data-ready] canvas').waitFor({ timeout: 30000 });
   assert.equal(await page.evaluate(() => window.__room.stats().size.space), '臥室');
-  await page.getByRole('button', { name: '看估價與施工圖' }).click();
+  await page.locator('#tocost').click();
   await page.locator('.items').getByText('衣櫃與斗櫃').waitFor();
   assert.match(await page.locator('.items').innerText(), /床架、床墊、床頭櫃/);
   assert.ok((await page.locator('.sheetbtn').first().innerHTML()).includes('雙人床'), 'the plan shows a bed');
@@ -303,7 +337,8 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.getByText('已複製連結').waitFor();
   const url = await page.evaluate(() => navigator.clipboard.readText());
   assert.match(url, /#r=[A-Za-z0-9_-]+$/);
-  const other = await (await browser.newContext({ viewport: { width: 1366, height: 860 } })).newPage();   // 另一個人、乾淨的瀏覽器
+  const other = await (await browser.newContext({ viewport: { width: 1366, height: 860 }, ...quiet })).newPage();
+  await stub(other);   // 另一個人、乾淨的瀏覽器
   await other.goto(url);
   await other.getByRole('heading', { name: '客廳・溫暖木質' }).waitFor({ timeout: 30000 });
   assert.equal(await other.locator('#teaser').innerText(), price, 'same design and conditions give the same estimate');
