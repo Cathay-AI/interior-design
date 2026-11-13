@@ -36,7 +36,8 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
       const w = Math.max(0, Math.min(r.right, innerWidth) - Math.max(r.left, 0)), hgt = Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(r.top, 0));
       return { share: (w * hgt) / (innerWidth * innerHeight), top: a.top, bottom: a.bottom, vh: innerHeight };
     }, action);
-    assert.ok(m.share >= (name === 'phone' ? 0.28 : 0.35), `${name} ${at}: the room takes ${Math.round(m.share * 100)}% of the screen`);
+    // 手機滑卡時卡片需要高度，舞台縮到 180px；其餘狀態是 310px
+    assert.ok(m.share >= (name !== 'phone' ? 0.35 : at === '2' ? 0.15 : 0.28), `${name} ${at}: the room takes ${Math.round(m.share * 100)}% of the screen`);
     assert.ok(m.top >= 0 && m.bottom <= m.vh, `${name} ${at}: the main action (${action}) is on the first screen`);
   };
   const noOverflow = async (at) => {

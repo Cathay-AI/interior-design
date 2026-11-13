@@ -271,7 +271,10 @@ dialog.viewer{max-width:min(96vw,1100px);width:100%}dialog.viewer svg{width:100%
   h1,.shead h1{font-size:24px}.intro h1{font-size:30px}.big,.shead h1.big{font-size:44px}
   .how{grid-template-columns:1fr;gap:8px}.how i{display:inline;margin-right:8px;font-size:16px}.how b{display:inline}.how span{display:block}
   .styles{grid-template-columns:repeat(2,1fr)}
-  .deck{width:min(100%,250px,calc((100dvh - var(--head) - 288px - 250px)*.77))}
+  /* phone, choosing a style: the card needs the height, so the stage shrinks and the heading gives way to the bubble */
+  body:has(main[data-step="2"]) .stage{height:180px}
+  main[data-step="2"] .shead h1{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .deck{width:min(100%,260px,calc((100dvh - var(--head) - 468px)*.77))}
   .round{width:56px;height:56px}
   dialog.viewer{max-width:96vw}
 }
