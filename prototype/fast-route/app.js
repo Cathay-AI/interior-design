@@ -465,20 +465,20 @@ function sizeScreen() {
     return !msg;
   };
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const say = h('textarea', { id: 'say', rows: 2, placeholder: '例：客廳大概 8 坪，長 5 米 6、寬 4 米 7，中古屋', 'aria-label': '用一句話描述你家',
+  const say = h('textarea', { id: 'say', rows: 2, placeholder: '或用一句話講', 'aria-label': '用一句話描述你家',
     onchange: (e) => { if (e.target.value.trim() !== S.said) applySaid(e.target.value); },
     // Enter 直接送出；Shift+Enter 換行；注音／拼音選字中的 Enter 不算
     onkeydown: (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); applySaid(say.value); } } }, S.said);
-  const send = h('button', { class: 'send', id: 'saysend', 'aria-label': '送出這句話', onclick: () => applySaid(say.value) }, '送出');
+  const send = h('button', { class: 'send', id: 'saysend', 'aria-label': '送出這句話', onclick: () => applySaid(say.value) }, '→');
   const micLabel = h('span', { class: 'note', id: 'micnote', 'aria-live': 'polite' },
-    S.heard === null ? (Recognition ? '也可以一句話講完，或按麥克風用說的（聲音由瀏覽器的語音服務處理）' : '也可以一句話講完')
+    S.heard === null ? ''
       : S.heard.length ? `聽到：${S.heard.join('、')}` : '沒聽出坪數或尺寸，可以再說一次，或直接填下面');
   let rec = null;
   const mic = h('button', { class: 'mic', id: 'mic', 'aria-label': '用說的', 'aria-pressed': 'false', disabled: !Recognition,
     onclick: () => {
       if (rec) return rec.stop();
       rec = new Recognition(); rec.lang = 'zh-TW'; rec.interimResults = true;
-      mic.setAttribute('aria-pressed', 'true'); micLabel.textContent = '正在聽…說完再按一次';
+      mic.setAttribute('aria-pressed', 'true'); micLabel.textContent = '正在聽…說完再按一次（聲音由瀏覽器的語音服務處理）';
       rec.onresult = (e) => { say.value = [...e.results].map((r) => r[0].transcript).join(''); };
       rec.onerror = (e) => { rec = null; mic.setAttribute('aria-pressed', 'false'); micLabel.textContent = e.error === 'not-allowed' ? '沒有麥克風權限，請直接打一句話' : '沒聽清楚，再試一次或直接打字'; };
       rec.onend = () => { if (!rec) return; rec = null; if (S.step === 2) applySaid(say.value); };

@@ -165,7 +165,7 @@ h2{font-size:17px;line-height:1.4}
 /* 你家（單一房間） */
 .voice{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:28px;padding:10px 10px 10px 18px}
 .voice:focus-within{border-color:var(--accent)}
-.voicebody{flex:1;min-width:0;display:grid;gap:2px}
+.voicebody{flex:1;min-width:0;display:grid;gap:2px}.voicebody .note:empty{display:none}
 .voice textarea{width:100%;border:none;background:none;outline:none;resize:none;font-size:16px;line-height:1.5;padding:2px 0;field-sizing:content;min-height:1.5em;max-height:6em}
 .mic,.send{width:44px;height:44px;flex:none;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:13px;font-weight:700}
 .mic{background:var(--card);color:var(--ink)}.mic[aria-pressed="true"]{background:var(--glow)}.mic:disabled{opacity:.4}

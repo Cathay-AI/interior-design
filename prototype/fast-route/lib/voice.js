@@ -32,7 +32,7 @@ export function swipeReply({ space, scores, swiped, liked, last }) {
 export function nextQuestion(cond) {
   const has = (k) => String(cond[k] ?? '').trim() !== '';
   const house = cond.housing === 'house';
-  if (!(has('len') && has('wid'))) return { key: 'len', text: `你家${cond.space}的長和寬大概幾公尺？有了尺寸，3D 和圖就照你家畫，不是範例。` };
+  if (!(has('len') && has('wid'))) return { key: 'len', text: `你家${cond.space}的長和寬大概幾公尺？` };
   if (!has('floors')) return { key: 'floors', text: house ? '你家總共幾層樓？' : '你家是幾層樓的大樓？這會影響要不要申請裝修許可、窗簾要不要用防焰的。' };
   if (!house && !has('partition')) return { key: 'partition', text: '這次會動隔間，或加廁所、浴室嗎？會的話申請的手續不一樣。' };
   if (!has('sprinkler')) return { key: 'sprinkler', text: '抬頭看一下，天花板有撒水頭嗎？有的話，櫃子和新天花板要讓出空間。' };
