@@ -11,6 +11,7 @@ import { PINS } from './lib/pins.js';
 import { contextScore, pingFromDims, tighten, aboutThisHome, missingForHome, fieldError } from './lib/context.js';
 import { GREETING, swipeReply, nextQuestion, designNotes, editReply, parseEdit } from './lib/voice.js';
 import { summaryText } from './lib/summary.js';
+import { roomsFromPlan, PLAN_ERRORS, MAX_EDGE, MAX_BYTES } from './lib/plan.js';
 import { templateRooms, kindOf, roomPing, homeTitle, planSVG, homeEstimate } from './lib/home.js';
 import { KEY, serialize, restore, toShare, fromShare } from './lib/persist.js';
 import { KINDS, ACCEPT, MAX_FILES, MAX_MB, guessKind, rejectReason, summarize } from './lib/docs.js';
@@ -251,24 +252,50 @@ const REG_NOTE = `提醒，不是合格判定。條號由 AI 在 ${CHECKED} 對�
 /* ================= screens ================= */
 const SCREENS = [];
 
+/* ---- 讀平面圖：圖片先縮小再送，PDF 原檔送；回 {rooms} 或 {error} ---- */
+const b64of = (blob) => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = no; r.readAsDataURL(blob); });
+async function shrink(file) {
+  const bmp = await createImageBitmap(file), k = Math.min(1, MAX_EDGE / Math.max(bmp.width, bmp.height));
+  const c = Object.assign(document.createElement('canvas'), { width: Math.round(bmp.width * k), height: Math.round(bmp.height * k) });
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0, c.width, c.height);
+  return new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.88));
+}
+async function readPlan(file) {
+  try {
+    const pdf = file.type === 'application/pdf', blob = pdf ? file : await shrink(file);
+    if (!blob || blob.size > MAX_BYTES) return { error: 'toobig' };
+    const res = await fetch('/api/read-plan', { method: 'POST', headers: { 'content-type': 'application/json' }, signal: AbortSignal.timeout(75000),
+      body: JSON.stringify({ media: pdf ? 'application/pdf' : 'image/jpeg', data: await b64of(blob) }) });
+    const body = await res.json();
+    const rooms = Array.isArray(body.rooms) ? roomsFromPlan({ is_floor_plan: true, rooms: body.rooms.map((r) => ({ name: r.name, length_m: Number(r.len), width_m: Number(r.wid), size_source: r.unsure ? 'scaled' : 'labeled' })) }) : null;
+    return rooms ? { rooms } : { error: body.error ?? 'failed' };
+  } catch { return { error: 'failed' }; }
+}
+
 /* ---- 開場：先講承諾、先給成果看、先問想弄哪裡 ---- */
 function intro() {
   const pick = (name) => { S.started = true; S.home = null; S.cond.space = name; render(); };
-  // 丟平面圖：檔案留作參考圖。還不會自動讀圖，所以先給三房兩廳的範本讓屋主改
-  const take = (files) => {
-    const f = files[0]; if (!f) return;
+  // 丟平面圖：送去讀出房間與尺寸。讀不出來才退回三房兩廳的範本，並說明原因。
+  const take = async (files) => {
+    const f = files[0]; if (!f || S.reading) return;
     const why = rejectReason(f, S.docs.length);
     if (why) { S.docError = why; return render(); }
-    S.docError = '';
+    S.docError = ''; S.reading = true; render();
+    const got = await readPlan(f);
+    S.reading = false;
     S.docs.push({ name: f.name, kind: 'plan', pdf: f.type === 'application/pdf', url: f.type.startsWith('image/') ? URL.createObjectURL(f) : null });
-    S.home = { rooms: templateRooms(), style: null }; S.room = S.home.rooms[0].id; S.started = true; S.cond.space = '客廳';
+    S.home = got.rooms ? { rooms: got.rooms, style: null, read: true } : { rooms: templateRooms(), style: null };
+    S.planNote = got.rooms ? '' : PLAN_ERRORS[got.error] ?? PLAN_ERRORS.failed;
+    S.room = S.home.rooms[0].id; S.started = true; S.cond.space = kindOf(S.home.rooms[0].name);
     render();
   };
   const file = h('input', { type: 'file', id: 'planFile', class: 'sr', accept: ACCEPT, onchange: (e) => take([...e.target.files]) });
   const zone = h('label', { for: 'planFile', class: 'upload', id: 'upload',
     ondragover: (e) => { e.preventDefault(); zone.classList.add('over'); }, ondragleave: () => zone.classList.remove('over'), ondrop: (e) => { e.preventDefault(); take([...e.dataTransfer.files]); } },
     h('i', { 'aria-hidden': 'true' }, fromHTML('<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V5M7 10l5-5 5 5M5 19h14"/></svg>')),
-    h('b', {}, '上傳你家的平面圖'), h('span', {}, '建商給的平面圖、權狀附圖、手繪都可以'), h('span', {}, '拖進來，或點這裡選檔案（JPG／PNG／PDF）'));
+    ...(S.reading ? [h('b', { id: 'reading', role: 'status' }, '正在讀你的平面圖…'), h('span', {}, '找出每一間房間和尺寸，大約半分鐘')]
+      : [h('b', {}, '上傳你家的平面圖'), h('span', {}, '建商給的平面圖、權狀附圖、手繪都可以'), h('span', {}, '拖進來，或點這裡選檔案（JPG／PNG／PDF）')]));
+  if (S.reading) { zone.classList.add('busy'); file.disabled = true; }
   app.append(h('div', { class: 'intro' },
     h('p', { class: 'eyebrow' }, 'AI 室內設計師・亮亮'),
     h('h1', {}, '把平面圖丟給我，', h('br'), '整個家一次設計好。'),
@@ -288,7 +315,7 @@ function roomsScreen() {
     const editing = S.editing === r.id, ping = roomPing(r);
     const li = h('li', {},
       h('input', { type: 'checkbox', checked: r.on, 'aria-label': `做${r.name}`, onchange: (e) => { r.on = e.target.checked; renderSoon(); } }),
-      h('b', {}, r.name), h('span', { class: 'dim' }, `${r.len} × ${r.wid} 公尺${ping ? `・${ping} 坪` : ''}`),
+      h('b', {}, r.name), r.unsure ? h('span', { class: 'tag' }, '請確認') : null, h('span', { class: 'dim' }, `${r.len} × ${r.wid} 公尺${ping ? `・${ping} 坪` : ''}`),
       h('button', { class: 'mini', 'aria-label': `改${r.name}`, 'aria-expanded': String(editing), onclick: () => { S.editing = editing ? null : r.id; render(); } }, editing ? '收起' : '改'));
     if (editing) {
       const name = h('input', { class: 'name', value: r.name, maxlength: 8, 'aria-label': '房間名稱' }), len = h('input', { type: 'number', inputmode: 'decimal', step: 'any', value: r.len, 'aria-label': '長（公尺）' }), wid = h('input', { type: 'number', inputmode: 'decimal', step: 'any', value: r.wid, 'aria-label': '寬（公尺）' });
@@ -296,15 +323,16 @@ function roomsScreen() {
       const done = () => {
         const msg = fieldError('len', len.value) || fieldError('wid', wid.value) || (!len.value || !wid.value ? '長和寬都要填' : '') || (!name.value.trim() ? '房間要有名字' : '');
         if (msg) { err.textContent = msg; return; }
-        Object.assign(r, { name: name.value.trim(), len: len.value.trim(), wid: wid.value.trim() }); S.editing = null; render();
+        Object.assign(r, { name: name.value.trim(), len: len.value.trim(), wid: wid.value.trim() }); delete r.unsure; S.editing = null; render();
       };
       li.append(h('div', { class: 'edit' }, name, len, h('span', { class: 'note' }, '×'), wid, h('span', { class: 'note' }, '公尺'),
         h('button', { class: 'mini', onclick: done }, '完成'), h('button', { class: 'mini', onclick: () => { S.home.rooms = rooms.filter((x) => x !== r); S.editing = null; render(); } }, '刪除'), err));
     }
     return li;
   };
-  app.append(h('div', { class: 'shead' }, backBtn(1, '換一張圖', () => { S.home = null; S.started = false; S.editing = null; render(); }), h('h1', {}, '你家有這些房間，對嗎？')),
-    agent('我還不會自動讀平面圖。先給你三房兩廳的範本：不做的取消勾選，尺寸不對就點「改」。', { id: 'asking' }),
+  app.append(h('div', { class: 'shead' }, backBtn(1, '換一張圖', () => { S.home = null; S.started = false; S.editing = null; S.planNote = ''; render(); }), h('h1', {}, '你家有這些房間，對嗎？')),
+    agent(S.home.read ? `我從平面圖讀到 ${rooms.length} 間。${rooms.some((r) => r.unsure) ? '標「請確認」的尺寸圖上沒直接寫，是我換算的，不對就點「改」。' : '尺寸照圖上的標註。'}`
+      : `${S.planNote || '這份清單不是從圖上讀的。'}先給你三房兩廳的範本，點「改」換成你家的。`, { id: 'asking' }),
     h('ul', { class: 'rooms', id: 'rooms' }, ...rooms.map(row)),
     h('div', { class: 'inline' },
       h('button', { class: 'soft', id: 'addroom', onclick: () => { const id = 'r' + (Math.max(0, ...rooms.map((x) => Number(x.id.slice(1)) || 0)) + 1); rooms.push({ id, name: '新房間', len: '3', wid: '3', on: true, edits: [] }); S.editing = id; render(); } }, '＋ 加一間'),

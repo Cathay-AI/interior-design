@@ -262,9 +262,30 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   const page = await open(context, 'home');
   await page.goto(base);
   await ready(page);
+  // 讀圖的服務在測試裡用假的：第一次讀不出來（退回範本並說原因），換一張圖後讀成功
+  const READ = [['客廳', '5.6', '4.7'], ['餐廳', '3.4', '3.0'], ['廚房', '3.4', '2.4', true], ['主臥', '4.3', '3.9'], ['次臥 1', '3.2', '3.0'], ['次臥 2', '3.6', '3.0', true], ['主衛', '2.4', '2.0'], ['客衛', '2.2', '2.0']];
+  let calls = 0, sent = null;
+  await page.route('**/api/read-plan', async (route) => {
+    sent = route.request().postDataJSON(); calls += 1;
+    await new Promise((r) => setTimeout(r, 400));
+    if (calls === 1) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ error: 'nokey' }) });
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ rooms: READ.map(([name, len, wid, unsure]) => ({ name, len, wid, ...(unsure ? { unsure: true } : {}) })) }) });
+  });
+  await page.setInputFiles('#planFile', { name: '我家平面圖.png', mimeType: 'image/png', buffer: PNG });
+  await page.locator('#reading', { hasText: '正在讀你的平面圖' }).waitFor();
+  await page.getByRole('heading', { name: '你家有這些房間，對嗎？' }).waitFor();
+  assert.match(await page.locator('#asking').innerText(), /讀圖功能還沒接上.*先給你三房兩廳的範本/, 'when the plan cannot be read it says why and falls back to the template');
+  assert.equal(await page.locator('#rooms .tag').count(), 0);
+  await page.getByRole('button', { name: '換一張圖' }).click();
   await page.setInputFiles('#planFile', { name: '我家平面圖.png', mimeType: 'image/png', buffer: PNG });
   await page.getByRole('heading', { name: '你家有這些房間，對嗎？' }).waitFor();
-  assert.match(await page.locator('#asking').innerText(), /我還不會自動讀平面圖/, 'says plainly that the plan is not read automatically');
+  assert.equal(sent.media, 'image/jpeg', 'the image is re-encoded before it is sent');
+  assert.match(sent.data, /^[A-Za-z0-9+/]+=*$/);
+  assert.match(await page.locator('#asking').innerText(), /我從平面圖讀到 8 間。標「請確認」的尺寸/);
+  assert.deepEqual(await page.locator('#rooms li:has(.tag) b').allTextContents(), ['廚房', '次臥 2'], 'sizes the plan did not state are marked 請確認');
+  await page.locator('#rooms li', { hasText: '廚房' }).getByRole('button', { name: '改廚房' }).click();   // 改過就不再標
+  await page.locator('#rooms .edit').getByRole('button', { name: '完成' }).click();
+  assert.deepEqual(await page.locator('#rooms li:has(.tag) b').allTextContents(), ['次臥 2']);
   assert.equal(await page.locator('#rooms li').count(), 8);
   assert.equal(await page.locator('#plan [data-room]').count(), 8, 'the stage shows the schematic plan');
   assert.match(await page.locator('#where2').innerText(), /你家・三房兩廳・8 個空間・室內約 \d+ 坪/);

@@ -15,7 +15,7 @@
 <link rel="preload" as="image" href="assets/preview-living.jpg">
 <!-- 第一張卡片（lib/pins.js 的第一筆）提前載入，不必等程式跑完；test/assets.test.mjs 會檢查兩邊一致 -->
 <link rel="preload" as="image" href="https://i.pinimg.com/474x/92/0f/bd/920fbde632d7565361feb9f94d962291.jpg" imagesrcset="https://i.pinimg.com/474x/92/0f/bd/920fbde632d7565361feb9f94d962291.jpg 474w, https://i.pinimg.com/736x/92/0f/bd/920fbde632d7565361feb9f94d962291.jpg 736w" imagesizes="(max-width: 520px) 92vw, 480px" fetchpriority="high" referrerpolicy="no-referrer">
-<link rel="modulepreload" href="./app.js"><link rel="modulepreload" href="./lib/taste.js"><link rel="modulepreload" href="./lib/estimate.js"><link rel="modulepreload" href="./lib/rules.js"><link rel="modulepreload" href="./lib/intake.js"><link rel="modulepreload" href="./lib/drawings.js"><link rel="modulepreload" href="./lib/layout.js"><link rel="modulepreload" href="./lib/art.js"><link rel="modulepreload" href="./lib/pins.js"><link rel="modulepreload" href="./lib/context.js"><link rel="modulepreload" href="./lib/persist.js"><link rel="modulepreload" href="./lib/voice.js"><link rel="modulepreload" href="./lib/home.js"><link rel="modulepreload" href="./lib/summary.js"><link rel="modulepreload" href="./lib/docs.js">
+<link rel="modulepreload" href="./app.js"><link rel="modulepreload" href="./lib/taste.js"><link rel="modulepreload" href="./lib/estimate.js"><link rel="modulepreload" href="./lib/rules.js"><link rel="modulepreload" href="./lib/intake.js"><link rel="modulepreload" href="./lib/drawings.js"><link rel="modulepreload" href="./lib/layout.js"><link rel="modulepreload" href="./lib/art.js"><link rel="modulepreload" href="./lib/pins.js"><link rel="modulepreload" href="./lib/context.js"><link rel="modulepreload" href="./lib/persist.js"><link rel="modulepreload" href="./lib/voice.js"><link rel="modulepreload" href="./lib/home.js"><link rel="modulepreload" href="./lib/plan.js"><link rel="modulepreload" href="./lib/summary.js"><link rel="modulepreload" href="./lib/docs.js">
 <style>
 /* 視覺依設計稿「實作優化＋整戶平面圖」：暖色紙面、襯線標題與金額、膠囊按鈕。
    陶土橘只給每頁唯一的主要按鈕；燈光黃只給進度「已完成」與亮亮。圓角三級：膠囊／16–20（卡片）／24（滑卡、手機面板）。 */
@@ -139,7 +139,7 @@ h2{font-size:17px;line-height:1.4}
 .rooms{list-style:none;padding:0;display:grid}
 .rooms li{display:flex;align-items:center;gap:12px;min-height:53px;border-bottom:1px solid var(--line);flex-wrap:wrap;padding:4px 0}
 .rooms input[type=checkbox],.check input{width:22px;height:22px;accent-color:var(--accent);flex:none}
-.rooms b{font-size:16px}.rooms .dim{margin-left:auto;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.rooms b{font-size:16px}.rooms .tag{font-size:12px;font-weight:700;color:var(--accent);background:var(--warn);border-radius:999px;padding:2px 9px}.upload.busy{pointer-events:none;opacity:.75}.upload.busy i{animation:pulse 1.2s ease-in-out infinite}@keyframes pulse{50%{opacity:.35}}.rooms .dim{margin-left:auto;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
 .rooms .amt{margin-left:auto;font-family:var(--serif);font-weight:900;font-size:17px;font-variant-numeric:tabular-nums}
 .mini{min-height:32px;padding:0 12px;border-radius:999px;background:var(--card);font-size:13px}.mini.ask{background:var(--warn);color:var(--accent);font-weight:700}
 .rooms .edit{flex-basis:100%;display:flex;gap:8px;align-items:center;padding:4px 0 10px 34px;flex-wrap:wrap}
