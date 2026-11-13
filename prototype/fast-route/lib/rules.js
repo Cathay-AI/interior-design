@@ -31,12 +31,12 @@ export function ruleFindings(cond, look, docs = {}) {
   const findings = [];
 
   findings.push(hasPing
-    ? { state: 'ok', title: '動線', detail: `${cond.space} ${ping} 坪：沙發與茶几間保留走道（示意尺寸）` }
+    ? { state: 'ok', title: '動線', detail: cond.space === '臥室' ? `臥室 ${ping} 坪：床的兩側與衣櫃前保留走道（示意尺寸）` : `${cond.space} ${ping} 坪：沙發與茶几間保留走道（示意尺寸）` }
     : { state: 'missing', title: '動線', detail: '需要坪數或尺寸才能檢查' });
 
   findings.push(docs.mep
     ? { state: 'review', title: '插座與電源', detail: '已收到機電圖，需由專業判讀既有插座與迴路後確認' }
-    : { state: 'missing', title: '插座與電源', detail: '需要既有插座點位（可上傳機電圖），才能確認電視牆與立燈位置' });
+    : { state: 'missing', title: '插座與電源', detail: '需要既有插座點位（可上傳機電圖），才能確認' + (cond.space === '臥室' ? '床頭兩側與書桌的插座位置' : '電視牆與立燈位置') });
 
   findings.push(isDark(look.wall) && hasPing && ping < 7
     ? { state: 'conflict', title: '空間感（設計提醒）', detail: '深色牆面在 7 坪以下可能顯得壓迫，建議只做一面主牆' }

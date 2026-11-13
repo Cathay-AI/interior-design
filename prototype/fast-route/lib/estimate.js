@@ -13,6 +13,8 @@ const FLOOR = {
 };
 /** 家具軟裝等級（沙發、單椅、茶几、邊几、地毯、燈飾）。 */
 const FURNITURE = { linen: [9, 16], velvet: [11, 19], leather: [14, 24] };
+/** 臥室：床架、床墊、床頭櫃、單椅、燈飾。 */
+const BEDROOM_FURNITURE = { linen: [7, 13], velvet: [8, 15], leather: [10, 18] };
 
 const round1 = (v) => Math.round(v * 10) / 10;
 const isDark = (hex) => {
@@ -45,16 +47,18 @@ export function designEstimate(cond, look) {
   const special = look.wallType === 'concrete' || isDark(look.wall);
   add('wall', '牆面與天花', special ? `特殊塗料／深色需多道 × ${ping} 坪` : `乳膠漆 × ${ping} 坪`, (special ? 0.45 : 0.25) * ping, (special ? 0.8 : 0.42) * ping);
 
-  // 收納牆寬 175 cm ≈ 5.8 尺；低櫃 160 cm ≈ 5.3 尺
-  const wood = look.cabinetWood;
-  add('cabinet', '收納櫃', `${wood ? '木皮' : '烤漆'}系統高櫃 5.8 尺＋窗下低櫃 5.3 尺`, 5.8 * (wood ? 0.75 : 0.65) + 5.3 * 0.35, 5.8 * (wood ? 1.3 : 1.1) + 5.3 * 0.6);
+  // 收納牆寬 175 cm ≈ 5.8 尺；低櫃 160 cm ≈ 5.3 尺。臥室的高櫃是衣櫃（含吊桿、抽屜五金，單價較高）。
+  const wood = look.cabinetWood, bedroom = cond.space === '臥室';
+  if (bedroom) add('cabinet', '衣櫃與斗櫃', `${wood ? '木皮' : '烤漆'}系統衣櫃 5.8 尺（含吊桿、抽屜）＋窗下斗櫃 5.3 尺`, 5.8 * (wood ? 0.85 : 0.75) + 5.3 * 0.4, 5.8 * (wood ? 1.5 : 1.3) + 5.3 * 0.7);
+  else add('cabinet', '收納櫃', `${wood ? '木皮' : '烤漆'}系統高櫃 5.8 尺＋窗下低櫃 5.3 尺`, 5.8 * (wood ? 0.75 : 0.65) + 5.3 * 0.35, 5.8 * (wood ? 1.3 : 1.1) + 5.3 * 0.6);
 
-  add('light', '燈具與電工', `嵌燈、吊燈、立燈與迴路 × ${ping} 坪`, 0.3 * ping + 1, 0.55 * ping + 2.5);
-  add('curtain', '窗簾', '落地窗紗簾＋軌道', 1.2, 2.8);
+  add('light', '燈具與電工', `嵌燈、吊燈、${bedroom ? '床頭燈' : '立燈'}與迴路 × ${ping} 坪`, 0.3 * ping + 1, 0.55 * ping + 2.5);
+  add('curtain', '窗簾', bedroom ? '遮光簾＋紗簾＋軌道' : '落地窗紗簾＋軌道', bedroom ? 1.8 : 1.2, bedroom ? 3.6 : 2.8);
 
-  const [ul, uh] = FURNITURE[look.fabric] ?? FURNITURE.linen;
+  const [ul, uh] = (bedroom ? BEDROOM_FURNITURE : FURNITURE)[look.fabric] ?? (bedroom ? BEDROOM_FURNITURE : FURNITURE).linen;
   const rug = look.rug ? [0.6, 1.8] : [0, 0];
-  if (!cond.noFurniture) add('furniture', '家具軟裝', `${{ leather: '皮革', velvet: '絨布', linen: '布面' }[look.fabric] ?? '布面'}沙發、單椅、茶几${look.rug ? '、地毯' : ''}`, ul + rug[0], uh + rug[1]);
+  const fabricName = { leather: '皮革', velvet: '絨布', linen: '布面' }[look.fabric] ?? '布面';
+  if (!cond.noFurniture) add('furniture', '家具軟裝', bedroom ? `${fabricName}床頭雙人床架、床墊、床頭櫃、單椅${look.rug ? '、地毯' : ''}` : `${fabricName}沙發、單椅、茶几${look.rug ? '、地毯' : ''}`, ul + rug[0], uh + rug[1]);
 
   const extra = AGE_EXTRA[cond.age];
   if (extra) add('base', `${cond.age}基礎工程`, `假設這個空間的舊裝潢全拆、水電管線重拉（每坪 ${extra[0]}–${extra[1]} 萬）× ${ping} 坪；管線近年換過可以少很多`, extra[0] * ping, extra[1] * ping);

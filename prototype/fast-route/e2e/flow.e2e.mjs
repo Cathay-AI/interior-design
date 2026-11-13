@@ -109,7 +109,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.locator('.scene[data-ready] canvas').waitFor({ timeout: 30000 });
   if (name === 'phone') { const b = await page.locator('.cta').boundingBox(); assert.ok(b.y + b.height <= viewport.height && b.y > viewport.height - 120, 'the main button stays docked at the bottom of the phone screen'); }
   assert.match(await page.locator('#ctx').innerText(), /這個房間：5.6 × 4.7 公尺、高 2.8 公尺（8 坪）・掌握度 70%/);
-  assert.deepEqual(await page.evaluate(() => window.__room.stats().size), { w: 5.6, d: 4.7, h: 2.8, clamped: false }, '3D room uses the real size');
+  assert.deepEqual(await page.evaluate(() => window.__room.stats().size), { w: 5.6, d: 4.7, h: 2.8, clamped: false, space: '客廳' }, '3D room uses the real size');
   await snap('3-3d'); await noOverflow('3');
   await page.getByRole('button', { name: '看估價與施工圖' }).click();
 
@@ -215,6 +215,27 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.locator('.round.like').click();                                    // 溫暖木質 ♥
   await page.waitForFunction(() => document.querySelector('.count').textContent.startsWith('2 '));
   await page.locator('#skip').click();
+  // 空間範圍：一句話講到主臥就切到臥室；3D、估價、圖面都跟著換
+  assert.equal(await page.locator('#spaces').getByRole('button', { name: '客廳' }).getAttribute('aria-pressed'), 'true', '客廳 is the default');
+  assert.equal(await page.locator('#spaces').getByRole('button', { name: '廚房（之後）' }).isDisabled(), true);
+  await page.fill('#say', '只想裝潢主臥，大概 5 坪，長 4 米 2、寬 3 米 8，天花板 2 米 7，老屋，12 樓高的大樓，不動隔間'); await page.press('#say', 'Enter');
+  await page.getByText('聽到：空間 臥室、坪數 5 坪、長 4.2 公尺、寬 3.8 公尺、天花板高 2.7 公尺、建物總樓層 12 層、隔間 不動、屋況 老屋、坪數依長寬換算為 4.8 坪').waitFor();
+  assert.equal(await page.locator('#spaces').getByRole('button', { name: '臥室' }).getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.inputValue('#f-floors'), '12');
+  await page.locator('#spacenote').waitFor();
+  await page.getByRole('button', { name: '生成 3D', exact: true }).click();
+  await page.getByRole('heading', { name: '臥室・溫暖木質' }).waitFor();
+  await page.locator('.scene[data-ready] canvas').waitFor({ timeout: 30000 });
+  assert.equal(await page.evaluate(() => window.__room.stats().size.space), '臥室');
+  await page.getByRole('button', { name: '看估價與施工圖' }).click();
+  await page.locator('.items').getByText('衣櫃與斗櫃').waitFor();
+  assert.match(await page.locator('.items').innerText(), /床架、床墊、床頭櫃/);
+  assert.ok((await page.locator('.sheetbtn').first().innerHTML()).includes('雙人床'), 'the plan shows a bed');
+  await page.locator('#withfurniture input').uncheck();
+  await page.waitForFunction(() => !document.querySelector('.items').textContent.includes('家具軟裝'));
+  await page.locator('#withfurniture input').check();
+  await page.locator('#steps button').nth(1).click();
+  await page.locator('#spaces').getByRole('button', { name: '客廳' }).click();
   await page.fill('#f-len', '6.2'); await page.locator('#f-len').blur();
   await page.fill('#f-wid', '4.3'); await page.locator('#f-wid').blur();
   await page.getByRole('button', { name: '老屋' }).click();
