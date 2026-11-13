@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://i.pinimg.com">
 <!-- 第一張卡片（lib/pins.js 的第一筆）提前載入，不必等程式跑完；test/assets.test.mjs 會檢查兩邊一致 -->
 <link rel="preload" as="image" href="https://i.pinimg.com/474x/92/0f/bd/920fbde632d7565361feb9f94d962291.jpg" imagesrcset="https://i.pinimg.com/474x/92/0f/bd/920fbde632d7565361feb9f94d962291.jpg 474w, https://i.pinimg.com/736x/92/0f/bd/920fbde632d7565361feb9f94d962291.jpg 736w" imagesizes="(max-width: 520px) 92vw, 480px" fetchpriority="high" referrerpolicy="no-referrer">
-<link rel="modulepreload" href="./app.js"><link rel="modulepreload" href="./lib/taste.js"><link rel="modulepreload" href="./lib/estimate.js"><link rel="modulepreload" href="./lib/rules.js"><link rel="modulepreload" href="./lib/intake.js"><link rel="modulepreload" href="./lib/drawings.js"><link rel="modulepreload" href="./lib/layout.js"><link rel="modulepreload" href="./lib/art.js"><link rel="modulepreload" href="./lib/pins.js"><link rel="modulepreload" href="./lib/context.js"><link rel="modulepreload" href="./lib/persist.js"><link rel="modulepreload" href="./lib/voice.js"><link rel="modulepreload" href="./lib/docs.js">
+<link rel="modulepreload" href="./app.js"><link rel="modulepreload" href="./lib/taste.js"><link rel="modulepreload" href="./lib/estimate.js"><link rel="modulepreload" href="./lib/rules.js"><link rel="modulepreload" href="./lib/intake.js"><link rel="modulepreload" href="./lib/drawings.js"><link rel="modulepreload" href="./lib/layout.js"><link rel="modulepreload" href="./lib/art.js"><link rel="modulepreload" href="./lib/pins.js"><link rel="modulepreload" href="./lib/context.js"><link rel="modulepreload" href="./lib/persist.js"><link rel="modulepreload" href="./lib/voice.js"><link rel="modulepreload" href="./lib/summary.js"><link rel="modulepreload" href="./lib/docs.js">
 <style>
 :root{
   --paper:#f3eee5;--surface:#fbf9f4;--card:#ece5d8;--ink:#2b2621;--muted:#675d53;--accent:#b5653a;--accent-d:#8f4c2a;
@@ -166,6 +166,11 @@ iframe.printer{position:fixed;width:0;height:0;border:0;visibility:hidden}
 .regs{list-style:none;padding:0;display:grid}
 .regs li{display:grid;grid-template-columns:5.2em 1fr;gap:12px;padding:12px 0;align-items:start}.regs li+li{border-top:1px solid var(--line)}
 .regs .state{font-size:12px;font-weight:700;color:#fff;border-radius:999px;padding:3px 0;text-align:center}
+.regs .brief{font-size:15px;color:var(--ink)}.regs details{margin-top:4px}.regs summary,.whyso summary{font-size:13px;color:var(--muted);cursor:pointer;min-height:32px;display:flex;align-items:center;text-decoration:underline;text-underline-offset:3px;list-style:none}
+.regs summary::-webkit-details-marker,.whyso summary::-webkit-details-marker{display:none}
+.whyso ul{padding-left:1.2em;display:grid;gap:6px;font-size:14px;line-height:1.6;color:#5a5047;margin-top:4px}
+.chip.yes{background:var(--accent);color:#fff;font-weight:600;justify-self:start}
+.fields.two{grid-template-columns:repeat(2,minmax(0,10em))}.quick{display:grid;gap:8px}.more{gap:6px 18px}
 .agent{display:flex;align-items:flex-start;gap:10px;max-width:38em}
 .agent .mascot{width:40px;height:40px;flex:none}
 .bubble{background:var(--surface);border:1px solid var(--line);border-radius:4px 18px 18px 18px;padding:10px 14px;display:grid;gap:6px;font-size:15px;line-height:1.55}

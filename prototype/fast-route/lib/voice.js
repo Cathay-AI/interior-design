@@ -17,9 +17,10 @@ export const GREETING = '嗨，我來幫你設計你家。想先弄哪裡？';
  * @returns {{text:string, ready:boolean}} ready = 已經抓得到方向，可以邀請看成果
  */
 export function swipeReply({ space, scores, swiped, liked, last }) {
-  if (!last) return { text: `好，${space}。右滑喜歡、左滑跳過，滑幾張我就知道你的方向。`, ready: false };
+  // 滑卡的圖目前都是客廳：選了別的空間要先講，不要讓人以為弄錯了
+  if (!last) return { text: space === '客廳' ? '好，客廳。挑喜歡的，接著看你家尺寸的 3D 和預算。不用滑完。' : `好，${space}。圖是客廳的，先挑風格就好，接著看你家${space}的 3D 和預算。不用滑完。`, ready: false };
   const top = topStyles(scores).top;
-  if (liked >= 3 || (swiped >= 5 && liked >= 1)) return { text: `我大概知道你的方向了：${names(top)}。要看看我幫你配的樣子嗎？`, ready: true };
+  if (liked >= 3 || (swiped >= 5 && liked >= 1)) return { text: `我知道你的方向了：${names(top)}。要看我幫你配的樣子嗎？`, ready: true };
   if (last[1]) return { text: `收到，你家${space}會偏${TRAIT[last[0]]}。`, ready: false };
   return { text: liked ? '了解，這種先不要。' : '了解，這種不要，再看幾張。', ready: false };
 }
@@ -72,33 +73,39 @@ export function designNotes(cond, look, { room, layout, cabinet }, reasons = [])
 
 /**
  * 改完設計後回一句：改了什麼、錢差多少、法規上多了或少了什麼。
- * @param {{label:string, on:boolean, before:{low:number, high:number}, after:{low:number, high:number}, legalBefore:string[], legalAfter:string[]}} c
+ * @param {{label:string, on:boolean, before:{low:number, high:number, items?:object[]}, after:{low:number, high:number, items?:object[]}, legalBefore:string[], legalAfter:string[]}} c
+ *   before／after 帶 items 時，會說出金額變動來自哪些工項
  *   legalBefore／legalAfter = 改之前、之後「需辦理」的法規項目名稱
  */
 export function editReply({ label, on, before, after, legalBefore, legalAfter }) {
   const diff = Math.round(((after.low + after.high) - (before.low + before.high)) / 2 * 10) / 10;
-  const money = diff === 0 ? '預估金額沒有變' : `預估${diff < 0 ? '少' : '多'}約 ${Math.abs(diff)} 萬`;
+  const amount = (list, name) => { const i = (list ?? []).find((x) => x.name === name); return i ? i.low + i.high : 0; };
+  const moved = [...new Set([...(before.items ?? []), ...(after.items ?? [])].map((i) => i.name))].filter((n) => amount(before.items, n) !== amount(after.items, n));
+  const money = diff === 0 ? '預估金額沒有變' : `預估${diff < 0 ? '少' : '多'}約 ${Math.abs(diff)} 萬${moved.length ? `（${moved.join('、')}）` : ''}`;
   const gone = legalBefore.filter((t) => !legalAfter.includes(t)), added = legalAfter.filter((t) => !legalBefore.includes(t));
   const legal = [gone.length ? `不用再處理${gone.join('、')}` : '', added.length ? `要多注意${added.join('、')}` : ''].filter(Boolean).join('，');
   return `好，${on ? label : `取消「${label}」`}。${money}${legal ? `；${legal}` : '，法規上要辦的事不變'}。`;
 }
 
 /**
- * 用說的改設計：聽得懂的範圍就是畫面上那幾個修改和六種風格。
+ * 用說的改設計：一句話可以講好幾件事；聽得懂的範圍就是畫面上那幾個修改和六種風格。
+ * 聽不懂的每一段都原樣回報，不能悄悄略過。
  * @param {string} text @param {string[]} editLabels 目前的修改名稱（依序）
- * @returns {{edit:number, on:boolean} | {style:string} | null}
+ * @returns {{edits:{edit:number, on:boolean}[], style:string|null, unknown:string[]}}
  */
 export function parseEdit(text, editLabels) {
-  const t = String(text);
-  const off = /不要改|改回|恢復|還原|取消/.test(t);
+  const out = { edits: [], style: null, unknown: [] };
   const rules = [[/(沙發|床頭).*(淺|亮|白)|淺色.*(沙發|床頭)/, '淺色'], [/牆.*(白|暖白|淺)|(白|淺).*牆/, '牆'], [/地毯/, '地毯'], [/地板.*(深|暗)|深色.*地板/, '地板']];
-  for (const [re, word] of rules) {
-    if (!re.test(t)) continue;
-    const i = editLabels.findIndex((l) => l.includes(word));
-    if (i < 0) continue;
-    if (word === '地毯') return { edit: i, on: /不要|拿掉|移除|去掉|不用|沒有/.test(t) && !/要回|放回|加回|還是要/.test(t) };
-    return { edit: i, on: !off };
+  for (const part of String(text).split(/[，,、。；;\n]|然後|還有|另外|而且/).map((p) => p.trim()).filter(Boolean)) {
+    const off = /不要改|改回|恢復|還原|取消/.test(part);
+    const hit = rules.map(([re, word]) => (re.test(part) ? [word, editLabels.findIndex((l) => l.includes(word))] : null)).find((m) => m && m[1] >= 0);
+    if (hit) {
+      const on = hit[0] === '地毯' ? /不要|拿掉|移除|去掉|不用|沒有/.test(part) && !/要回|放回|加回|還是要/.test(part) : !off;
+      out.edits = [...out.edits.filter((e) => e.edit !== hit[1]), { edit: hit[1], on }];
+      continue;
+    }
+    const style = Object.keys(STYLES).find((k) => part.includes(STYLES[k].name) || part.includes(STYLES[k].name.slice(-2)));
+    if (style) out.style = style; else out.unknown.push(part);
   }
-  const style = Object.keys(STYLES).find((k) => t.includes(STYLES[k].name) || t.includes(STYLES[k].name.slice(-2)));
-  return style ? { style } : null;
+  return out;
 }
