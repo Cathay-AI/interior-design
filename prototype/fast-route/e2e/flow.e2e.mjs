@@ -323,8 +323,7 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   await page.locator('#byitem').getByText('地坪').waitFor();
   if (shots) { await page.waitForTimeout(450); await page.screenshot({ path: `${shots}/home-4-cost.png` }); }
   await page.reload();                                                          // 重新整理：整戶的房間還在
-  await page.locator('#byitem').waitFor();
-  await page.getByRole('button', { name: '依房間' }).click();
+  await page.locator('#byroom').waitFor();
   assert.equal(await page.locator('#byroom li').count(), 8, 'seven rooms plus the one switched off stay listed');
   await context.close();
 }
