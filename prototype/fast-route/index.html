@@ -175,7 +175,7 @@ h2{font-size:18px;line-height:1.4}
 .check{display:flex;align-items:center;gap:10px;min-height:44px;font-size:15px;cursor:pointer}.check input{width:20px;height:20px;accent-color:var(--ink);flex:none}
 iframe.printer{position:fixed;width:0;height:0;border:0;visibility:hidden}
 
-/* 單欄的格線一律允許欄寬縮到容器內：否則某個不能換行的子項（例如輸入框的固有寬度）會把整欄撐出畫面 */
+/* single-column grids may shrink below their content: otherwise one unbreakable child (an input with a wide intrinsic width) pushes the column off a narrow screen */
 .panel,.cardbox,.tweak,.shead,.two,.intro,.quick,.voicebody,.bubble,.meter{grid-template-columns:minmax(0,1fr)}
 /* 3 你家的設計 */
 .panel{display:grid;gap:18px}
