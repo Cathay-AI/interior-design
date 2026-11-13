@@ -111,7 +111,7 @@ function rollPrice(low, high) {
   const el = $('#teaser'), text = (a, b) => `${Math.round(a)}–${Math.round(b)} 萬`, from = shownPrice;
   shownPrice = [low, high]; el.dataset.final = text(low, high);
   cancelAnimationFrame(rollTimer);
-  if (!from || reducedMotion() || (from[0] === low && from[1] === high)) { el.textContent = text(low, high); return; }
+  if (!from || reducedMotion() || (from[0] === low && from[1] === high)) { el.textContent = text(low, high); el.classList.remove('flash'); return; }
   el.classList.add('flash');
   const t0 = performance.now(), step = (now) => {
     const t = Math.min(1, (now - t0) / 400);
