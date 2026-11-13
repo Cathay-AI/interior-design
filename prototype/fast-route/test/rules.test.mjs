@@ -71,6 +71,10 @@ test('法規提醒：依樓層、所在樓層、撒水頭與是否動隔間，�
     for (const k of f.law) { assert.match(LAWS[k].amended, /^\d{4}-\d\d-\d\d$/); assert.match(lawUrl(k), /^https:\/\/law\.moj\.gov\.tw\/LawClass\/LawSingle\.aspx\?pcode=[A-Z]\d{7}&flno=[\d-]+$/); }
   }
   assert.match(CHECKED, /^\d{4}-\d\d-\d\d$/);
+  // 每一項都有一行講完的「要做什麼」，比細節短
+  for (const f of legal) assert.ok(f.brief && f.brief.length <= 20 && f.brief.length < f.detail.length, `${f.title}: ${f.brief}`);
+  assert.equal(get({ floors: '12' }, '防焰地毯').brief, '地毯選附防焰標示的產品');
+  assert.equal(get({ floors: '12' }, '撒水頭淨空').brief, '抬頭看一下天花板有沒有撒水頭');
 });
 
 test('3D 頁的一行結論：要不要申請、幾項要注意、還差幾題', () => {
@@ -78,11 +82,11 @@ test('3D 頁的一行結論：要不要申請、幾項要注意、還差幾題',
   const sum = (c, look = {}) => regSummary(ruleFindings({ ...base, ...c }, { ...light, rug: '#fff', ...look }));
   assert.equal(sum({}).permit, 'unknown');
   const twelve = sum({ floors: '12', partition: 'no' });
-  assert.equal(twelve.text, '這個設計需申請室內裝修許可・3 項要注意・再回答 2 題就能判斷完');   // 防焰窗簾、防焰地毯、偵測器；差所在樓層與撒水頭
+  assert.equal(twelve.text, '這個設計需申請室內裝修許可・另外 3 項要注意・再回答 2 題就能判斷完');   // 防焰窗簾、防焰地毯、偵測器；差所在樓層與撒水頭
   assert.deepEqual(twelve.asks, ['unitFloor', 'sprinkler']);
   assert.equal(sum({ floors: '12', partition: 'no' }, { rug: null }).attention, 2, '拿掉地毯少一項');
-  assert.equal(sum({ floors: '12', partition: 'no', unitFloor: '12', sprinkler: 'yes' }).text, '這個設計需申請室內裝修許可・5 項要注意');
-  assert.equal(sum({ floors: '4', partition: 'no', sprinkler: 'no' }).text, '這個設計一般不需申請室內裝修許可・1 項要注意');
+  assert.equal(sum({ floors: '12', partition: 'no', unitFloor: '12', sprinkler: 'yes' }).text, '這個設計需申請室內裝修許可・另外 5 項要注意');
+  assert.equal(sum({ floors: '4', partition: 'no', sprinkler: 'no' }).text, '這個設計一般不需申請室內裝修許可・另外 1 項要注意');
 });
 
 test('統計各狀態數量', () => {

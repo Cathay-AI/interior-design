@@ -9,7 +9,7 @@ const PLAN = { x: 70, y: 84, w: 500, h: 370 };   // where the plan may sit on th
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // The room being drawn. drawingSet sets these before any sheet is built (building is synchronous).
-let ROOM, WINDOW, CABINET, LAYOUT, S, N, OX, OZ;
+let ROOM, WINDOW, CABINET, LAYOUT, S, N, OX, OZ, RUG = true;
 /** Pick the largest standard drawing scale (1 : N) at which the plan fits, and centre the plan. */
 function useRoom(size) {
   ({ room: ROOM, window: WINDOW, cabinet: CABINET, layout: LAYOUT } = roomLayout(size));
@@ -75,7 +75,7 @@ function furniture() {
     const pillows = Array.from({ length: n }, (_, i) => r({ x: bx + 0.4, z: bed.z - bed.sz / 2 + (bed.sz / n) * (i + 0.5), sx: 0.4, sz: pw }, 5)).join('');
     return `${r(bed, 3)}${r({ x: bx + 0.04, z: bed.z, sx: 0.08, sz: bed.sz }, 0)}${pillows}<path d="M${px(bx + 0.78)} ${pz(bed.z - bed.sz / 2)}v${bed.sz * S}M${px(bx + 0.95)} ${pz(bed.z - bed.sz / 2)}v${bed.sz * S}"/>${[nightA, nightB].filter(Boolean).map((t) => r(t, 2)).join('')}`;
   };
-  return `<g class="thin"><g class="dash">${r(rug, 0)}</g>
+  return `<g class="thin">${RUG ? `<g class="dash">${r(rug, 0)}</g>` : ''}
 ${r(cab, 0)}<path d="M${px(CABINET.x0)} ${pz(-ROOM.d / 2)}L${px(CABINET.x1)} ${pz(-ROOM.d / 2 + CABINET.depth)}M${px(CABINET.x0 + cab.sx / 3)} ${pz(-ROOM.d / 2)}v${CABINET.depth * S}M${px(CABINET.x0 + (cab.sx * 2) / 3)} ${pz(-ROOM.d / 2)}v${CABINET.depth * S}"/>
 ${sideboard ? r(sideboard, 1) : ''}${sofa ? sofaSVG() : ''}${bed ? bedSVG() : ''}
 ${table ? `<ellipse cx="${px(table.x)}" cy="${pz(table.z)}" rx="${(table.sx / 2) * S}" ry="${(table.sz / 2) * S}"/>` : ''}
@@ -117,7 +117,7 @@ function planSheet(meta, dm) {
     + (sofa ? dimV(pz(sofa.z - sofa.sz / 2), pz(sofa.z + sofa.sz / 2), px(sofa.x - sofa.sx / 2) + 16, String(dm.mm(sofa.sz)))
       : dimV(pz(bed.z - bed.sz / 2), pz(bed.z + bed.sz / 2), px(bed.x + bed.sx / 2) - 14, String(dm.mm(bed.sz))) + dimH(px(bed.x - bed.sx / 2), px(bed.x + bed.sx / 2), pz(bed.z + bed.sz / 2) + 16, String(dm.mm(bed.sx))))
     + tags.map(([n, , x, z]) => tag(n, x, z)).join('')
-    + legend([['<path class="dash" d="M-10 0h20"/>', '地毯範圍'], ['<rect x="-8" y="-4" width="16" height="8"/>', '固定櫃體（木作／系統）'], ['<circle r="6"/>', '活動家具'],
+    + legend([...(RUG ? [['<path class="dash" d="M-10 0h20"/>', '地毯範圍']] : []), ['<rect x="-8" y="-4" width="16" height="8"/>', '固定櫃體（木作／系統）'], ['<circle r="6"/>', '活動家具'],
       ...tags.map(([n, label]) => [tagSym(n), label]), ['<path d="M-10 0h20"/>', '門、窗位置為示意，以現場為準']]));
 }
 /** 嵌燈依房間大小排成格點：約每 2.2 m 一盞，離牆半個間距。 */
@@ -139,7 +139,7 @@ ${at(R - 0.08, swz, SYM.sw)}${at(R - 0.08, swz - 0.15, SYM.sw)}
 ${text(px(R) - 44, pz(swz) + 16, 'S1 S2')}${downs.length <= 16 ? downs.map(([x, z], i) => text(px(x) + 9, pz(z) - 8, `L${i + 1}`)).join('') : ''}${text(px(LAYOUT.pendant.x) + 12, pz(LAYOUT.pendant.z) - 10, 'P1')}</g>`
     + `<g class="red">${text(px(-ROOM.w / 2) + 6, pz(F) - 22, `天花板重做：火警偵測器／住宅用火災警報器${meta.sprinkler === 'no' ? '' : '、撒水頭'}位置待現場標註，嵌燈與造型需避開`, 'style="font-size:9px"')}</g>`
     + text(px(-ROOM.w / 2) + 6, pz(F) - 8, `現況淨高 ${dm.h}；完成天花板 CH=${dm.h - 200}（預留 200 走燈具與管線），窗簾盒深 180`)
-    + legend([[SYM.down, `嵌燈 Ø95　9W 3000K ×${downs.length}`], [SYM.pendant, '吊燈　E27 ×1'], [SYM.strip, '層板 LED 燈條 2700K'], [SYM.floor, '立燈（插座迴路）'], [SYM.sw, '單切開關 H=1200']].map(([sym, l]) => [`<g class="red">${sym}</g>`, l])));
+    + legend([[SYM.down, `嵌燈 Ø95　9W 3000K ×${downs.length}`], [SYM.pendant, '吊燈　E27 ×1'], [SYM.strip, '層板 LED 燈條 2700K'], ...(LAYOUT.lamp ? [[SYM.floor, '立燈（插座迴路）']] : []), [SYM.sw, '單切開關 H=1200']].map(([sym, l]) => [`<g class="red">${sym}</g>`, l])));
 }
 function powerSheet(meta, dm) {
   const b = -ROOM.d / 2 + 0.06, l = -ROOM.w / 2 + 0.08, r = ROOM.w / 2 - 0.08, bed = LAYOUT.bed, sofa = LAYOUT.sofa ?? bed, wc = (WINDOW.x0 + WINDOW.x1) / 2;
@@ -214,6 +214,7 @@ const FILE = { 'A-01': 'floor-plan', 'E-01': 'lighting', 'E-02': 'power', 'A-02'
 export function drawingSet(cond, look, est, date) {
   const size = roomSize(cond, est.ping);
   useRoom({ ...size, space: cond.space });
+  RUG = Boolean(look.rug);
   const dm = roomDims(size);
   const meta = { bedroom: cond.space === '臥室', sprinkler: cond.sprinkler ?? '', project: `${cond.space}・${look.name}`, date, age: cond.age, ping: est.ping, floorType: look.floorType ?? 'wood',
     floorName: look.floorType === 'concrete' ? '礦物塗料地坪' : '超耐磨木地板', cabinet: look.cabinetWood ? '木皮板' : '烤漆板' };

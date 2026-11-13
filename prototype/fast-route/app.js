@@ -10,6 +10,7 @@ import { MASCOT, roomSVG } from './lib/art.js';
 import { PINS } from './lib/pins.js';
 import { contextScore, pingFromDims, tighten, aboutThisHome, missingForHome, fieldError } from './lib/context.js';
 import { GREETING, swipeReply, nextQuestion, designNotes, editReply, parseEdit } from './lib/voice.js';
+import { summaryText } from './lib/summary.js';
 import { KEY, serialize, restore, toShare, fromShare } from './lib/persist.js';
 import { KINDS, ACCEPT, MAX_FILES, MAX_MB, guessKind, rejectReason, summarize } from './lib/docs.js';
 
@@ -39,7 +40,7 @@ const fresh = () => ({
   step: 1, reached: 1, scores: emptyScores(), swiped: 0, liked: 0,
   cond: { space: '客廳', style: null, ping: '', len: '', wid: '', height: '', age: '新成屋', ageSet: false, floors: '', partition: '', unitFloor: '', sprinkler: '', housing: '', noFurniture: false },
   docs: [], docError: '', said: '', heard: null, history: [], reasons: [],
-  versions: [], v: 0, view: 'A', generated: false, unlocked: false, regsOpen: false, started: false, note: '',
+  versions: [], v: 0, view: 'A', generated: false, unlocked: false, regsOpen: false, started: false, note: '', formOpen: false, docsOpen: false, whyOpen: false, regsMore: false,
   bad: {},   // 填錯的欄位：{ 欄位: { value, msg } }，不存檔
 });
 // 進度存在這台瀏覽器：重整頁面不會從頭來（上傳的檔案除外）
@@ -138,16 +139,20 @@ function askInline(key) {
 }
 function regsList(findings) {
   const asked = new Set();
+  // 每項只留一行「要做什麼」；說明與依據點開才看
   const item = (f) => h('li', {}, h('span', { class: 'state', style: `background:${STATE_COLOR[f.state]}` }, STATES[f.state]),
-    h('div', {}, h('b', {}, f.title), h('p', {}, f.detail),
+    h('div', {}, h('b', {}, f.title), h('p', { class: 'brief' }, f.brief),
       f.ask && !asked.has(f.ask) && asked.add(f.ask) ? askInline(f.ask) : null,   // 同一題只問一次
-      f.law ? h('small', {}, '依據：', ...f.law.flatMap((k, i) => [i ? '、' : '', h('a', { href: lawUrl(k), target: '_blank', rel: 'noopener' }, `${LAWS[k].name}${LAWS[k].art}`)]),
-        `（最近修正 ${[...new Set(f.law.map((k) => LAWS[k].amended))].join('、')}）・${CHECKED} 查證・${CERTAINTY[f.certainty]}`) : null));
-  const legal = findings.filter((f) => f.source), site = findings.filter((f) => !f.source && f.state !== 'ok');
-  const rank = { action: 0, conflict: 0, review: 1, missing: 2, na: 3, ok: 4 };
-  return h('ul', { class: 'regs' }, ...[...legal].sort((a, b) => rank[a.state] - rank[b.state]).map(item), ...site.map(item));
+      f.law ? h('details', {}, h('summary', {}, '說明與依據'), h('p', {}, f.detail),
+        h('small', {}, ...f.law.flatMap((k, i) => [i ? '、' : '', h('a', { href: lawUrl(k), target: '_blank', rel: 'noopener' }, `${LAWS[k].name}${LAWS[k].art}`)]),
+          `（${[...new Set(f.law.map((k) => LAWS[k].amended))].join('、')} 修正）・${CERTAINTY[f.certainty]}`)) : null));
+  const rank = { action: 0, conflict: 0, review: 1, missing: 2 };
+  const shown = findings.filter((f) => f.state in rank && (f.source || f.state !== 'ok')).sort((x, y) => (x.source ? 0 : 1) - (y.source ? 0 : 1) || rank[x.state] - rank[y.state]);
+  const quiet = findings.filter((f) => f.source && f.state === 'na');
+  return h('div', {}, h('ul', { class: 'regs' }, ...shown.map(item), ...(S.regsMore ? quiet.map(item) : [])),
+    quiet.length ? h('button', { class: 'link', id: 'regsmore', onclick: () => { S.regsMore = !S.regsMore; render(); } }, S.regsMore ? '收起不適用的項目' : `另有 ${quiet.length} 項不適用`) : null);
 }
-const REG_NOTE = '這是依台灣消防與建築法規整理的提醒，不是合格判定。條文已對照全國法規資料庫；實際適用與申請，由專業人員逐項確認。';
+const REG_NOTE = `提醒，不是合格判定。條號由 AI 在 ${CHECKED} 對照全國法規資料庫，尚待專業人員複核。`;
 
 /* ================= screens ================= */
 const SCREENS = [];
@@ -175,7 +180,10 @@ SCREENS[1] = () => {
   const deck = h('div', { class: 'deck', role: 'group', 'aria-label': '靈感卡片，右滑喜歡、左滑跳過' });
   const count = h('span', { class: 'count', 'aria-live': 'polite' });
   const talk = agent('', { id: 'talk' });
-  const skip = h('button', { class: 'link', id: 'skip', onclick: () => finish() });
+  // 設計師問了問題，回答的按鈕就放在那句話旁邊
+  const yes = h('button', { class: 'chip yes', id: 'seeit', hidden: true, onclick: () => finish() }, '好，給我看');
+  talk.querySelector('.bubble').append(yes);
+  const skip = h('button', { class: 'chip ghost', id: 'skip', onclick: () => finish() });
   const undo = h('button', { class: 'link', id: 'undo', onclick: () => {
     if (busy) return;
     const last = S.history.pop();
@@ -204,8 +212,9 @@ SCREENS[1] = () => {
     count.textContent = `${Math.min(S.swiped + 1, total)} / ${total}`;
     const reply = swipeReply({ space: S.cond.space, scores: S.scores, swiped: S.swiped, liked: S.liked, last: S.history.at(-1) });
     talk.querySelector('.bubble p').textContent = reply.text;
-    skip.textContent = reply.ready ? '看我幫你配的樣子' : S.liked ? '夠了，看我幫你配的樣子' : '跳過選風格';
-    skip.classList.toggle('ready', reply.ready);
+    yes.hidden = !reply.ready;
+    skip.textContent = S.liked ? '夠了，看我幫你配的樣子' : '跳過選風格';
+    skip.hidden = reply.ready;   // 這時回答的按鈕在對話框裡
     undo.hidden = !S.history.length;
     drawWhy();
     const top = deck.lastElementChild;
@@ -325,7 +334,7 @@ SCREENS[2] = () => {
     onkeydown: (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); applySaid(say.value); } } }, S.said);
   const send = h('button', { class: 'send', id: 'saysend', 'aria-label': '送出這句話', onclick: () => applySaid(say.value) }, '送出');
   const micLabel = h('span', { class: 'note', id: 'micnote', 'aria-live': 'polite' },
-    S.heard === null ? (Recognition ? '按麥克風用說的，或直接打一句話' : '這個瀏覽器不支援語音，請直接打一句話')
+    S.heard === null ? (Recognition ? '也可以一句話講完，或按麥克風用說的（聲音由瀏覽器的語音服務處理）' : '也可以一句話講完')
       : S.heard.length ? `聽到：${S.heard.join('、')}` : '沒聽出坪數或尺寸，可以再說一次，或直接填下面');
   let rec = null;
   const mic = h('button', { class: 'mic', id: 'mic', 'aria-label': '用說的', 'aria-pressed': 'false', disabled: !Recognition,
@@ -357,32 +366,25 @@ SCREENS[2] = () => {
     render();                                   // 有填錯的欄位：不前進，帶到那一格並說明原因
     const el = $('#f-' + wrong); el.focus(); el.scrollIntoView({ block: 'center', behavior: reducedMotion() ? 'auto' : 'smooth' });
   };
-  app.append(h('div', { class: 'shead' }, backBtn(1), h('h1', {}, '多告訴我一點你家'), agent(nextQuestion(c).text, { id: 'asking' }), h('p', { class: 'lead' }, '都是選填。你填的尺寸和條件會直接改變 3D、圖面和估價。')),
-    (() => {
-      const top = topStyles(S.scores), names = (ks) => ks.map((k) => STYLES[k].name).join('、'), pick = (k) => h('button', { class: 'chip', 'aria-pressed': String(c.style === k), onclick: () => { setStyle(k); S.generated = false; render(); } }, STYLES[k].name);
-      return h('div', { class: 'taste', id: 'taste' },
-        h('span', {}, !top.liked ? `還沒滑到喜歡的，先用${STYLES[top.first].name}。`
-          : top.top.length > 1 ? `${names(top.top)}你一樣喜歡，先用${STYLES[c.style].name}做，下面可以換。`
-            : top.also.length ? `你喜歡的是${names(top.top)}，也有一點${names(top.also)}。` : `你喜歡的是${names(top.top)}。`,
-          S.reasons.length ? `在意的是${S.reasons.join('、')}。` : '', '要做哪一種？'),
-        h('div', { class: 'chips', role: 'group', 'aria-label': '要做的風格' }, ...SWIPE_ORDER.map(pick)),
-        h('span', {}, '要做哪個空間？'),
-        h('div', { class: 'chips', role: 'group', 'aria-label': '要做的空間', id: 'spaces' }, ...SPACE_OPTIONS.map(([name, ready]) => h('button', { class: 'chip', disabled: !ready, 'aria-pressed': String(c.space === name),
-          onclick: () => { if (c.space === name) return; c.space = name; S.generated = false; render(); } }, ready ? name : `${name}（之後）`))),
-        c.space !== '客廳' ? h('span', { class: 'note', id: 'spacenote' }, `滑卡的圖是客廳，只用來抓風格；${c.space}會用同一種風格來配。`) : null);
-    })(),
-    h('div', { class: 'voice' }, mic, h('div', { class: 'voicebody' }, say, micLabel), send),
-    Recognition ? h('p', { class: 'note', id: 'micprivacy' }, '按下麥克風後，聲音由瀏覽器的語音辨識服務處理，可能會傳送到瀏覽器供應商（例如 Google 或 Apple）。不想的話直接打字。') : null,
-    h('div', { class: 'meter', role: 'group', 'aria-label': '掌握度' },
-      h('div', { class: 'row between' }, h('b', { id: 'score' }, `掌握度 ${pct}%`), h('span', { class: 'note' }, pct ? `估價區間收窄 ${Math.round(k.score * 50)}%` : '目前用預設值估算')),
+  // 一個畫面只問一件事：設計師問一句，答案就在那句話下面；完整欄位與參考圖收起來，要的人再打開
+  const q = nextQuestion(c), formOpen = S.formOpen || NUMERIC.some((key) => S.bad[key]);
+  const chipsFor = (key, opts) => h('div', { class: 'inline ask', role: 'group' }, ...opts.map(([v, label]) => h('button', { class: 'chip', onclick: () => { c[key] = v; if (key === 'age') c.ageSet = true; render(); } }, label)));
+  const quick = formOpen || !q.key ? null
+    : q.key === 'len' ? h('div', { class: 'quick' }, h('div', { class: 'fields two' }, field('len', '長', '公尺'), field('wid', '寬', '公尺')), ...errors('len', 'wid'))
+      : q.key === 'height' ? h('div', { class: 'quick' }, h('div', { class: 'fields two' }, field('height', '天花板高', '公尺')), ...errors('height'))
+        : q.key === 'age' ? chipsFor('age', AGES.map((x) => [x, x]))
+          : askInline(q.key);
+  const form = !formOpen ? [] : [
+    h('div', { class: 'meter', role: 'group', 'aria-label': '基本資料完整度' },
       h('div', { class: 'bar' }, h('i', { style: `width:${pct}%` })),
-      h('div', { class: 'chips' }, ...k.items.map((i) => h('span', { class: 'tick' + (i.done ? ' done' : '') }, (i.done ? '✓ ' : '＋ ') + i.label)))),
+      h('div', { class: 'chips' }, ...k.items.map((i) => h('span', { class: 'tick' + (i.done ? ' done' : '') }, (i.done ? '✓ ' : '＋ ') + i.label))),
+      h('p', { class: 'note', id: 'onsite' }, '填滿也只是基本資料：門窗、柱位、既有水電要現場確認。')),
     h('div', { class: 'cardbox' }, h('b', {}, '空間'),
       h('div', { class: 'fields' }, field('ping', '坪數', '坪'), field('len', '長', '公尺'), field('wid', '寬', '公尺'), field('height', '天花板高', '公尺')),
       ...errors('ping', 'len', 'wid', 'height'),
-      dimsPing ? h('p', { class: 'note', id: 'pingnote' }, `坪數依長 × 寬換算：${c.len} × ${c.wid} 公尺 ≈ ${dimsPing} 坪。`) : null,
-      h('div', { class: 'inline' }, h('span', { class: 'note' }, '屋況'), ...AGES.map((a) => h('button', { class: 'chip', 'aria-pressed': String(c.ageSet && c.age === a), onclick: () => { c.age = a; c.ageSet = true; render(); } }, a)))),
-    h('div', { class: 'cardbox' }, h('b', {}, '建物與工程'), h('span', { class: 'note' }, '用來評估消防法規與室內裝修許可：要不要申請、窗簾地毯要不要防焰、櫃子會不會擋到撒水頭。'),
+      dimsPing ? h('p', { class: 'note', id: 'pingnote' }, `依長 × 寬換算為 ${dimsPing} 坪。`) : null,
+      h('div', { class: 'inline' }, h('span', { class: 'note' }, '屋況'), ...AGES.map((x) => h('button', { class: 'chip', 'aria-pressed': String(c.ageSet && c.age === x), onclick: () => { c.age = x; c.ageSet = true; render(); } }, x)))),
+    h('div', { class: 'cardbox' }, h('b', {}, '建物'),
       h('div', { class: 'inline', role: 'group', 'aria-label': '房屋類型' }, h('span', { class: 'note' }, '房屋類型'),
         ...[['apt', '公寓／大樓'], ['house', '透天獨棟']].map(([v, label]) => h('button', { class: 'chip', id: 'house-' + v, 'aria-pressed': String((c.housing || 'apt') === v), onclick: () => { c.housing = v; render(); } }, label))),
       h('div', { class: 'fields' }, field('floors', '建物總樓層', '層', { step: 1 }), c.housing === 'house' ? null : field('unitFloor', '你家在第幾樓', '樓', { step: 1 })),
@@ -390,15 +392,22 @@ SCREENS[2] = () => {
       h('div', { class: 'inline', role: 'group', 'aria-label': '天花板有撒水頭嗎' }, h('span', { class: 'note' }, '天花板有撒水頭嗎'),
         ...[['yes', '有'], ['no', '沒有']].map(([v, label]) => h('button', { class: 'chip', id: 'spr-' + v, 'aria-pressed': String(c.sprinkler === v), onclick: () => { c.sprinkler = c.sprinkler === v ? '' : v; render(); } }, label))),
       h('div', { class: 'inline', role: 'group', 'aria-label': '會動隔間嗎' }, h('span', { class: 'note' }, '會動隔間或加廁所浴室嗎'),
-        ...[['yes', '會'], ['no', '不會']].map(([v, label]) => h('button', { class: 'chip', id: 'part-' + v, 'aria-pressed': String(c.partition === v), onclick: () => { c.partition = c.partition === v ? '' : v; render(); } }, label)))),
-    h('div', { class: 'cardbox' }, h('b', {}, '參考圖（留給專業團隊看的）'),
-      h('p', { class: 'note', id: 'docsrole' }, '這裡的圖目前不會被自動判讀，所以不會改變 3D、圖面或估價金額。要讓結果貼近你家，請在上面填長、寬、高。'),
-      input, drop,
-      S.docError ? h('p', { class: 'err', role: 'alert' }, S.docError) : h('span', { hidden: true }),
-      S.lostDocs && !S.docs.length ? h('p', { class: 'err', id: 'lostdocs' }, '重新整理後，先前附的圖面需要再附一次（檔案只留在瀏覽器的這一次瀏覽）。') : h('span', { hidden: true }),
-      S.docs.length ? list : h('span', { hidden: true }),
-      h('p', { class: 'note' }, '原型階段：檔案只留在你的瀏覽器，不會上傳。')),
-    cta(pct ? '生成 3D' : '先跳過，生成 3D', start, pct ? 'accent' : ''));
+        ...[['yes', '會'], ['no', '不會']].map(([v, label]) => h('button', { class: 'chip', id: 'part-' + v, 'aria-pressed': String(c.partition === v), onclick: () => { c.partition = c.partition === v ? '' : v; render(); } }, label))))];
+  const docsCard = !(S.docsOpen || S.docs.length || S.docError) ? null : h('div', { class: 'cardbox' }, h('b', {}, '參考圖'),
+    h('p', { class: 'note', id: 'docsrole' }, '留給專業團隊看；目前不會被自動判讀，不會改變 3D 或金額。檔案只留在你的瀏覽器。'),
+    input, drop,
+    S.docError ? h('p', { class: 'err', role: 'alert' }, S.docError) : h('span', { hidden: true }),
+    S.docs.length ? list : h('span', { hidden: true }));
+  app.append(...[h('div', { class: 'shead' }, backBtn(1), h('h1', {}, '多告訴我一點你家')),
+    agent(q.text, { id: 'asking' }), quick,
+    h('div', { class: 'voice' }, mic, h('div', { class: 'voicebody' }, say, micLabel), send),
+    h('div', { class: 'inline more' },
+      h('b', { id: 'score' }, `基本資料完整度 ${pct}%`),
+      h('button', { class: 'link', id: 'openform', 'aria-expanded': String(formOpen), onclick: () => { S.formOpen = !formOpen; render(); } }, formOpen ? '收起欄位' : '自己填欄位'),
+      docsCard ? null : h('button', { class: 'link', id: 'opendocs', onclick: () => { S.docsOpen = true; render(); } }, '附參考圖')),
+    S.lostDocs && !S.docs.length ? h('p', { class: 'err', id: 'lostdocs' }, '重新整理後，先前附的圖要再附一次。') : null,
+    ...form, docsCard,
+    cta(pct ? `生成${c.space}的 3D` : `先跳過，生成${c.space}的 3D`, start, pct ? 'accent' : '', { id: 'generate' })].filter(Boolean));   // DOM 的 append 會把 null 印成字，先濾掉
 };
 
 /* ---- 3 3D 成品 ---- */
@@ -426,10 +435,17 @@ SCREENS[3] = () => {
   const told = (text) => {
     if (!text.trim()) return;
     const got = parseEdit(text, EDITS.map((_, i) => editLabel(i)));
-    if (!got) { S.note = `「${text.trim()}」我還不會改。現在可以改的是：${EDITS.map((_, i) => editLabel(i)).join('、')}，或換一種風格。`; return render(); }
-    if (got.style) { if (got.style !== c.style) setStyle(got.style); S.note = `好，換成${STYLES[got.style].name}，3D、估價和法規評估都重算了。`; return render(); }
-    if (done.includes(got.edit) === got.on) { S.note = `${editLabel(got.edit)}已經是你要的樣子了。`; return render(); }
-    edit(got.edit);
+    const todo = got.edits.filter((e) => done.includes(e.edit) !== e.on), said = [];
+    if (got.style && got.style !== c.style) { setStyle(got.style); said.push(`好，換成${STYLES[got.style].name}。`); }
+    else if (todo.length) {
+      const edits = todo.reduce((list, e) => (e.on ? [...list, e.edit] : list.filter((x) => x !== e.edit)), done);
+      S.versions = [...S.versions.slice(0, S.v + 1), { look: edits.reduce((l, n) => EDITS[n][1]({ ...l }), { ...STYLES[c.style] }), edits }];
+      S.v = S.versions.length - 1;
+      said.push(editReply({ label: todo.map((e) => (e.on ? editLabel(e.edit) : `取消「${editLabel(e.edit)}」`)).join('、'), on: true, before: est, after: estimateNow(), legalBefore: actions(findings), legalAfter: actions(findingsNow()) }));
+    } else if (got.edits.length) said.push('這個已經是你要的樣子了。');
+    // 聽不懂的每一段都說出來，不悄悄略過
+    if (got.unknown.length) said.push(`${got.unknown.map((u) => `「${u}」`).join('、')}我還不會改，目前能改的是上面那幾項和風格。`);
+    S.note = said.join(''); render();
   };
   const tell = h('input', { type: 'text', id: 'tell', class: 'tell', placeholder: '或直接說：我不要地毯', 'aria-label': '用說的改設計', enterkeyhint: 'send',
     onkeydown: (e) => { if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) told(e.target.value); } });
@@ -438,7 +454,8 @@ SCREENS[3] = () => {
     h('div', { class: 'stagewrap' }, stage, h('div', { class: 'stagebar' }, views)),
     h('div', { class: 'panel' },
       h('div', { class: 'shead' }, backBtn(2), h('h1', {}, `${c.space}・${STYLES[c.style].name}`)),
-      agent(S.note ? [S.note] : notes, { id: 'designer' }),
+      agent(S.note || notes[0], { id: 'designer' }),
+      h('details', { class: 'whyso', id: 'whyso', open: S.whyOpen, ontoggle: (e) => { S.whyOpen = e.target.open; } }, h('summary', {}, '為什麼這樣配'), h('ul', {}, ...notes.map((t) => h('li', {}, t)))),
       h('div', { class: 'tweak' }, h('b', {}, '換風格'),
         h('div', { class: 'chips' }, ...SWIPE_ORDER.map((k) => h('button', { class: 'chip', 'aria-pressed': String(c.style === k), onclick: () => { setStyle(k); S.note = `好，換成${STYLES[k].name}，3D、估價和法規評估都重算了。`; render(); } }, STYLES[k].name)))),
       h('div', { class: 'tweak' }, h('b', {}, '改細節'),
@@ -446,7 +463,7 @@ SCREENS[3] = () => {
         S.v > 0 ? h('p', { class: 'note', id: 'edits' }, done.length ? `已改 ${done.length} 項，再按一次可取消。` : '已回到原本的設計。', ' ',
           h('button', { class: 'link', id: 'undoedit', onclick: () => { S.versions = S.versions.slice(0, S.v); S.v -= 1; S.note = '好，復原了上一步。'; render(); } }, '↩ 復原上一步')) : null,
         h('div', { class: 'tellrow' }, tell, h('button', { class: 'send', 'aria-label': '送出修改', onclick: () => told(tell.value) }, '送出'))),
-      h('p', { class: 'note', id: 'ctx' }, `這個房間：${size.w} × ${size.d} 公尺、高 ${size.h} 公尺（${est.ping} 坪${est.assumedPing ? '，預設' : ''}）・掌握度 ${Math.round(knowledge().score * 100)}%。`,
+      h('p', { class: 'note', id: 'ctx' }, `這個房間：${size.w} × ${size.d} 公尺、高 ${size.h} 公尺（${est.ping} 坪${est.assumedPing ? '，預設' : ''}）。門窗、柱位待現場確認。`,
         size.clamped ? '這個尺寸放不下一張沙發或超過 60 公尺，3D 取了最接近的大小。' : '', ' ', h('button', { class: 'link', onclick: () => go(2) }, c.len && c.wid ? '修改尺寸' : '填你家的尺寸')),
       h('p', { class: 'pricetag' }, '預估', h('b', { id: 'teaser' }, `${est.low}–${est.high} 萬`)),
       h('p', { class: 'note', id: 'assume' }, `以 ${est.ping} 坪${est.assumedPing ? '（預設）' : ''}、${c.age}${c.ageSet ? '' : '（預設）'}估算。`,
@@ -481,7 +498,7 @@ SCREENS[4] = () => {
   const money = h('div', { class: 'cardbox' },
     h('p', { class: 'note' }, `照這個設計做，預估花費`),
     h('p', { class: 'badge', id: 'estkind' }, est.assumedPing || !c.ageSet ? '範例估算，非正式報價' : '初步估算，非正式報價'),
-    h('p', { class: 'note', id: 'know' }, `掌握度 ${Math.round(k.score * 100)}%${est.narrowed ? `，區間已收窄 ${Math.round(est.narrowed * 100)}%` : ''}。`, ' ', h('button', { class: 'link', onclick: () => go(2) }, k.score < 1 ? '補條件讓它更準' : '修改條件')),
+    h('p', { class: 'note', id: 'know' }, `基本資料完整度 ${Math.round(k.score * 100)}%${est.narrowed ? `，區間已收窄 ${Math.round(est.narrowed * 100)}%` : ''}。`, ' ', h('button', { class: 'link', onclick: () => go(2) }, k.score < 1 ? '補條件讓它更準' : '修改條件')),
     h('p', { class: 'big', id: 'total' }, `${est.low}–${est.high} 萬`),
     h('p', { class: 'note', id: 'assume4' }, `假設：${est.ping} 坪${est.assumedPing ? '（預設，你還沒填）' : ''}、${c.age}${c.ageSet ? '' : '（預設，你還沒選）'}、中等建材、不動格局${c.noFurniture ? '、不含家具軟裝' : ''}。`),
     h('div', { class: 'inline' },
@@ -540,13 +557,27 @@ SCREENS[4] = () => {
     h('b', {}, '從初稿到可以施工'), stages);
   // 法規與施工條件評估：和 3D 頁同一份清單，這裡完整列出
   const regs = h('div', { class: 'cardbox', id: 'regs' },
-    h('h2', {}, '法規與施工條件評估'),
-    h('p', { class: 'note', id: 'regline' }, regSummary(findings).text, '。 ', h('button', { class: 'link', onclick: () => go(2) }, '修改建物條件')),
-    regsList(findings),
-    h('p', { class: 'note' }, REG_NOTE));
+    h('h2', {}, '法規與施工條件'),
+    h('button', { class: 'regsum', id: 'regline', 'aria-expanded': String(S.regsOpen), onclick: () => { S.regsOpen = !S.regsOpen; render(); } },
+      h('span', {}, regSummary(findings).text), h('span', { class: 'chev', 'aria-hidden': 'true' }, S.regsOpen ? '收起' : '看細節')),
+    ...(S.regsOpen ? [regsList(findings), h('p', { class: 'note' }, REG_NOTE)] : []));
+  // 下一步：把需求和方案帶走。存下來、和家人討論，或交給自己的設計師
+  const summary = () => summaryText({ cond: c, look: current, edits: (S.versions[S.v].edits ?? []).map((i) => (c.space === '臥室' ? EDITS[i][0].replace('沙發', '床頭') : EDITS[i][0])),
+    size: roomSize(c, est.ping), est, findings, reasons: S.reasons, score: k.score, link: `${location.origin}${location.pathname}#${toShare(S)}`, date: new Date().toISOString().slice(0, 10) });
+  const copied = h('span', { class: 'note', 'aria-live': 'polite' });
+  const takeaway = h('div', { class: 'cardbox', id: 'takeaway' },
+    h('h2', {}, '把這個方案帶走'),
+    h('p', { class: 'note' }, '需求、條件、估價和要辦的事整理成一份摘要，可以和家人討論，或交給你的設計師。'),
+    h('div', { class: 'inline' },
+      h('button', { class: 'btn', id: 'exportsum', onclick: () => {
+        const a = h('a', { href: URL.createObjectURL(new Blob([summary()], { type: 'text/plain;charset=utf-8' })), download: 'home-design-summary.txt' });
+        document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); copied.textContent = '已下載';
+      } }, '下載方案摘要'),
+      h('button', { class: 'btn ghost', id: 'copysum', onclick: async () => { try { await navigator.clipboard.writeText(summary()); copied.textContent = '已複製，可以直接貼到訊息裡'; } catch { copied.textContent = '複製不了，請用下載'; } } }, '複製文字'),
+      copied));
   app.append(h('div', { class: 'shead' }, backBtn(3), h('h1', {}, '估價與施工圖初稿'), shareBtn()),
     h('div', { class: 'two' }, money, drawings),
-    regs,
+    regs, takeaway,
     ...(S.unlocked ? [] : [mine ? cta('解鎖我家的施工圖初稿　NT$ 1,990', () => $('#unlock').showModal(), 'accent') : cta('填我家的長寬，產生我家的初稿', () => go(2), 'accent', { id: 'needhome' })]));
 };
 $('#payCancel').addEventListener('click', () => $('#unlock').close());

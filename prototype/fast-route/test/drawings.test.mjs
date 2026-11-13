@@ -58,3 +58,13 @@ test('從 2 公尺的小房間到百坪都畫得出來', () => {
     for (const s of set(STYLES.indus, { ...cond, ...c })) assert.ok(!/NaN|undefined|null/.test(s.svg), `${s.no} at ${JSON.stringify(c)}`);
   }
 });
+
+test('圖例只列設計裡有的：沒有地毯就沒有地毯範圍，臥室沒有立燈', async () => {
+  const { STYLES } = await import('../lib/taste.js');
+  const { designEstimate } = await import('../lib/estimate.js');
+  const set = (cond, look) => drawingSet(cond, look, designEstimate(cond, look), '2026-11-13');
+  const living = { space: '客廳', len: '5.6', wid: '4.7', age: '新成屋' }, bed = { ...living, space: '臥室' };
+  assert.ok(set(living, STYLES.warm)[0].svg.includes('地毯範圍') && set(living, STYLES.warm)[1].svg.includes('立燈'));
+  assert.ok(!set(living, { ...STYLES.warm, rug: null })[0].svg.includes('地毯範圍'));
+  assert.ok(!set(bed, STYLES.warm)[1].svg.includes('立燈'));
+});

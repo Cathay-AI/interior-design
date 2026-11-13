@@ -25,7 +25,8 @@ const isDark = (hex) => {
  *   sprinkler = 天花板有沒有撒水頭；housing = 集合住宅（公寓、大樓）或透天獨棟
  * @param {{wall:string}} look
  * @param {{plan?:number, mep?:number}} docs 屋主附了幾份平面圖／機電圖（原型不判讀內容，只改變「缺資料」成「待判讀」）
- * @returns {{state:keyof STATES, title:string, detail:string, source?:string, law?:string[], certainty?:keyof CERTAINTY, ask?:string, permit?:boolean}[]}
+ * @returns {{state:keyof STATES, title:string, detail:string, source?:string, law?:string[], certainty?:keyof CERTAINTY, ask?:string, permit?:boolean, brief:string}[]}
+ *   brief = 一行講完要做什麼
  *   法規類項目才有 source／law（LAWS 的代碼）／certainty；ask = 回答哪一題就能判斷；permit = 這一項就是「要申請許可」
  */
 export function ruleFindings(cond, look, docs = {}) {
@@ -39,7 +40,7 @@ export function ruleFindings(cond, look, docs = {}) {
 
   findings.push(docs.mep
     ? { state: 'review', title: '插座與電源', detail: '已收到機電圖，需由專業判讀既有插座與迴路後確認' }
-    : { state: 'missing', title: '插座與電源', detail: '需要既有插座點位（可上傳機電圖），才能確認' + (cond.space === '臥室' ? '床頭兩側與書桌的插座位置' : '電視牆與立燈位置') });
+    : { state: 'missing', title: '插座與電源', detail: '需要既有插座點位（可上傳機電圖），才能確認' + (cond.space === '臥室' ? '床頭兩側的插座位置' : '電視牆與立燈位置') });
 
   findings.push(isDark(look.wall) && hasPing && ping < 7
     ? { state: 'conflict', title: '空間感（設計提醒）', detail: '深色牆面在 7 坪以下可能顯得壓迫，建議只做一面主牆' }
@@ -101,7 +102,23 @@ export function ruleFindings(cond, look, docs = {}) {
   // 6 避難與防火區劃：這個設計沒有動到的，直接說沒有動到
   if (cond.partition === 'yes') legal('review', '避難與防火區劃', '你會動隔間：不可以妨害或破壞防火避難設施、消防設備、防火區劃與主要構造，也不可以封閉逃生通道或更換防火門。變更範圍由專業團隊確認。', ['act77', 'condo16'], 'verified');
   else legal('na', '避難與防火區劃', `這個設計只做${room}的天花板、牆面、櫃體與家具，沒有動到防火門、逃生通道、管道間與主要構造。施工時也不可以變更這些部分。`, ['act77', 'condo16'], 'verified');
+  for (const f of findings) f.brief = briefOf(f, cabinetName);
   return findings;
+}
+
+/** 一行講完「要做什麼」；細節與依據點開才看。 */
+function briefOf(f, cabinetName) {
+  if (!f.law) return f.detail;
+  const t = f.title, s = f.state;
+  if (s === 'missing') return { floors: '告訴我建物總共幾層', unitFloor: '告訴我你家在第幾樓', sprinkler: '抬頭看一下天花板有沒有撒水頭', partition: '告訴我會不會動隔間' }[f.ask] ?? '還差一個答案';
+  if (t === '室內裝修許可') return s === 'action' ? '施工前要申請，住宅可走簡易程序' : '一般不需申請';
+  if (t === '裝修材料耐燃等級') return s === 'action' ? '天花板選有耐燃證明的板材' : '未達十一層，沒有等級要求';
+  if (t.startsWith('防焰')) return s === 'action' ? `${t.slice(2)}選附防焰標示的產品` : '未達十一層，不強制';
+  if (t === '撒水頭淨空') return s === 'action' ? `${cabinetName}和新天花板要讓出撒水頭淨空` : s === 'review' ? '請專業現場確認有沒有撒水頭' : '沒有撒水頭，不適用';
+  if (t === '火警偵測器') return '天花板重做後，偵測器要裝回去';
+  if (t === '住宅用火災警報器') return '天花板重做時，警報器要保留或補裝';
+  if (t === '避難與防火區劃') return s === 'review' ? '隔間變更範圍由專業確認' : '這個設計沒有動到';
+  return f.detail;
 }
 
 /** 這次對照全國法規資料庫（law.moj.gov.tw）核對條文的日期。修法後要重新核對並更新。 */
@@ -122,9 +139,9 @@ export const LAWS = {
 export const lawUrl = (key) => `https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=${LAWS[key].pcode}&flno=${LAWS[key].flno}`;
 /** 確定程度：條文本身核對過不代表適用結論確定。 */
 export const CERTAINTY = {
-  verified: '條文已核對，門檻明確',
-  judgement: '條文已核對，是否適用需專業判定',
-  order: '條文已核對；適用對象依內政部解釋令，解釋令原文這次沒有核對',
+  verified: '門檻明確',
+  judgement: '是否適用需專業判定',
+  order: '適用對象依內政部解釋令，解釋令原文沒有對照',
 };
 
 /**
@@ -139,7 +156,7 @@ export function regSummary(findings) {
   const attention = legalOnes.filter((f) => f !== p && (f.state === 'action' || f.state === 'review')).length;
   const asks = [...new Set(legalOnes.filter((f) => f.ask).map((f) => f.ask))];
   const head = { need: '這個設計需申請室內裝修許可', no: '這個設計一般不需申請室內裝修許可', unknown: '要不要申請室內裝修許可，還差一個答案' }[permit];
-  const text = [head, attention ? `${attention} 項要注意` : null, asks.length ? `再回答 ${asks.length} 題就能判斷完` : null].filter(Boolean).join('・');
+  const text = [head, attention ? `另外 ${attention} 項要注意` : null, asks.length ? `再回答 ${asks.length} 題就能判斷完` : null].filter(Boolean).join('・');
   return { permit, attention, asks, text };
 }
 
