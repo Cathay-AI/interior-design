@@ -1,6 +1,10 @@
 name: site
 
-# Tests the 快速找風格 prototype. Vercel's Git integration builds and deploys it (see vercel.json).
+# CI/CD for the 快速找風格 prototype.
+#   test       every pull request and every push to main: unit tests, build, end-to-end (desktop + phone)
+#   automerge  pull requests from claude/* branches of this repository merge themselves once `test` passes
+#              (add the `hold` label to keep one open); other pull requests are merged by a person
+#   deploy     Vercel's Git integration builds main (production) and every pull request (preview); see vercel.json
 on:
   pull_request:
     paths: ["prototype/**", "scripts/build-site.sh", "vercel.json", ".github/workflows/site.yml"]
@@ -32,3 +36,32 @@ jobs:
           python3 -m http.server 5173 --bind 127.0.0.1 --directory dist &
           sleep 1
           node prototype/fast-route/e2e/flow.e2e.mjs http://127.0.0.1:5173/
+
+  automerge:
+    # Only branches in this repository named claude/* (never forks), and only after the tests above pass.
+    needs: test
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.head_ref, 'claude/') &&
+      !contains(github.event.pull_request.labels.*.name, 'hold')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
+      SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Mark ready and merge the commit that was tested
+        run: |
+          gh pr ready "$PR" --repo "$GITHUB_REPOSITORY"
+          gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --merge --match-head-commit "$SHA"
+      # A merge made with the workflow token does not start other workflows, so publish the deck by hand if it changed.
+      - name: Publish the deck if this pull request changed it
+        run: |
+          if gh pr diff "$PR" --repo "$GITHUB_REPOSITORY" --name-only | grep -q '^docs/proposal/deck-v3/'; then
+            gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main
+          fi
