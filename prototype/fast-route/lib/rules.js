@@ -35,12 +35,12 @@ export function ruleFindings(cond, look, docs = {}) {
   const findings = [];
 
   findings.push(hasPing
-    ? { state: 'ok', title: '動線', detail: cond.space === '臥室' ? `臥室 ${ping} 坪：床的兩側與衣櫃前保留走道（示意尺寸）` : `${cond.space} ${ping} 坪：沙發與茶几間保留走道（示意尺寸）` }
+    ? { state: 'ok', title: '動線', detail: `${cond.space} ${ping} 坪：${{ 臥室: '床的兩側與衣櫃前', 餐廳: '餐椅拉開後', 書房: '書桌椅後方', 廚房: '流理台前', 衛浴: '洗手台與馬桶前' }[cond.space] ?? '沙發與茶几間'}保留走道（示意尺寸）` }
     : { state: 'missing', title: '動線', detail: '需要坪數或尺寸才能檢查' });
 
   findings.push(docs.mep
     ? { state: 'review', title: '插座與電源', detail: '已收到機電圖，需由專業判讀既有插座與迴路後確認' }
-    : { state: 'missing', title: '插座與電源', detail: '需要既有插座點位（可上傳機電圖），才能確認' + (cond.space === '臥室' ? '床頭兩側的插座位置' : '電視牆與立燈位置') });
+    : { state: 'missing', title: '插座與電源', detail: '需要既有插座點位（可上傳機電圖），才能確認' + ({ 臥室: '床頭兩側的插座位置', 餐廳: '餐桌旁的插座位置', 書房: '書桌的插座與網路位置', 廚房: '家電專用迴路夠不夠', 衛浴: '暖風機與防水插座的迴路' }[cond.space] ?? '電視牆與立燈位置') });
 
   findings.push(isDark(look.wall) && hasPing && ping < 7
     ? { state: 'conflict', title: '空間感（設計提醒）', detail: '深色牆面在 7 坪以下可能顯得壓迫，建議只做一面主牆' }
@@ -57,8 +57,8 @@ export function ruleFindings(cond, look, docs = {}) {
   // 所在樓層是否達十一層：直接知道，或由總樓層推得（總樓層不到 11，所在樓層一定不到）
   const high = unit ? unit >= 11 : floors && floors < 11 ? false : house && !floors ? false : null;
   const tall = floors ? floors >= 11 : house ? false : null;    // 地面樓層達十一層以上的建築物
-  const room = cond.space === '臥室' ? '臥室' : '客廳';
-  const cabinetName = cond.space === '臥室' ? '衣櫃' : '高櫃';
+  const room = cond.space || '客廳', wet = room === '廚房' || room === '衛浴';
+  const cabinetName = { 臥室: '衣櫃', 餐廳: '餐櫃', 書房: '書櫃', 廚房: '吊櫃', 衛浴: '鏡櫃' }[room] ?? '高櫃';
   const legal = (state, title, detail, law, certainty, extra = {}) => findings.push({ state, title, detail, law, certainty, source: law.map((k) => `${LAWS[k].name}${LAWS[k].art}`).join('、'), ...extra });
 
   // 1 室內裝修審查許可
@@ -82,8 +82,8 @@ export function ruleFindings(cond, look, docs = {}) {
     else if (tall === false) legal('na', `防焰${thing}`, `${floors ? `${floors} 層建築` : '透天住宅'}未達十一層，${thing}不強制使用防焰產品；仍建議選用。`, ['fire11'], 'verified');
     else legal('missing', `防焰${thing}`, `需要建物總樓層：地面樓層達十一層以上的建築物，${thing}要使用附有防焰標示的產品。`, ['fire11'], 'verified', { ask: 'floors' });
   };
-  flame('窗簾');
-  if (look.rug) flame('地毯');
+  if (room !== '廚房' && room !== '衛浴') flame('窗簾');   // 廚房與衛浴的設計沒有窗簾和地毯
+  if (look.rug && !wet) flame('地毯');
 
   // 4 撒水頭淨空：問一句「天花板有沒有撒水頭」就有結論
   const expect = high === true || (floors && floors >= 16);     // 十一層以上的樓層、或十六層以上的高層建築物，應設自動撒水設備

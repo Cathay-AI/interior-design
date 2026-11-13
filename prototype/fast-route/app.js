@@ -32,7 +32,8 @@ const EDITS = [
   ['地板換深色', (l) => ({ ...l, floor: '#6b4a32', floorType: 'wood', floorTex: 'wood_floor' })],
 ];
 // 空間範圍：先做客廳與臥室，其餘先列出來讓人知道會有
-const SPACE_OPTIONS = [['客廳', true], ['臥室', true], ['廚房', false], ['衛浴', false], ['全室', false]];
+// 每一種空間都做得出設計；「全室」請丟平面圖走整戶流程
+const SPACE_OPTIONS = [['客廳', true], ['臥室', true], ['餐廳', true], ['書房', true], ['廚房', true], ['衛浴', true], ['全室', false]];
 const VIEW_NAMES = { A: '斜角', B: '正面', C: '側面' };
 // 紅筆只給「需辦理」；其餘狀態用墨線與鉛筆色
 const STATE_COLOR = { ok: '#1e2428', conflict: '#d2402e', missing: '#6f797e', review: '#6f797e', action: '#d2402e', na: '#6f797e' };
@@ -79,8 +80,8 @@ let stageKey = '', stageFailed = false, shownPrice = null, rollTimer = 0;
 /* ---- 整戶：一串房間，一次看一間 ---- */
 const multi = () => Boolean(S.home);
 const curRoom = () => S.home?.rooms.find((r) => r.id === S.room) ?? null;
-const roomOK = () => !multi() || kindOf(curRoom()?.name ?? '') !== null;          // 這一間做得出 3D 嗎
-const lookWith = (edits) => (edits ?? []).reduce((l, n) => EDITS[n][1]({ ...l }), { ...STYLES[S.cond.style ?? pickStyle(S.scores)] });
+const styleOf = (r) => r?.style ?? S.home?.style ?? S.cond.style ?? pickStyle(S.scores);      // 這一間的風格：自己換過的優先，否則跟整個家
+const lookWith = (edits, key = S.cond.style ?? pickStyle(S.scores)) => (edits ?? []).reduce((l, n) => EDITS[n][1]({ ...l }), { ...STYLES[key] });
 const keepEdits = () => { const r = curRoom(); if (r && S.versions.length) r.edits = [...(S.versions[S.v].edits ?? [])]; };
 function enterRoom(id) {
   const r = S.home.rooms.find((x) => x.id === id);
@@ -88,9 +89,9 @@ function enterRoom(id) {
   keepEdits(); S.room = id; S.tab = 'room'; S.note = '';
   const kind = kindOf(r.name);
   if (kind) Object.assign(S.cond, { space: kind, len: r.len, wid: r.wid, ping: String(roomPing(r) ?? '') });
-  if (S.cond.style) { S.versions = [{ look: lookWith(r.edits), edits: [...(r.edits ?? [])] }]; S.v = 0; }
+  if (S.cond.style) { S.cond.style = styleOf(r); S.versions = [{ look: lookWith(r.edits, S.cond.style), edits: [...(r.edits ?? [])] }]; S.v = 0; }
 }
-const estimateRoom = (r) => { const cond = { ...S.cond, space: kindOf(r.name), len: r.len, wid: r.wid, ping: String(roomPing(r) ?? '') }; return tighten(designEstimate(cond, lookWith(r.edits)), contextScore(cond, {}).score); };
+const estimateRoom = (r) => { const cond = { ...S.cond, space: kindOf(r.name), len: r.len, wid: r.wid, ping: String(roomPing(r) ?? '') }; return tighten(designEstimate(cond, lookWith(r.edits, styleOf(r))), contextScore(cond, {}).score); };
 const homeNow = () => { keepEdits(); return homeEstimate(S.home.rooms, estimateRoom); };
 const roomLabel = () => (multi() ? curRoom()?.name ?? S.cond.space : S.cond.space);
 // 舞台上現在該是哪個設計：還沒定風格時，用滑卡目前領先的那一種（開場則是訪客點的色票）
@@ -98,7 +99,7 @@ const stageLook = () => (S.cond.style && S.versions.length ? look() : STYLES[S.s
 function syncStage() {
   const c = S.cond, cur = stageLook(), est = tighten(designEstimate(c, cur), knowledge().score), size = { ...roomSize(c, est.ping), space: c.space };
   // 整戶時，舞台在「看整個家」的畫面改放示意平面圖；3D 留在底下不卸載
-  const planMode = multi() && (S.step !== 3 || S.tab === 'all' || !roomOK());
+  const planMode = multi() && (S.step !== 3 || S.tab === 'all');
   const plan = $('#plan'); plan.hidden = !planMode;
   const pickRoom = (e) => { const g = e.target.closest('[data-room]'); if (!g || (e.type === 'keydown' && e.key !== 'Enter')) return; if (S.step < 3 && !S.cond.style) return; enterRoom(g.dataset.room); go(3); };
   if (planMode) { plan.replaceChildren(fromHTML(planSVG(S.home.rooms, S.step === 3 && S.tab === 'room' ? S.room : null)), h('p', { class: 'note' }, '示意平面圖：只表示有哪些房間和大概的大小，不是你家的實際格局。')); plan.onclick = pickRoom; plan.onkeydown = pickRoom; }
@@ -107,13 +108,13 @@ function syncStage() {
   // 房間列與小平面圖：只在一間一間看設計時出現
   const tabs = $('#roomtabs'); tabs.hidden = !(multi() && S.step === 3);
   if (!tabs.hidden) tabs.replaceChildren(h('button', { 'aria-pressed': String(S.tab === 'all'), onclick: () => { keepEdits(); S.tab = 'all'; render(); } }, '整戶'),
-    ...S.home.rooms.filter((r) => r.on).map((r) => h('button', { 'aria-pressed': String(S.tab === 'room' && r.id === S.room), onclick: () => { enterRoom(r.id); render(); } }, r.name, h('i', { class: kindOf(r.name) ? '' : 'off', 'aria-hidden': 'true' }))));
+    ...S.home.rooms.filter((r) => r.on).map((r) => h('button', { 'aria-pressed': String(S.tab === 'room' && r.id === S.room), onclick: () => { enterRoom(r.id); render(); } }, r.name, h('i', { 'aria-hidden': 'true' }))));
   const mini = $('#minimap'); mini.hidden = !(multi() && S.step === 3 && !planMode);
   if (!mini.hidden) { mini.replaceChildren(fromHTML(planSVG(S.home.rooms, S.room)), h('small', {}, '點平面圖換房間')); mini.onclick = pickRoom; }
   // 金額卡：常駐；整戶是合計，還沒挑風格就先不給數字
   const whole = multi() && (S.step === 4 || (S.step === 3 && S.tab === 'all')), home = whole ? homeNow() : null;
   $('#pricekind').textContent = multi() && S.step < 3 ? '挑完風格就有估算' : whole ? '整戶・範例估算' : !S.started ? '範例估算' : est.assumedPing || !c.ageSet ? '範例估算' : '初步估算';
-  if (multi() && (S.step < 3 || (S.step === 3 && S.tab === 'room' && !roomOK()))) rollPrice(null); else if (whole) rollPrice(home.low, home.high); else rollPrice(est.low, est.high);
+  if (multi() && S.step < 3) rollPrice(null); else if (whole) rollPrice(home.low, home.high); else rollPrice(est.low, est.high);
   // 尺寸卡
   const dims = $('#dims'); dims.hidden = planMode;
   dims.replaceChildren(h('small', {}, `${S.started ? `你家${roomLabel()}` : '範例客廳'}・${est.assumedPing ? '約 ' : ''}${est.ping} 坪`), h('b', {}, `${Math.round(size.w * 10) / 10} × ${Math.round(size.d * 10) / 10} 公尺`));
@@ -252,7 +253,7 @@ const SCREENS = [];
 
 /* ---- 開場：先講承諾、先給成果看、先問想弄哪裡 ---- */
 function intro() {
-  const pick = (name) => { S.home = null; S.cond.space = name; S.started = true; render(); };
+  const pick = (name) => { S.started = true; S.home = null; S.cond.space = name; render(); };
   // 丟平面圖：檔案留作參考圖。還不會自動讀圖，所以先給三房兩廳的範本讓屋主改
   const take = (files) => {
     const f = files[0]; if (!f) return;
@@ -260,7 +261,7 @@ function intro() {
     if (why) { S.docError = why; return render(); }
     S.docError = '';
     S.docs.push({ name: f.name, kind: 'plan', pdf: f.type === 'application/pdf', url: f.type.startsWith('image/') ? URL.createObjectURL(f) : null });
-    S.home = { rooms: templateRooms() }; S.room = S.home.rooms[0].id; S.started = true; S.cond.space = '客廳';
+    S.home = { rooms: templateRooms(), style: null }; S.room = S.home.rooms[0].id; S.started = true; S.cond.space = '客廳';
     render();
   };
   const file = h('input', { type: 'file', id: 'planFile', class: 'sr', accept: ACCEPT, onchange: (e) => take([...e.target.files]) });
@@ -276,7 +277,7 @@ function intro() {
     S.docError ? h('p', { class: 'err', role: 'alert' }, S.docError) : null,
     h('p', { class: 'or' }, '還沒有平面圖？先挑一個空間試試'),
     h('div', { class: 'chips', role: 'group', 'aria-label': '先挑一個空間', id: 'where', style: 'justify-content:center' },
-      ...SPACE_OPTIONS.filter(([name]) => name !== '全室').map(([name, ready]) => h('button', { class: 'chip', disabled: !ready, onclick: () => pick(name) }, ready ? name : `${name}（之後）`)))),
+      ...['客廳', '臥室', '廚房', '衛浴', '書房'].map((name) => h('button', { class: 'chip', onclick: () => pick(name) }, name)))),
     h('div', { class: 'how' }, ...[['1', '丟平面圖', '確認有哪些房間'], ['2', '滑卡挑風格', '整個家一起套用'], ['3', '看設計與花費', '一間一間看，整戶加總']].map(([n, t, d]) => h('div', {}, h('i', {}, n), h('b', {}, t), h('span', {}, d)))));
 }
 
@@ -307,7 +308,7 @@ function roomsScreen() {
     h('ul', { class: 'rooms', id: 'rooms' }, ...rooms.map(row)),
     h('div', { class: 'inline' },
       h('button', { class: 'soft', id: 'addroom', onclick: () => { const id = 'r' + (Math.max(0, ...rooms.map((x) => Number(x.id.slice(1)) || 0)) + 1); rooms.push({ id, name: '新房間', len: '3', wid: '3', on: true, edits: [] }); S.editing = id; render(); } }, '＋ 加一間'),
-      on.some((r) => !kindOf(r.name)) ? h('span', { class: 'note', id: 'notyet' }, `目前做得出設計的是客廳和臥室；${on.filter((r) => !kindOf(r.name)).map((r) => r.name).join('、')}先列著，還不會算進花費。`) : null));
+      ));
   dock(h('div', { class: 'segm', role: 'group', 'aria-label': '屋況' }, ...AGES.map((x) => h('button', { 'aria-pressed': String(c.age === x), onclick: () => { c.age = x; c.ageSet = true; render(); } }, x))),
     cta(`對，${on.length} 間都做`, () => { S.editing = null; if (!on.some((r) => r.id === S.room && kindOf(r.name))) S.room = (on.find((r) => kindOf(r.name)) ?? on[0]).id; go(2); }, '', { id: 'roomsok', disabled: !on.length }));
 }
@@ -332,7 +333,7 @@ SCREENS[2] = () => {
   const drawWhy = () => why.replaceChildren(...(S.history.at(-1)?.[1] ? [h('span', { class: 'note' }, '喜歡它的什麼？（選填）'),
     ...REASONS.map((r) => h('button', { class: 'chip', 'aria-pressed': String(S.reasons.includes(r)), onclick: () => { S.reasons = S.reasons.includes(r) ? S.reasons.filter((x) => x !== r) : [...S.reasons, r]; save(); drawWhy(); } }, r))] : []));
   let busy = false;
-  const finish = () => { setStyle(pickStyle(S.scores)); S.generated = false; if (multi()) enterRoom(S.room ?? S.home.rooms[0].id); go(3); };
+  const finish = () => { setStyle(pickStyle(S.scores)); S.generated = false; if (multi()) { S.home.style = S.cond.style; S.home.rooms.forEach((r) => { delete r.style; }); enterRoom(S.room ?? S.home.rooms[0].id); } go(3); };
   const makeCard = (p, depth) => {
     const st = STYLES[p.style];
     const card = h('div', { class: 'card', 'data-style': p.style, style: `transform:scale(${1 - depth * 0.04}) translateY(${depth * 12}px);z-index:${10 - depth}` },
@@ -452,7 +453,7 @@ function sizeScreen() {
       c.ping = String(p); delete S.bad.ping;
       if (got.ping && Number(got.ping) !== p) S.heard.push(`坪數依長寬換算為 ${p} 坪`);
     }
-    if (space && !ready) S.heard.push(`${space}還沒開放，先用${c.space}示範`);
+    if (space && !ready) S.heard.push('整個家請回上一步丟平面圖');
     renderSoon();
   };
   // 一個欄位的值：合理就收下，不合理就留在欄位上並說明原因（不拿去算）
@@ -561,18 +562,15 @@ SCREENS[3] = () => {
     return app.append(h('div', { class: 'shead' }, backBtn(2), h('h1', {}, '整個家')),
       agent('點平面圖或上面的房間，一間一間看。', { id: 'designer' }),
       h('ul', { class: 'rooms' }, ...home.rows.map((x) => h('li', {}, h('b', {}, x.name), h('span', { class: 'dim' }, x.ping ? `${x.ping} 坪` : ''),
-        x.est ? h('button', { class: 'mini', onclick: () => { enterRoom(x.id); render(); } }, '看設計') : h('span', { class: 'note' }, '還沒開放')))));
-  }
-  if (multi() && !roomOK()) {
-    dockHome();
-    return app.append(h('div', { class: 'shead' }, backBtn(2), h('h1', {}, curRoom().name)),
-      agent(`${curRoom().name}的設計還沒開放。目前做得出客廳和臥室，其餘空間之後補上。`, { id: 'designer' }));
+        h('span', { class: 'amt' }, `${x.est.low}–${x.est.high} 萬`), h('button', { class: 'mini', onclick: () => { enterRoom(x.id); render(); } }, '看設計')))));
   }
   const c = S.cond, current = look(), est = estimateNow(), size = roomSize(c, est.ping);
   const findings = findingsNow(), summary = regSummary(findings);
   // 改細節是開關：再按一次就取消。每一步都留著，可以復原。
   const done = S.versions[S.v].edits ?? [];
-  const editLabel = (i) => (c.space === '臥室' ? EDITS[i][0].replace('沙發', '床頭') : EDITS[i][0]);
+  const editLabel = (i) => EDITS[i][0].replace('沙發', { 臥室: '床頭', 餐廳: '餐椅', 書房: '工作椅' }[c.space] ?? '沙發');
+  // 廚房與衛浴沒有沙發和地毯，那兩項就不出現
+  const editable = (i) => !(['廚房', '衛浴'].includes(c.space) && (i === 0 || i === 2));
   const actions = (fs) => fs.filter((f) => f.law && f.state === 'action').map((f) => f.title);
   const edit = (i) => {
     const on = !done.includes(i), edits = on ? [...done, i] : done.filter((x) => x !== i);
@@ -598,7 +596,7 @@ SCREENS[3] = () => {
     if (got.unknown.length) said.push(`${got.unknown.map((u) => `「${u}」`).join('、')}我還不會改，目前能改的是上面那幾項和風格。`);
     S.note = said.join(''); render();
   };
-  const tell = h('input', { type: 'text', id: 'tell', class: 'tell', placeholder: '或直接說：我不要地毯', 'aria-label': '用說的改設計', enterkeyhint: 'send',
+  const tell = h('input', { type: 'text', id: 'tell', class: 'tell', placeholder: editable(2) ? '或直接說：我不要地毯' : '或直接說：牆換成暖白', 'aria-label': '用說的改設計', enterkeyhint: 'send',
     onkeydown: (e) => { if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) told(e.target.value); } });
   const notes = designNotes(c, current, roomLayout({ ...size, space: c.space }), S.reasons);
   app.append(
@@ -606,12 +604,17 @@ SCREENS[3] = () => {
       h('div', { class: 'shead' }, backBtn(2), h('h1', {}, `${roomLabel()}・${STYLES[c.style].name}`)),
       agent(S.note || notes[0], { id: 'designer' }),
       h('details', { class: 'whyso', id: 'whyso', open: S.whyOpen, ontoggle: (e) => { S.whyOpen = e.target.open; } }, h('summary', {}, '為什麼這樣配'), h('ul', {}, ...notes.map((t) => h('li', {}, t)))),
-      h('div', { class: 'tweak' }, h('div', { class: 'tweakhead' }, h('b', {}, '換風格'), multi() ? h('span', { class: 'note' }, '整個家一起換') : null),
+      h('div', { class: 'tweak' }, h('div', { class: 'tweakhead' }, h('b', {}, '換風格'), multi() && S.home.rooms.length > 1 ? h('label', { class: 'check', id: 'styleall' }, h('input', { type: 'checkbox', checked: S.styleAll !== false, onchange: (e) => { S.styleAll = e.target.checked; } }), '整個家一起換') : null),
         // 三色色票（牆、地板、沙發）加名稱
-        h('div', { class: 'styles' }, ...SWIPE_ORDER.map((k) => h('button', { class: 'styleopt', 'aria-pressed': String(c.style === k), onclick: () => { keepEdits(); setStyle(k); S.note = `好，${multi() ? '整個家' : ''}換成${STYLES[k].name}。`; render(); } },
+        h('div', { class: 'styles' }, ...SWIPE_ORDER.map((k) => h('button', { class: 'styleopt', 'aria-pressed': String(c.style === k), onclick: () => {
+            keepEdits();
+            const all = multi() && S.styleAll !== false;
+            if (multi()) { if (all) { S.home.style = k; S.home.rooms.forEach((r) => { delete r.style; }); } else curRoom().style = k; }
+            setStyle(k); S.note = `好，${all ? '整個家' : multi() ? `只有${roomLabel()}` : ''}換成${STYLES[k].name}。`; render();
+          } },
           h('span', { 'aria-hidden': 'true' }, h('i', { style: `background:${STYLES[k].wall}` }), h('i', { style: `background:${STYLES[k].floor}` }), h('i', { style: `background:${STYLES[k].sofa}` })), STYLES[k].name)))),
       h('div', { class: 'tweak' }, h('b', {}, '改細節'),
-        h('div', { class: 'chips' }, ...EDITS.map((_, i) => h('button', { class: 'chip', 'aria-pressed': String(done.includes(i)), onclick: () => edit(i) }, editLabel(i)))),
+        h('div', { class: 'chips' }, ...EDITS.map((_, i) => (editable(i) ? h('button', { class: 'chip', 'aria-pressed': String(done.includes(i)), onclick: () => edit(i) }, editLabel(i)) : null))),
         S.v > 0 ? h('p', { class: 'note', id: 'edits' }, done.length ? `已改 ${done.length} 項，再按一次可取消。` : '已回到原本的設計。', ' ',
           h('button', { class: 'link', id: 'undoedit', onclick: () => { S.versions = S.versions.slice(0, S.v); S.v -= 1; S.note = '好，復原了上一步。'; render(); } }, '↩ 復原上一步')) : null,
         h('div', { class: 'tellrow' }, tell, h('button', { class: 'send', 'aria-label': '送出修改', onclick: () => told(tell.value) }, '→'))),
@@ -630,7 +633,6 @@ SCREENS[3] = () => {
 
 /* ---- 4 估價與施工圖 ---- */
 SCREENS[4] = () => {
-  if (multi() && !roomOK()) { const ok = S.home.rooms.find((r) => r.on && kindOf(r.name)); if (ok) enterRoom(ok.id); }   // 下面的圖面與法規看的是做得出設計的那一間
   const c = S.cond, current = look(), est = estimateNow(), k = knowledge();
   const max = Math.max(...est.items.map((i) => i.high));
   const setPing = (v) => { c.ping = String(Math.max(1, Math.round(v))); render(); };
@@ -716,15 +718,15 @@ SCREENS[4] = () => {
       copied));
   if (multi()) {
     // 整戶：合計、依房間／依工項，取消勾選就先不做那一間
-    const home = homeNow(), rooms = S.home.rooms, open = home.rows.filter((x) => !x.est).map((x) => x.name);
+    const home = homeNow(), rooms = S.home.rooms;
     const byRoom = h('ul', { class: 'rooms', id: 'byroom' }, ...home.rows.map((x) => h('li', {},
       h('input', { type: 'checkbox', checked: true, 'aria-label': `做${x.name}`, onchange: () => { rooms.find((r) => r.id === x.id).on = false; renderSoon(); } }),
-      h('b', {}, x.name), h('small', { class: 'note' }, x.ping ? `${x.ping} 坪` : ''), x.est ? h('span', { class: 'amt' }, `${x.est.low}–${x.est.high} 萬`) : h('span', { class: 'dim' }, '還沒開放'))),
+      h('b', {}, x.name), h('small', { class: 'note' }, x.ping ? `${x.ping} 坪` : ''), h('span', { class: 'amt' }, `${x.est.low}–${x.est.high} 萬`))),
       ...rooms.filter((r) => !r.on).map((r) => h('li', {}, h('input', { type: 'checkbox', checked: false, 'aria-label': `做${r.name}`, onchange: () => { r.on = true; renderSoon(); } }), h('b', { style: 'color:var(--muted)' }, r.name), h('span', { class: 'dim' }, '先不做'))));
     const byItem = h('ul', { class: 'items', id: 'byitem' }, ...home.items.map((i) => h('li', {}, h('b', {}, i.name), h('span', { class: 'amt' }, `${i.low}–${i.high} 萬`))));
     app.append(h('div', { class: 'shead' }, backBtn(3, '回到設計'), h('p', { class: 'note' }, '整個家照這個設計做，大約要花'),
       h('div', { class: 'total' }, h('h1', { class: 'big', id: 'total' }, `${home.low}–${home.high}`, h('small', {}, '萬')), h('span', { class: 'badge', id: 'estkind' }, '範例估算，非正式報價')),
-      h('p', { class: 'note', id: 'assume4' }, `${homeTitle(rooms)}・${c.age}${c.ageSet ? '' : '（預設）'}。`, open.length ? `${open.join('、')}的設計還沒開放，沒有算進合計。` : '')),
+      h('p', { class: 'note', id: 'assume4' }, `${homeTitle(rooms)}・${c.age}${c.ageSet ? '' : '（預設）'}。`)),
       h('div', { class: 'segm', role: 'group', 'aria-label': '怎麼看' }, ...[['room', '依房間'], ['item', '依工項']].map(([v, label]) => h('button', { 'aria-pressed': String(S.costTab === v), onclick: () => { S.costTab = v; render(); } }, label))),
       S.costTab === 'item' ? byItem : byRoom,
       h('p', { class: 'note' }, '取消勾選就先不做那一間，合計馬上更新。參考行情量級，不含家電與設計監工費。'),

@@ -50,6 +50,8 @@ export function roomSize(cond, ping) {
  * the sofa shortens and pieces that would not fit are left out (their entry is null).
  * roomLayout(ROOM) reproduces the default constants above.
  * space '臥室' swaps the seating group for a bed, bedside tables and a chair by the window; entries that do not apply are null.
+ * 餐廳／書房／廚房／衛浴 put their own pieces in `fixtures` (axis-aligned boxes: t = dtable, dchair, desk, counter, upper, fridge, vanity, toilet, shower),
+ * name the main piece as `anchor`, and may set noCabinet / noCurtain; rug is null where a rug makes no sense.
  */
 export function roomLayout({ w, d, h, space = '客廳' }) {
   const L = -w / 2, R = w / 2, B = -d / 2, F = d / 2;
@@ -64,6 +66,39 @@ export function roomLayout({ w, d, h, space = '客廳' }) {
   const chair = w >= 3.6 && d >= 3 ? { x: chairX, z: Math.max(sofa.z - 0.8, B + 0.95), sx: 0.85, sz: 0.85 } : null;
   const plantAt = (chair) => (w >= 3.2 && (!chair || Math.hypot(R - 0.4 - chair.x, B + 0.55 - chair.z) >= 1.25) ? { x: R - 0.4, z: B + 0.55 } : null);
   const sideboard = x1 - x0 >= 1.8 ? { x: (x0 + x1) / 2, z: B + 0.2, sx: 1.6, sz: 0.4 } : null;
+  const empty = { sofa: null, table: null, lamp: null, sidetable: null, bed: null, nightA: null, nightB: null, chair: null };
+  const box = (t, x, z, sx, sz, o = {}) => ({ t, x, z, sx, sz, ...o });
+  if (space === '餐廳') {
+    // 餐桌在中間，長邊各兩張椅子；餐櫃用後牆的高櫃，窗下是備餐的低櫃
+    const big = w >= 2.8 && d >= 2.6, tw = big ? 1.5 : 1.0, td = big ? 0.85 : 0.7, tz = Math.min(0.06 * d, F - td / 2 - 0.75), tx = Math.max(L + tw / 2 + 0.5, Math.min(0, R - tw / 2 - 0.5));
+    const anchor = box('dtable', tx, tz, tw, td);
+    const seats = (big ? [-0.38, 0.38] : [0]).flatMap((dx) => [box('dchair', tx + dx, tz - td / 2 - 0.2, 0.44, 0.46, { ry: 0 }), box('dchair', tx + dx, tz + td / 2 + 0.2, 0.44, 0.46, { ry: Math.PI })])
+      .filter((c) => c.z - 0.23 >= B + cabinet.depth + 0.05 && c.z + 0.23 <= F - 0.02);
+    return { room: { w, d, h }, window, cabinet, layout: { ...empty, sideboard, plant: plantAt(null), pendant: { x: tx, z: tz }, anchor, fixtures: [anchor, ...seats],
+      rug: { x: tx, z: tz, sx: Math.min(tw + 0.9, w - 0.3), sz: Math.min(td + 1.5, d - 0.5) } } };
+  }
+  if (space === '書房') {
+    // 書桌靠左牆、人面向牆；後牆的高櫃是書櫃；房間夠大再放一張閱讀椅
+    const dl = Math.max(1.0, Math.min(1.5, d - 1.2)), dz = Math.min(Math.max(B + cabinet.depth + 0.4 + dl / 2, 0.08 * d), F - dl / 2 - 0.1);
+    const anchor = box('desk', L + 0.34, dz, 0.64, dl), seat = box('dchair', L + 0.95, dz, 0.46, 0.44, { ry: Math.PI / 2 });
+    const reading = w >= 3.8 && d >= 3.2 ? { x: Math.min(L + 3.2, R - 0.75), z: B + 1.15, sx: 0.85, sz: 0.85 } : null;
+    return { room: { w, d, h }, window, cabinet, layout: { ...empty, chair: reading, sideboard, plant: plantAt(reading), pendant: { x: Math.min(0, R - 0.6), z: dz }, anchor, fixtures: [anchor, seat],
+      rug: { x: L + 0.7 + Math.min(1.8, w - 0.9) / 2, z: dz, sx: Math.min(1.8, w - 0.9), sz: Math.min(dl + 0.6, d - 0.5) } } };
+  }
+  if (space === '廚房') {
+    // 一字型：流理台沿左牆，上面是吊櫃，前端放冰箱。不放地毯和窗簾
+    const fridge = d >= 2.6, cl = Math.max(1.2, d - 0.1 - (fridge ? 0.78 : 0)), cz = B + 0.05 + cl / 2;
+    const anchor = box('counter', L + 0.31, cz, 0.62, cl);
+    return { room: { w, d, h }, window, cabinet, layout: { ...empty, sideboard: null, plant: null, rug: null, pendant: { x: Math.min(L + 1.5, R - 0.5), z: 0 }, anchor, noCabinet: true, noCurtain: true,
+      fixtures: [anchor, box('upper', L + 0.18, cz, 0.36, cl), ...(fridge ? [box('fridge', L + 0.36, F - 0.41, 0.72, 0.7)] : [])] } };
+  }
+  if (space === '衛浴') {
+    // 乾濕分離：洗手台與馬桶沿左牆，淋浴間在右後角。不放地毯和窗簾
+    const vz = B + 0.25 + 0.4, anchor = box('vanity', L + 0.26, vz, 0.52, 0.8), toilet = box('toilet', L + 0.36, Math.min(vz + 0.4 + 0.2 + 0.2, F - 0.25), 0.7, 0.4);
+    const ss = Math.min(0.95, w - 0.9, d - 0.3), shower = ss >= 0.75 ? box('shower', R - ss / 2 - 0.02, B + ss / 2 + 0.02, ss, ss) : null;
+    return { room: { w, d, h }, window, cabinet, layout: { ...empty, sideboard: null, plant: null, rug: null, pendant: { x: 0, z: 0.1 * d }, anchor, noCabinet: true, noCurtain: true,
+      fixtures: [anchor, toilet, ...(shower ? [shower] : [])] } };
+  }
   if (space === '臥室') {
     // 床頭靠左牆（和客廳的沙發同一面），衣櫃在後牆左側，窗下是斗櫃。房間短就改單人床；床頭櫃放得下才放。
     const bw = d >= 3 ? 1.5 : 1.05, bl = Math.min(2.0, w - 0.02);

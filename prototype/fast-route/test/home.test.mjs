@@ -4,8 +4,8 @@ import { templateRooms, kindOf, homeTitle, planSVG, homeEstimate, roomPing } fro
 import { designEstimate } from '../lib/estimate.js';
 import { STYLES } from '../lib/taste.js';
 
-test('房間種類：客廳與臥室做得出設計，其餘先不算', () => {
-  assert.deepEqual(['客廳', '主臥', '次臥 2', '小孩房', '餐廳', '廚房', '主衛', '書房'].map(kindOf), ['客廳', '臥室', '臥室', '臥室', null, null, null, null]);
+test('房間種類：每一種空間都有配置；認不出名字的用書房的配置', () => {
+  assert.deepEqual(['客廳', '主臥', '次臥 2', '小孩房', '餐廳', '廚房', '主衛', '客用廁所', '書房', '儲藏室'].map(kindOf), ['客廳', '臥室', '臥室', '臥室', '餐廳', '廚房', '衛浴', '衛浴', '書房', '書房']);
 });
 
 test('三房兩廳範本：標題、示意平面圖', () => {
@@ -25,7 +25,8 @@ test('整戶估價：勾選的房間加總；做不出設計的不算進合計�
   const one = (r) => designEstimate({ space: kindOf(r.name), ping: String(roomPing(r)), age: '新成屋' }, STYLES.warm);
   const all = homeEstimate(rooms, one);
   assert.equal(all.rows.length, 8);
-  assert.equal(all.open, 4, '餐廳、廚房、兩間衛浴還沒開放');
+  assert.equal(all.open, 0, 'every room has a design and a number');
+  for (const x of all.rows) assert.ok(x.est.low > 0 && x.est.high > x.est.low, x.name);
   const sum = all.rows.filter((x) => x.est).reduce((a, x) => a + x.est.high, 0);
   assert.equal(all.high, Math.round(sum));
   rooms[3].on = false;                       // 主臥先不做

@@ -17,11 +17,13 @@ export function serialize(S) {
  */
 /** 整戶的房間清單：逐欄檢查，對不上就當作沒有（回到單一房間） */
 function homeOf(d) {
+  const key = (v) => v == null || (typeof v === 'string' && /^[a-z]{2,12}$/.test(v));   // 風格代號
   const rooms = d.home?.rooms, num = (v) => typeof v === 'string' && v.length < 8 && (v === '' || Number(v) > 0);
   const ok = Array.isArray(rooms) && rooms.length > 0 && rooms.length <= 30 && rooms.every((r) => r && typeof r.id === 'string' && /^r\d{1,3}$/.test(r.id) && typeof r.name === 'string' && r.name.length > 0 && r.name.length <= 8
-    && num(r.len) && num(r.wid) && typeof r.on === 'boolean' && Array.isArray(r.edits) && r.edits.every((n) => Number.isInteger(n) && n >= 0 && n < 12));
+    && num(r.len) && num(r.wid) && typeof r.on === 'boolean' && Array.isArray(r.edits) && r.edits.every((n) => Number.isInteger(n) && n >= 0 && n < 12) && key(r.style))
+    && key(d.home.style);
   if (!ok) return { home: null, room: null };
-  return { home: { rooms: rooms.map(({ id, name, len, wid, on, edits }) => ({ id, name, len, wid, on, edits })) }, room: rooms.some((r) => r.id === d.room) ? d.room : rooms[0].id };
+  return { home: { style: d.home.style ?? null, rooms: rooms.map(({ id, name, len, wid, on, edits, style }) => ({ id, name, len, wid, on, edits, ...(style ? { style } : {}) })) }, room: rooms.some((r) => r.id === d.room) ? d.room : rooms[0].id };
 }
 /** 後來才加的條件欄位：舊存檔沒有也收，補預設值。 */
 const LATER = ['noFurniture', 'unitFloor', 'sprinkler', 'housing'];

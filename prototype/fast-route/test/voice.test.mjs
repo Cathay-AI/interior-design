@@ -62,3 +62,13 @@ test('用說的改設計：一句話好幾件事，聽不懂的每一段都回�
     { edits: [{ edit: 2, on: true }], style: null, unknown: ['衣櫃換成白色'] });
   assert.deepEqual(parseEdit('不要地毯然後牆換白', labels).edits, [{ edit: 2, on: true }, { edit: 1, on: true }]);
 });
+
+test('每一種空間都有設計說明，數字來自配置', () => {
+  const note = (space, w, d) => designNotes({ space }, STYLES.warm, roomLayout({ w, d, h: 2.8, space })).join('');
+  assert.match(note('餐廳', 3.4, 3), /餐桌放中間，配 4 張椅子；桌邊到牆還有 \d+ 公分/);
+  assert.match(note('書房', 3, 3), /書桌靠牆、長 \d+ 公分/);
+  assert.match(note('廚房', 3.4, 2.4), /一字型流理台沿牆 \d+ 公分[\s\S]*冰箱要另外找位置/);
+  assert.match(note('廚房', 3.4, 3), /冰箱放在流理台前端/);
+  assert.match(note('衛浴', 2.4, 2), /洗手台和馬桶沿同一面牆[\s\S]*淋浴間 \d+ 公分見方/);
+  for (const space of ['客廳', '臥室', '餐廳', '書房', '廚房', '衛浴']) assert.ok(!/undefined|NaN|null/.test(note(space, 2, 2) + note(space, 6, 5)), space);
+});

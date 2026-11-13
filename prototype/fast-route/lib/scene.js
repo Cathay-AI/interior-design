@@ -340,15 +340,17 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
   add(new T.PlaneGeometry(vw, vh), std({ color: '#000', emissive: '#ffffff', emissiveMap: tex(viewTexture()), emissiveIntensity: pathtrace ? 2.2 : 1 }),
     [(x0 + x1) / 2, closed ? 1.6 : (y0 + y1) / 2, -d / 2 - (closed ? 1.4 : 0.1)], { cast: false, receive: false });
 
-  /* sheer curtains, bunched at both sides, on a slim track */
+  /* sheer curtains, bunched at both sides, on a slim track (not in kitchens and bathrooms) */
+  if (!LAYOUT.noCurtain) {
   const sheer = std({ color: '#fbfaf6', roughness: 1, transparent: true, opacity: 0.62, side: T.DoubleSide });
   const ch = y1 - 0.02 + 0.2;
   add(folds(0.75, ch, 0.035, 7), sheer, [x0 + 0.18, ch / 2 + 0.02, -d / 2 + 0.11], { cast: false });
   add(folds(0.6, ch, 0.035, 6), sheer, [x1 - 0.12, ch / 2 + 0.02, -d / 2 + 0.11], { cast: false });
   add(new T.BoxGeometry(x1 - x0 + 0.6, 0.025, 0.04), white, [(x0 + x1) / 2, ch + 0.035, -d / 2 + 0.1], { cast: false });
+  }
 
   /* built-in storage wall: two full-height bays + a lit open niche */
-  {
+  if (!LAYOUT.noCabinet) {
     const { x0: cx0, x1: cx1, depth } = CABINET;
     const cw = cx1 - cx0, cz = -d / 2 + depth / 2, top = h;
     const bay = cw / 3, g = 0.004, front = -d / 2 + depth + 0.01, carcass = std({ color: mix(look.cabinet, '#000', 0.08), roughness: 0.7 });
@@ -389,7 +391,7 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
   }
 
   /* rug */
-  if (look.rug) { const R = LAYOUT.rug; add(new T.BoxGeometry(R.sx, 0.012, R.sz), std({ map: tex(rugTexture(mix(look.rug, '#d9d0c2', 0.5), look.accent)), roughness: 1 }), [R.x, 0.006, R.z], { cast: false }); }
+  if (look.rug && LAYOUT.rug) { const R = LAYOUT.rug; add(new T.BoxGeometry(R.sx, 0.012, R.sz), std({ map: tex(rugTexture(mix(look.rug, '#d9d0c2', 0.5), look.accent)), roughness: 1 }), [R.x, 0.006, R.z], { cast: false }); }
 
   /* sofa against the left wall, an armchair facing it (bedroom: a bed instead, the chair turns to the window) */
   const S = LAYOUT.sofa, C = LAYOUT.chair, B = LAYOUT.bed;
@@ -410,6 +412,37 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
       // bedside lamp
       add(new T.CylinderGeometry(0.055, 0.07, 0.16, 20), std({ color: look.ceramic ?? '#e9e2d6', roughness: 0.35 }), [n.x, top + 0.08, n.z]);
       add(new T.CylinderGeometry(0.09, 0.12, 0.17, 32, 1, true), std({ color: '#f4ecdc', roughness: 1, side: T.DoubleSide, emissive: '#ffd59a', emissiveIntensity: pathtrace ? 0.6 : 0.4 }), [n.x, top + 0.26, n.z], { cast: false });
+    }
+  }
+
+  /* dining, study, kitchen and bathroom pieces: simple built forms in the look's materials */
+  {
+    const stone = std({ map: tex(marble()), roughness: 0.25 }), ceramic = std({ color: '#f4f2ee', roughness: 0.22 }), steel = std({ color: '#c9ccce', roughness: 0.32, metalness: 0.9 });
+    const glass = std({ color: '#dfeaec', roughness: 0.05, transparent: true, opacity: 0.22 });
+    const legs = (g, sx, sz, top, mat = accentWood) => { for (const lx of [-sx / 2 + 0.06, sx / 2 - 0.06]) for (const lz of [-sz / 2 + 0.06, sz / 2 - 0.06]) put(g, new T.CylinderGeometry(0.022, 0.016, top, 10), mat, [lx, top / 2, lz]); };
+    for (const f of LAYOUT.fixtures ?? []) {
+      const g = group(f.x, 0, f.z, f.ry ?? 0);
+      if (f.t === 'dtable') { put(g, soft(f.sx, 0.045, f.sz, 0.015), accentWood, [0, 0.74, 0]); legs(g, f.sx - 0.16, f.sz - 0.16, 0.72); vase((ge, m, p2, o) => put(g, ge, m, p2, o), std({ color: look.accent, roughness: 0.3 }), 0, 0.765, 0, 0.9); }
+      else if (f.t === 'dchair') { put(g, soft(0.42, 0.05, 0.42, 0.02), sofaMat, [0, 0.46, 0]); legs(g, 0.4, 0.4, 0.44); put(g, soft(0.42, 0.42, 0.04, 0.02), accentWood, [0, 0.7, -0.2], { rot: [-0.1, 0, 0] }); }
+      else if (f.t === 'desk') { put(g, soft(f.sx, 0.04, f.sz, 0.012), accentWood, [0, 0.74, 0]); legs(g, f.sx - 0.1, f.sz - 0.1, 0.72, metal); put(g, new T.BoxGeometry(0.03, 0.36, 0.56), std({ color: '#1c1c1e', roughness: 0.4 }), [-0.16, 1.02, 0]); put(g, new T.BoxGeometry(0.2, 0.02, 0.2), metal, [-0.16, 0.77, 0]); books(g, (ge, m, p2, o) => put(g, ge, m, p2, o), -0.1, 0.76, f.sz / 2 - 0.3, 4, look, true); }
+      else if (f.t === 'counter') {
+        put(g, new T.BoxGeometry(f.sx - 0.04, 0.78, f.sz), cabinetMat, [-0.02, 0.49, 0]); put(g, new T.BoxGeometry(f.sx - 0.1, 0.1, f.sz), std({ color: '#2a2622', roughness: 0.9 }), [-0.05, 0.05, 0]);
+        put(g, new T.BoxGeometry(f.sx, 0.04, f.sz), stone, [0, 0.9, 0]);
+        put(g, new T.BoxGeometry(0.4, 0.012, 0.56), steel, [0, 0.922, -f.sz / 2 + 0.55]); put(g, new T.CylinderGeometry(0.012, 0.012, 0.24, 10), steel, [-0.2, 1.04, -f.sz / 2 + 0.55]);   // 水槽與龍頭
+        put(g, new T.BoxGeometry(0.5, 0.012, 0.56), std({ color: '#141414', roughness: 0.15 }), [0, 0.922, f.sz / 2 - 0.55]);                                                    // 爐具
+        for (let z = -f.sz / 2 + 0.6; z < f.sz / 2 - 0.05; z += 0.6) put(g, new T.BoxGeometry(0.006, 0.76, 0.006), std({ color: '#000', transparent: true, opacity: 0.35 }), [f.sx / 2 - 0.018, 0.49, z], { cast: false });
+      } else if (f.t === 'upper') { put(g, new T.BoxGeometry(f.sx, 0.7, f.sz), cabinetMat, [0, 1.85, 0]); put(g, new T.BoxGeometry(f.sx - 0.06, 0.008, f.sz - 0.1), std({ color: '#000', emissive: '#ffe1b0', emissiveIntensity: 2.5 }), [0.02, 1.495, 0], { cast: false }); }
+      else if (f.t === 'fridge') { put(g, soft(f.sx, 1.82, f.sz, 0.02), steel, [0, 0.91, 0]); put(g, new T.BoxGeometry(0.01, 0.5, 0.02), metal, [f.sx / 2 + 0.006, 1.2, f.sz / 2 - 0.08]); }
+      else if (f.t === 'vanity') {
+        put(g, new T.BoxGeometry(f.sx - 0.03, 0.5, f.sz), cabinetMat, [-0.015, 0.55, 0]); put(g, new T.BoxGeometry(f.sx, 0.03, f.sz), stone, [0, 0.815, 0]);
+        put(g, new T.CylinderGeometry(0.2, 0.16, 0.12, 28), ceramic, [0.02, 0.89, 0]); put(g, new T.CylinderGeometry(0.012, 0.012, 0.2, 10), steel, [-0.19, 0.93, 0]);
+        put(g, new T.BoxGeometry(0.02, 0.8, f.sz - 0.1), std({ color: '#cfd9dc', roughness: 0.05, metalness: 0.9 }), [-f.sx / 2 + 0.012, 1.55, 0], { cast: false });   // 鏡子
+      } else if (f.t === 'toilet') { put(g, soft(0.5, 0.38, 0.36, 0.1), ceramic, [0.08, 0.21, 0]); put(g, soft(0.18, 0.4, 0.38, 0.04), ceramic, [-0.25, 0.6, 0]); put(g, soft(0.44, 0.03, 0.36, 0.014), ceramic, [0.1, 0.41, 0]); }
+      else if (f.t === 'shower') {
+        put(g, new T.BoxGeometry(f.sx, 0.04, f.sz), ceramic, [0, 0.02, 0]);
+        put(g, new T.BoxGeometry(0.012, 1.95, f.sz), glass, [-f.sx / 2, 1.0, 0], { cast: false }); put(g, new T.BoxGeometry(f.sx, 1.95, 0.012), glass, [0, 1.0, f.sz / 2], { cast: false });
+        put(g, new T.CylinderGeometry(0.01, 0.01, 1.1, 8), steel, [f.sx / 2 - 0.08, 1.5, -f.sz / 2 + 0.08]); put(g, new T.CylinderGeometry(0.09, 0.09, 0.02, 20), steel, [f.sx / 2 - 0.2, 2.02, -f.sz / 2 + 0.2]);
+      }
     }
   }
 
@@ -449,8 +482,8 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
     } else pendant(look, add, { metal, brass, std, pathtrace, white });
   }
 
-  /* art above the sofa */
-  {
+  /* art above the sofa or the bed */
+  if (S ?? B) {
     const ax = -w / 2 + 0.02, ay = 1.62;
     add(new T.BoxGeometry(0.035, 0.72, 0.98), std({ color: look.frameArt ?? '#2a2622', roughness: 0.5 }), [ax + 0.0175, ay, (S ?? B).z]);
     add(new T.PlaneGeometry(0.9, 0.64), std({ map: tex(artTexture(look)), roughness: 0.95 }), [ax + 0.037, ay, (S ?? B).z], { rot: [0, Math.PI / 2, 0], cast: false });

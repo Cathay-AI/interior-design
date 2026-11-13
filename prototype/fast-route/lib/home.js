@@ -4,13 +4,15 @@ import { pingFromDims } from './context.js';
 /** 還不會自動讀平面圖時給的起點：三房兩廳。屋主改成自己家的房間與尺寸。 */
 export const TEMPLATE = [
   ['客廳', '5.6', '4.7'], ['餐廳', '3.4', '3.0'], ['廚房', '3.4', '2.4'], ['主臥', '4.3', '3.9'],
-  ['次臥 1', '3.2', '3.0'], ['次臥 2', '3.6', '3.0'], ['主衛', '2.2', '1.9'], ['客衛', '2.2', '1.7'],
+  ['次臥 1', '3.2', '3.0'], ['次臥 2', '3.6', '3.0'], ['主衛', '2.4', '2.0'], ['客衛', '2.2', '2.0'],
 ];
 export const templateRooms = () => TEMPLATE.map(([name, len, wid], i) => ({ id: 'r' + (i + 1), name, len, wid, on: true, edits: [] }));
 export const singleRoom = (space) => [{ id: 'r1', name: space, len: '', wid: '', on: true, edits: [] }];
 
-/** 這個房間用哪一種配置：目前只有客廳與臥室做得出 3D、圖面和估價；其餘回 null。 */
-export const kindOf = (name) => (/客廳|起居/.test(name) ? '客廳' : /臥|房間|小孩房|孝親房|客房/.test(name) ? '臥室' : null);
+/** 這個房間用哪一種配置。每一種空間都做得出 3D、圖面和估價；認不出名字的（儲藏室、多功能室…）用書房的配置。 */
+export const KINDS = ['客廳', '臥室', '餐廳', '廚房', '衛浴', '書房'];
+export const kindOf = (name) => (/客廳|起居/.test(name) ? '客廳' : /餐/.test(name) ? '餐廳' : /廚/.test(name) ? '廚房' : /衛|浴|廁/.test(name) ? '衛浴'
+  : /臥|房間|小孩房|孝親房|客房/.test(name) && !/書房/.test(name) ? '臥室' : '書房');
 export const roomPing = (r) => pingFromDims(r.len, r.wid);
 export const homeTitle = (rooms) => {
   const on = rooms.filter((r) => r.on), beds = on.filter((r) => kindOf(r.name) === '臥室').length, halls = on.filter((r) => /客廳|餐廳|起居/.test(r.name)).length;
@@ -34,9 +36,9 @@ export function planSVG(rooms, current = null) {
   for (const row of rows) {
     const ra = row.reduce((a, x) => a + x.a, 0), hgt = (H - pad * 2) * (ra / total); let x = pad;
     for (const { r, a } of row) {
-      const w = (W - pad * 2) * (a / ra), on = r.id === current, ok = kindOf(r.name) !== null, size = Math.max(11, Math.min(18, w / (r.name.length + 1)));
-      out.push(`<g data-room="${r.id}" tabindex="0" role="button" aria-label="${r.name}" style="cursor:pointer"><rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${hgt.toFixed(1)}" fill="${on ? '#f1dfcb' : ok ? '#fffdf9' : '#f3eee5'}" stroke="#29251f" stroke-width="${on ? 4 : 2.5}"/>`
-        + `<text x="${(x + w / 2).toFixed(1)}" y="${(y + hgt / 2 + size / 3).toFixed(1)}" text-anchor="middle" font-size="${size.toFixed(1)}" font-weight="${on ? 700 : 500}" fill="${ok ? '#29251f' : '#6b6156'}">${r.name}</text></g>`);
+      const w = (W - pad * 2) * (a / ra), on = r.id === current, size = Math.max(11, Math.min(18, w / (r.name.length + 1)));
+      out.push(`<g data-room="${r.id}" tabindex="0" role="button" aria-label="${r.name}" style="cursor:pointer"><rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${hgt.toFixed(1)}" fill="${on ? '#f1dfcb' : '#fffdf9'}" stroke="#29251f" stroke-width="${on ? 4 : 2.5}"/>`
+        + `<text x="${(x + w / 2).toFixed(1)}" y="${(y + hgt / 2 + size / 3).toFixed(1)}" text-anchor="middle" font-size="${size.toFixed(1)}" font-weight="${on ? 700 : 500}" fill="#29251f">${r.name}</text></g>`);
       x += w;
     }
     y += hgt;
@@ -45,12 +47,12 @@ export function planSVG(rooms, current = null) {
 }
 
 /**
- * 整戶估價：每個勾選的房間各算一次再加總。做不出設計的空間不算進合計，另外回報有幾間。
+ * 整戶估價：每個勾選的房間各算一次再加總。
  * @param {object[]} rooms @param {(room:object)=>({low:number,high:number,items:object[]}|null)} estimateRoom
  * @returns {{rows:{id:string,name:string,ping:number|null,est:object|null}[], low:number, high:number, open:number, items:{name:string,low:number,high:number}[]}}
  */
 export function homeEstimate(rooms, estimateRoom) {
-  const rows = rooms.filter((r) => r.on).map((r) => ({ id: r.id, name: r.name, ping: roomPing(r), est: kindOf(r.name) ? estimateRoom(r) : null }));
+  const rows = rooms.filter((r) => r.on).map((r) => ({ id: r.id, name: r.name, ping: roomPing(r), est: estimateRoom(r) }));
   const done = rows.filter((x) => x.est), items = new Map();
   for (const x of done) for (const i of x.est.items) { const cur = items.get(i.name) ?? { name: i.name, low: 0, high: 0 }; cur.low += i.low; cur.high += i.high; items.set(i.name, cur); }
   const r1 = (v) => Math.round(v * 10) / 10;

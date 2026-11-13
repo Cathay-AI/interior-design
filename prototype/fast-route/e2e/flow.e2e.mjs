@@ -62,6 +62,7 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   await page.waitForFunction((t) => document.querySelector('#teaser').textContent !== t, sample);
   await page.locator('#swatches').getByRole('button', { name: '溫暖木質' }).click();
   assert.deepEqual(await page.locator('#steps .t').allTextContents(), ['你家', '風格', '設計', '花費']);
+  assert.deepEqual(await page.locator('#where button:not(:disabled)').allTextContents(), ['客廳', '臥室', '廚房', '衛浴', '書房'], 'every space can be picked; nothing is held back');
   if (name === 'desktop') await onStage('1', '#upload');
   await snap('1-intro'); await noOverflow('1');
 
@@ -268,7 +269,6 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   assert.equal(await page.locator('#plan [data-room]').count(), 8, 'the stage shows the schematic plan');
   assert.match(await page.locator('#where2').innerText(), /你家・三房兩廳・8 個空間・室內約 \d+ 坪/);
   assert.match(await page.locator('#teaser').innerText(), /^— 萬$/, 'no number before a style is chosen');
-  assert.match(await page.locator('#notyet').innerText(), /餐廳、廚房、主衛、客衛先列著，還不會算進花費/);
   await page.locator('#rooms li', { hasText: '客衛' }).getByRole('checkbox').uncheck();
   await page.locator('#roomsok', { hasText: '對，7 間都做' }).waitFor();
   await page.locator('#rooms li', { hasText: '主臥' }).getByRole('button', { name: '改主臥' }).click();   // 尺寸不對點一下就能改
@@ -290,9 +290,17 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   const living = await page.locator('#teaser').innerText();
   await page.getByRole('button', { name: '地毯拿掉' }).click();
   await page.locator('#nextroom', { hasText: '下一間：餐廳' }).click();
-  await page.getByRole('heading', { name: '餐廳' }).waitFor();
-  assert.match(await page.locator('#designer').innerText(), /餐廳的設計還沒開放/);
-  assert.match(await page.locator('#teaser').innerText(), /^— 萬$/);
+  await page.getByRole('heading', { name: '餐廳・溫暖木質' }).waitFor();                // 每一間都有設計：餐廳是餐桌椅
+  await page.waitForFunction(() => window.__room.stats().size.space === '餐廳', null, { timeout: 30000 });
+  assert.match(await page.locator('#designer').innerText(), /餐桌放中間，配 4 張椅子/);
+  assert.match(await page.locator('#teaser').innerText(), /^\d+–\d+ 萬$/);
+  await page.locator('#roomtabs').getByRole('button', { name: '廚房' }).click();
+  await page.getByRole('heading', { name: '廚房・溫暖木質' }).waitFor();
+  assert.match(await page.locator('#designer').innerText(), /一字型流理台/);
+  assert.equal(await page.getByRole('button', { name: '地毯拿掉' }).count(), 0, 'a kitchen has no rug to remove');
+  await page.locator('#roomtabs').getByRole('button', { name: '主衛' }).click();
+  await page.getByRole('heading', { name: '主衛・溫暖木質' }).waitFor();
+  assert.match(await page.locator('#designer').innerText(), /洗手台和馬桶/);
   await page.locator('#roomtabs').getByRole('button', { name: '主臥' }).click();
   await page.getByRole('heading', { name: '主臥・溫暖木質' }).waitFor();
   await page.waitForFunction(() => window.__room.stats().size.space === '臥室' && window.__room.stats().size.w === 4.5, null, { timeout: 30000 });
@@ -303,6 +311,12 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   assert.equal(await page.getByRole('button', { name: '地毯拿掉' }).getAttribute('aria-pressed'), 'true', 'each room keeps its own edits');
   await page.locator('.styleopt', { hasText: '日光北歐' }).click();             // 換風格：整個家一起換
   await page.getByRole('heading', { name: '客廳・日光北歐' }).waitFor();
+  await page.locator('#styleall input').uncheck();                              // 不勾「整個家一起換」：只換這一間
+  await page.locator('.styleopt', { hasText: '深色現代' }).click();
+  await page.getByRole('heading', { name: '客廳・深色現代' }).waitFor();
+  assert.match(await page.locator('#designer').innerText(), /只有客廳換成深色現代/);
+  await page.locator('#roomtabs').getByRole('button', { name: '主臥' }).click();
+  await page.getByRole('heading', { name: '主臥・日光北歐' }).waitFor();
   await page.locator('#roomtabs').getByRole('button', { name: '整戶' }).click();
   await page.getByRole('heading', { name: '整個家' }).waitFor();
   assert.equal(await page.locator('#plan').isVisible(), true);
@@ -314,8 +328,8 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   const [lo, hi] = await sum();
   assert.equal((await page.locator('#total').innerText()).replace(/\s+/g, ''), `${lo}–${hi}萬`, 'the total is the sum of the rooms');
   assert.equal(await page.locator('#teaser').innerText(), `${lo}–${hi} 萬`);
-  assert.match(await page.locator('#assume4').innerText(), /兩廳・7 個空間[\s\S]*中古屋[\s\S]*餐廳、廚房、主衛的設計還沒開放，沒有算進合計/);
-  assert.equal(await page.locator('#byroom .amt').count(), 4, '客廳 and three bedrooms have numbers');
+  assert.match(await page.locator('#assume4').innerText(), /兩廳・7 個空間[\s\S]*中古屋/);
+  assert.equal(await page.locator('#byroom .amt').count(), 7, 'every room being done has a number');
   await page.locator('#byroom li', { hasText: '主臥' }).getByRole('checkbox').uncheck();
   await page.waitForFunction((t) => document.querySelector('#total').textContent.replace(/\s+/g, '') !== t, `${lo}–${hi}萬`);
   assert.ok((await sum())[1] < hi);
