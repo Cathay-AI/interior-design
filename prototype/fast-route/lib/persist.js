@@ -21,7 +21,7 @@ export function restore(json, blank) {
     const int = (n, lo, hi) => Number.isInteger(n) && n >= lo && n <= hi;
     if (!d || !int(d.step, 1, STEPS) || !int(d.reached, d.step, STEPS) || !int(d.swiped, 0, 999) || !int(d.liked, 0, d.swiped)) return blank;
     if (Object.keys(blank.scores).some((k) => typeof d.scores?.[k] !== 'number')) return blank;
-    if (Object.keys(blank.cond).some((k) => !(k in (d.cond ?? {})))) return blank;
+    if (Object.keys(blank.cond).some((k) => !(k in (d.cond ?? {})) && k !== 'noFurniture')) return blank;   // noFurniture 是後來加的，舊存檔沒有
     if (!Array.isArray(d.versions) || d.versions.some((x) => !x?.look?.name) || !['A', 'B', 'C'].includes(d.view)) return blank;
     if (d.step >= 3 && (!d.versions.length || !int(d.v, 0, d.versions.length - 1) || !d.cond.style)) return blank;
     return { ...blank, step: d.step, reached: d.reached, scores: d.scores, swiped: d.swiped, liked: d.liked, cond: { ...blank.cond, ...d.cond },

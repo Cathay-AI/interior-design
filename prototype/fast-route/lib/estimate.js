@@ -27,7 +27,7 @@ export function resolvePing(cond) {
 }
 
 /**
- * @param {{space:string, ping:string|number, age:string}} cond
+ * @param {{space:string, ping:string|number, age:string, noFurniture?:boolean}} cond　noFurniture：沿用舊家具或自己買，不計家具軟裝
  * @param {object} look 目前的設計（STYLES 的一筆，可能被修改過）
  * @returns {{low:number, high:number, ping:number, assumedPing:boolean,
  *   items:{key:string, name:string, basis:string, low:number, high:number}[]}}
@@ -54,10 +54,10 @@ export function designEstimate(cond, look) {
 
   const [ul, uh] = FURNITURE[look.fabric] ?? FURNITURE.linen;
   const rug = look.rug ? [0.6, 1.8] : [0, 0];
-  add('furniture', '家具軟裝', `${{ leather: '皮革', velvet: '絨布', linen: '布面' }[look.fabric] ?? '布面'}沙發、單椅、茶几${look.rug ? '、地毯' : ''}`, ul + rug[0], uh + rug[1]);
+  if (!cond.noFurniture) add('furniture', '家具軟裝', `${{ leather: '皮革', velvet: '絨布', linen: '布面' }[look.fabric] ?? '布面'}沙發、單椅、茶几${look.rug ? '、地毯' : ''}`, ul + rug[0], uh + rug[1]);
 
   const extra = AGE_EXTRA[cond.age];
-  if (extra) add('base', `${cond.age}基礎工程`, `拆除清運、水電更新 × ${ping} 坪`, extra[0] * ping, extra[1] * ping);
+  if (extra) add('base', `${cond.age}基礎工程`, `假設這個空間的舊裝潢全拆、水電管線重拉（每坪 ${extra[0]}–${extra[1]} 萬）× ${ping} 坪；管線近年換過可以少很多`, extra[0] * ping, extra[1] * ping);
 
   const sum = (k) => Math.round(items.reduce((a, i) => a + i[k], 0));
   return { low: sum('low'), high: sum('high'), ping, assumedPing, items };

@@ -58,11 +58,15 @@ test('swipes: likes win, dislikes push a style down, no swipes falls back to the
 
 test('滑卡前兩名：兩種各喜歡一些時第二名不會被丟掉；沒表態的不算喜歡', async () => {
   const { topStyles, applySwipe, emptyScores } = await import('../lib/taste.js');
-  assert.deepEqual(topStyles(emptyScores()), { first: 'warm', second: null, liked: false });
+  assert.deepEqual(topStyles(emptyScores()), { first: 'warm', second: null, liked: false, top: [], also: [] });
   let s = applySwipe(applySwipe(applySwipe(emptyScores(), 'muji', true), 'muji', true), 'warm', true);
-  assert.deepEqual(topStyles(s), { first: 'muji', second: 'warm', liked: true });
+  assert.deepEqual(topStyles(s), { first: 'muji', second: 'warm', liked: true, top: ['muji'], also: ['warm'] });
   s = applySwipe(emptyScores(), 'dark', true);
-  assert.deepEqual(topStyles(s), { first: 'dark', second: null, liked: true });
+  assert.deepEqual(topStyles(s), { first: 'dark', second: null, liked: true, top: ['dark'], also: [] });
+  // 三個同分：全部列出，不只挑兩個
+  s = ['warm', 'nordic', 'muji'].reduce((a, k) => applySwipe(a, k, true), emptyScores());
+  assert.deepEqual(topStyles(s).top, ['warm', 'nordic', 'muji']);
+  assert.deepEqual(topStyles(s).also, []);
 });
 
 test('撤回滑卡會回到滑之前的分數', async () => {

@@ -54,13 +54,15 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   // 用一句話（語音辨識的結果走同一條路）：聽得出來的欄位自動填好
   assert.match(await page.locator('#taste').innerText(), /你喜歡的是日光北歐。在意的是採光。/);
   assert.match(await page.locator('#docsrole').innerText(), /不會被自動判讀，所以不會改變 3D、圖面或估價金額/);
-  await page.fill('#say', '客廳長五米六、寬四米七，十二層樓的大樓，隔間不動'); await page.locator('#say').blur();
-  await page.getByText('聽到：長 5.6 公尺、寬 4.7 公尺、建物總樓層 12 層、隔間 不動').waitFor();
+  await page.fill('#say', '客廳長五米六、寬四米七，十二層樓的大樓，隔間不動'); await page.press('#say', 'Enter');   // Enter 直接送出
+  assert.equal(await page.locator('#saysend').isVisible(), true, 'there is also a visible send button');
+  await page.getByText('聽到：空間 客廳、長 5.6 公尺、寬 4.7 公尺、建物總樓層 12 層、隔間 不動').waitFor();
   assert.equal(await page.inputValue('#f-floors'), '12');
   assert.equal(await page.locator('#part-no').getAttribute('aria-pressed'), 'true');
   assert.equal(await page.inputValue('#f-len'), '5.6');
   assert.equal(await page.inputValue('#f-wid'), '4.7');
   await page.waitForFunction(() => document.querySelector('#f-ping').value === '8');   // 長×寬 換算坪數
+  assert.match(await page.locator('#pingnote').innerText(), /5.6 × 4.7 公尺 ≈ 8 坪/);
   assert.match(await page.locator('#score').innerText(), /掌握度 70%/);
   await page.setInputFiles('#docFile', [
     { name: '3F 機電圖.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') },
@@ -71,8 +73,18 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   assert.equal(await page.locator('.docs li').count(), 2);
   assert.equal(await page.locator('.docs li').first().getByRole('button', { name: '機電圖', exact: true }).getAttribute('aria-pressed'), 'true');
   assert.match(await page.locator('#score').innerText(), /掌握度 70%/, 'uploads are reference material: they do not raise the score');
-  await snap('2-context'); await noOverflow('2');
+  // 防呆：離譜的尺寸不收，欄位旁說明原因，也不會前進
+  await page.fill('#f-len', '500');
   await page.getByRole('button', { name: '生成 3D', exact: true }).click();
+  await page.locator('#e-len').getByText('長最多 60 公尺，請確認單位是公尺').waitFor();
+  assert.equal(await page.getByRole('heading', { name: '多告訴我一點你家' }).count(), 1, 'a wrong field keeps you on the page');
+  assert.equal(await page.locator('#f-len').getAttribute('aria-invalid'), 'true');
+  await page.fill('#f-len', '-3'); await page.locator('#f-len').blur();
+  await page.locator('#e-len').getByText('長要大於 0').waitFor();
+  await snap('2-error');
+  await page.fill('#f-len', '5.6');
+  await snap('2-context'); await noOverflow('2');
+  await page.getByRole('button', { name: '生成 3D', exact: true }).click();   // 游標還在欄位裡：按一次就要前進
 
   // 3 3D 示意：喜歡的那一種，靜止時不重畫
   await page.getByRole('heading', { name: '客廳・日光北歐' }).waitFor();
@@ -86,8 +98,14 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.waitForTimeout(900);
   const before = await page.locator('#teaser').innerText();
   await page.getByRole('button', { name: '地毯拿掉' }).click();
-  await page.getByRole('button', { name: '版本 2' }).waitFor();
+  await page.locator('#undoedit').waitFor();
+  assert.equal(await page.getByRole('button', { name: '地毯拿掉' }).getAttribute('aria-pressed'), 'true', 'an applied edit looks selected');
   assert.notEqual(await page.locator('#teaser').innerText(), before, 'editing the design changes the estimate');
+  await page.locator('#undoedit').click();                                     // 復原、再套用
+  await page.waitForFunction((t) => document.querySelector('#teaser').textContent === t, before);
+  assert.equal(await page.getByRole('button', { name: '地毯拿掉' }).getAttribute('aria-pressed'), 'false');
+  await page.getByRole('button', { name: '地毯拿掉' }).click();
+  await page.locator('#undoedit').waitFor();
   await page.locator('.scene[data-ready] canvas').waitFor({ timeout: 30000 });
   if (name === 'phone') { const b = await page.locator('.cta').boundingBox(); assert.ok(b.y + b.height <= viewport.height && b.y > viewport.height - 120, 'the main button stays docked at the bottom of the phone screen'); }
   assert.match(await page.locator('#ctx').innerText(), /這個房間：5.6 × 4.7 公尺、高 2.8 公尺（8 坪）・掌握度 70%/);
@@ -121,12 +139,15 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await snap('4-estimate'); await noOverflow('4');
   await page.locator('.sheetbtn').first().click();                             // 未解鎖：點圖只會跳付費
   await page.getByRole('heading', { name: '解鎖你家尺寸的施工圖初稿' }).waitFor();
+  { const b = await page.locator('#unlock').boundingBox();
+    assert.ok(Math.abs(b.x + b.width / 2 - viewport.width / 2) < 2 && Math.abs(b.y + b.height / 2 - viewport.height / 2) < 2, 'the dialog is centred'); }
   assert.match(await page.locator('#unlock').innerText(), /不是可以直接施工的圖[\s\S]*流程還在確認中，目前不包含在內/);
   await page.getByRole('button', { name: '模擬付款並解鎖' }).click();
   await page.getByRole('heading', { name: '你家尺寸的施工圖初稿（已解鎖）' }).waitFor();
   assert.equal(await page.locator('.sheetbtn svg').first().evaluate((el) => getComputedStyle(el).filter), 'none');
   await page.locator('.sheetbtn').first().click();
   await page.locator('#viewer svg').waitFor();
+  assert.equal(await page.locator('#viewerPrint').isVisible(), true, 'unlocked sheets can be saved as PDF');
   const dl = page.waitForEvent('download');
   await page.locator('#viewerDownload').click();
   assert.match((await dl).suggestedFilename(), /^A-01-floor-plan\.svg$/, 'unlocked sheets can be downloaded');
@@ -199,7 +220,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   await page.getByRole('button', { name: '老屋' }).click();
   await page.getByRole('button', { name: '生成 3D', exact: true }).click();
   await page.getByRole('button', { name: '地毯拿掉' }).click();
-  await page.getByRole('button', { name: '版本 2' }).waitFor();
+  await page.locator('#undoedit').waitFor();
   const price = await page.locator('#teaser').innerText();
   await page.locator('#share').click();
   await page.getByText('已複製連結').waitFor();
@@ -211,7 +232,7 @@ for (const [name, viewport] of [['desktop', { width: 1366, height: 860 }], ['pho
   assert.equal(await other.locator('#teaser').innerText(), price, 'same design and conditions give the same estimate');
   assert.match(await other.locator('#ctx').innerText(), /6.2 × 4.3 公尺/);
   assert.match(await other.locator('#assume').innerText(), /老屋估算/);
-  assert.equal(await other.getByRole('button', { name: '版本 2' }).getAttribute('aria-pressed'), 'true');
+  assert.equal(await other.getByRole('button', { name: '地毯拿掉' }).getAttribute('aria-pressed'), 'true');
   assert.equal(new URL(other.url()).hash, '', 'the hash is consumed so a reload keeps the local copy');
   await ctx.close();
 }

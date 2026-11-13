@@ -273,7 +273,9 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
     const g = A.models[name].clone(true);
     g.scale.setScalar(scale); g.rotation.y = ry; g.position.set(0, 0, 0); g.updateMatrixWorld(true);
     const b = new T.Box3().setFromObject(g), c = b.getCenter(new T.Vector3());
-    g.position.set(x - c.x, hang ? y - b.max.y : y - b.min.y, z - c.z);
+    // 吊著的東西：垂到離地約 2 公尺（天花板不夠高就貼著天花），由呼叫端補上吊線
+    const top = hang ? y - Math.min(1, Math.max(0, y - 2.0 - (b.max.y - b.min.y))) : 0;
+    g.position.set(x - c.x, hang ? top - b.max.y : y - b.min.y, z - c.z);
     g.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.userData.shared = true; } });
     scene.add(g);
     return b.translate(g.position);
@@ -426,8 +428,12 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
     add(new T.CylinderGeometry(0.19, 0.22, 0.3, 40, 1, true), shade, [lp.x, 1.56, lp.z], { cast: false });
     add(new T.SphereGeometry(0.035, 12, 10), std({ color: '#000', emissive: '#ffe2b0', emissiveIntensity: 4 }), [lp.x, 1.5, lp.z], { cast: false, receive: false });
     }
-    if (has(look.pendantModel)) place(look.pendantModel, LAYOUT.pendant.x, LAYOUT.pendant.z, { y: h, hang: true });
-    else pendant(look, add, { metal, brass, std, pathtrace, white });
+    if (has(look.pendantModel)) {
+      const { x, z } = LAYOUT.pendant, top = place(look.pendantModel, x, z, { y: h, hang: true }).max.y;
+      // 吊線與天花板上的吸頂座：看得出燈是從天花板垂下來的，不是飄在半空
+      if (h - top > 0.02) add(new T.CylinderGeometry(0.004, 0.004, h - top, 6), metal, [x, (h + top) / 2, z], { cast: false });
+      add(new T.CylinderGeometry(0.06, 0.06, 0.025, 24), metal, [x, h - 0.0125, z], { cast: false });
+    } else pendant(look, add, { metal, brass, std, pathtrace, white });
   }
 
   /* art above the sofa */

@@ -98,13 +98,19 @@ export function pickStyle(scores, order = SWIPE_ORDER) {
 }
 
 /**
- * 滑卡結果的前兩名，給「你喜歡的是 A，也有一點 B」用。
- * second 只在它真的被喜歡過（分數 > 0）時才有，避免把沒表態的風格說成喜歡。
- * @returns {{first:string, second:string|null, liked:boolean}} liked = 至少喜歡過一張
+ * 滑卡結果，給「你喜歡的是 A，也有一點 B」用。
+ * - top：分數最高且被喜歡過的風格；同分全部列出（不偷偷只挑一個）。
+ * - also：次高且被喜歡過的風格（同樣同分全列）。
+ * - first：實際拿去做 3D 的那一個（同分時依滑卡順序），second：次選，沒有就是 null。
+ * @returns {{first:string, second:string|null, liked:boolean, top:string[], also:string[]}}
  */
 export function topStyles(scores, order = SWIPE_ORDER) {
   const ranked = [...order].sort((a, b) => scores[b] - scores[a] || order.indexOf(a) - order.indexOf(b));
-  return { first: ranked[0], second: scores[ranked[1]] > 0 ? ranked[1] : null, liked: scores[ranked[0]] > 0 };
+  const best = scores[ranked[0]], liked = best > 0;
+  const top = liked ? ranked.filter((k) => scores[k] === best) : [];
+  const nextScore = Math.max(0, ...ranked.filter((k) => scores[k] < best).map((k) => scores[k]));
+  const also = liked && nextScore > 0 ? ranked.filter((k) => scores[k] === nextScore) : [];
+  return { first: ranked[0], second: scores[ranked[1]] > 0 ? ranked[1] : null, liked, top, also };
 }
 
 /** 撤回一次滑卡（applySwipe 的反向）。 */
