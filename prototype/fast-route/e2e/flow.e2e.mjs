@@ -129,7 +129,7 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   await page.mouse.up();
   await page.waitForFunction(() => document.querySelector('.count').textContent.startsWith('4 '));
   assert.match(await page.locator('#likedcount').innerText(), /已喜歡 2 張/);
-  assert.match(await page.locator('#talk').innerText(), /房間換成|方向有了/);
+  assert.match(await page.locator('#talk').innerText(), /記下了|方向有了/);
   await page.locator('#skip').click();
 
   // ③ 設計：靜止時不重畫；亮亮一次一句；法規摘要跟設計連動

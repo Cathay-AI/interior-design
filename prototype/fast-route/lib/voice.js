@@ -21,7 +21,7 @@ export function swipeReply({ space, scores, swiped, liked, last }) {
   if (!last) return { text: space === '客廳' ? '挑你喜歡的。' : '圖是客廳的，先挑風格。', ready: false };
   const top = topStyles(scores).top;
   if (liked >= 3 || (swiped >= 5 && liked >= 1)) return { text: `方向有了：${names(top)}。`, ready: true };
-  if (last[1]) return { text: `房間換成${TRAIT[last[0]]}了。`, ready: false };
+  if (last[1]) return { text: `喜歡${TRAIT[last[0]]}，記下了。`, ready: false };
   return { text: '這種不要，了解。', ready: false };
 }
 
