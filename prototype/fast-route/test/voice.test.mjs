@@ -9,7 +9,7 @@ test('滑卡回話：喜歡會回應風格，滑夠了會邀請看成果', () =>
   assert.match(swipeReply({ space: '客廳', scores: s, swiped: 0, liked: 0 }).text, /^挑你喜歡的。$/);
   assert.match(swipeReply({ space: '臥室', scores: s, swiped: 0, liked: 0 }).text, /^圖是客廳的，先挑風格。$/);
   s = applySwipe(s, 'warm', true);
-  assert.deepEqual(swipeReply({ space: '客廳', scores: s, swiped: 1, liked: 1, last: ['warm', true] }), { text: '房間換成暖木色、柔和的布面了。', ready: false });
+  assert.deepEqual(swipeReply({ space: '客廳', scores: s, swiped: 1, liked: 1, last: ['warm', true] }), { text: '喜歡暖木色、柔和的布面，記下了。', ready: false });
   assert.equal(swipeReply({ space: '客廳', scores: s, swiped: 2, liked: 1, last: ['dark', false] }).text, '這種不要，了解。');
   s = applySwipe(applySwipe(s, 'nordic', true), 'warm', true);
   const done = swipeReply({ space: '客廳', scores: s, swiped: 4, liked: 3, last: ['warm', true] });

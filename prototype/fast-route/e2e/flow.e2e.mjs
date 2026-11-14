@@ -31,13 +31,14 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   // 驗收：房間（或平面圖）在首屏且佔視窗夠大；這個狀態的主要動作不用捲動就看得到
   const onStage = async (at, action) => {
     await page.evaluate(() => { scrollTo(0, 0); document.querySelector('#app').scrollTop = 0; });
-    const m = await page.evaluate((sel) => {
-      const r = document.querySelector('.scenewrap').getBoundingClientRect(), a = document.querySelector(sel).getBoundingClientRect();
+    const card = name === 'phone' && at === '2';
+    const m = await page.evaluate(([sel, hero]) => {
+      const r = document.querySelector(hero).getBoundingClientRect(), a = document.querySelector(sel).getBoundingClientRect();
       const w = Math.max(0, Math.min(r.right, innerWidth) - Math.max(r.left, 0)), hgt = Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(r.top, 0));
       return { share: (w * hgt) / (innerWidth * innerHeight), top: a.top, bottom: a.bottom, vh: innerHeight };
-    }, action);
-    // 手機滑卡時卡片需要高度，舞台縮到 180px；其餘狀態是 310px
-    assert.ok(m.share >= (name !== 'phone' ? 0.35 : at === '2' ? 0.15 : 0.28), `${name} ${at}: the room takes ${Math.round(m.share * 100)}% of the screen`);
+    }, [action, card ? '.deck' : '.scenewrap']);
+    // 手機挑風格時畫面讓給照片：房間不顯示，卡片要夠大
+    assert.ok(m.share >= (card ? 0.3 : name !== 'phone' ? 0.35 : 0.28), `${name} ${at}: the ${card ? 'photo' : 'room'} takes ${Math.round(m.share * 100)}% of the screen`);
     assert.ok(m.top >= 0 && m.bottom <= m.vh, `${name} ${at}: the main action (${action}) is on the first screen`);
   };
   const noOverflow = async (at) => {
@@ -129,7 +130,7 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   await page.mouse.up();
   await page.waitForFunction(() => document.querySelector('.count').textContent.startsWith('4 '));
   assert.match(await page.locator('#likedcount').innerText(), /已喜歡 2 張/);
-  assert.match(await page.locator('#talk').innerText(), /房間換成|方向有了/);
+  assert.match(await page.locator('#talk').innerText(), /記下了|方向有了/);
   await page.locator('#skip').click();
 
   // ③ 設計：靜止時不重畫；亮亮一次一句；法規摘要跟設計連動
