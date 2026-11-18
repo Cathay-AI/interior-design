@@ -52,7 +52,7 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   await page.evaluate(() => localStorage.clear()); await page.reload();   // 從乾淨的狀態開始
 
   // ① 開場：丟平面圖就開始；房間從第一秒就在舞台上，同一個 canvas 一路用到最後
-  await page.getByRole('heading', { name: '把平面圖丟給我' }).waitFor();
+  await page.getByRole('heading', { name: /先從你家的空間開始/ }).waitFor();
   await ready(page);
   await page.evaluate(() => { window.__canvas = document.querySelector('#scene canvas'); });
   assert.match(await page.locator('#pricekind').innerText(), /範例估算/);
@@ -62,7 +62,7 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   await page.locator('#swatches').getByRole('button', { name: '深色現代' }).click();   // 還沒選空間就能玩：點色票，房間與金額都變
   await page.waitForFunction((t) => document.querySelector('#teaser').textContent !== t, sample);
   await page.locator('#swatches').getByRole('button', { name: '溫暖木質' }).click();
-  assert.deepEqual(await page.locator('#steps .t').allTextContents(), ['你家', '風格', '設計', '花費']);
+  assert.deepEqual(await page.locator('#steps .t').allTextContents(), ['需求', '3D 提案', '預算']);
   assert.deepEqual(await page.locator('#where button:not(:disabled)').allTextContents(), ['客廳', '臥室', '廚房', '衛浴', '書房'], 'every space can be picked; nothing is held back');
   if (name === 'desktop') await onStage('1', '#upload');
   await snap('1-intro'); await noOverflow('1');
@@ -70,6 +70,7 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   // 還沒有平面圖：先挑一個空間。一個畫面只問一件事
   await page.locator('#where').getByRole('button', { name: '客廳' }).click();
   await page.getByRole('heading', { name: '你家客廳大概多大？' }).waitFor();
+  assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'H1', 'room selection moves keyboard focus to the new heading');
   assert.match(await page.locator('#score').innerText(), /基本資料完整度 0%/);
   await onStage('1 size', '#generate');
   assert.match(await page.locator('#asking').innerText(), /你家客廳的長和寬大概幾公尺？/);
@@ -174,8 +175,9 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
 
   // ④ 花費：不問預算；屋況會改變金額；圖要付費才清楚
   await page.getByRole('heading', { name: '估價與施工圖初稿' }).waitFor();
+  assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'H1', 'budget navigation moves keyboard focus to the summary heading');
   await onStage('4', '#unlockmine');
-  assert.equal(await page.getByText('預算').count(), 0, 'never asks for a budget');
+  assert.equal(await page.locator('#app').getByText('預算', { exact: true }).count(), 0, 'never asks for a budget');
   assert.equal(await page.evaluate(() => document.querySelector('#scene canvas') === window.__canvas && document.querySelectorAll('canvas').length), 1, 'the stage canvas was created once and never remounted');
   assert.match(await page.locator('#ping').innerText(), /8 坪・5.6 × 4.7 公尺/);
   assert.match(await page.locator('#know').innerText(), /基本資料完整度 70%，區間已收窄 35%/);

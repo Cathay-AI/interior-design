@@ -23,7 +23,6 @@ let live = null; // the mounted 3D room, disposed whenever the screen changes
 
 /* ================= content ================= */
 // 步驟名稱以「你家」為主詞
-const STEPS = [null, { name: '你家' }, { name: '風格' }, { name: '設計' }, { name: '花費' }];
 // 18 cards, three per style; PINS is already interleaved so neighbouring cards differ.
 const DECK = PINS.slice(0, 18);
 const EDITS = [
@@ -134,8 +133,20 @@ function syncStage() {
   if (live) return live.update(cur, size);
   if (!first) return;                                            // 3D 還在載：載好時會用當下的設計
   $('#poster').hidden = !(cur === STYLES.warm && c.space === '客廳' && !c.len);   // 預設客廳先用一張圖墊著，3D 好了就換上
-  load3D().then((m) => { const now = stageNow(); live = m.mountRoom3D(sceneEl, now.look, S.view, now.size); window.__room = live; })
-    .catch(() => { stageFailed = true; flatStage(stageLook()); $('#views').hidden = true; });
+  const status = $('#scene-status');
+  status.textContent = '正在載入 3D 預覽…';
+  sceneEl.setAttribute('aria-busy', 'true');
+  load3D().then((m) => {
+    const now = stageNow();
+    live = m.mountRoom3D(sceneEl, now.look, S.view, now.size);
+    window.__room = live;
+    status.textContent = '';
+  }).catch(() => {
+    stageFailed = true;
+    flatStage(stageLook());
+    $('#views').hidden = true;
+    status.textContent = '3D 無法顯示，目前使用 2D 示意圖。';
+  }).finally(() => sceneEl.removeAttribute('aria-busy'));
 }
 const stageNow = () => { const cur = stageLook(), est = tighten(designEstimate(S.cond, cur), knowledge().score); return { look: cur, size: { ...roomSize(S.cond, est.ping), space: S.cond.space } }; };
 // 這台裝置或瀏覽器開不了 3D：同一個位置改放 2D 示意圖，收起沒有作用的視角與拖曳提示
@@ -166,24 +177,49 @@ function go(step) {
   S.step = step; S.reached = Math.max(S.reached, step);
   render();
   window.scrollTo({ top: 0 }); app.scrollTop = 0;
+  focusScreen();
 }
+function focusScreen() {
+  const heading = app.querySelector('h1');
+  if (!heading) return;
+  heading.tabIndex = -1;
+  heading.focus({ preventScroll: true });
+}
+
 function render() {
-  $('#steps').replaceChildren(...STEPS.slice(1).map((s, i) => {
-    const n = i + 1, state = n === S.step ? 'now' : n <= S.reached ? 'done' : '';
-    return h('li', {}, h('button', { class: state, disabled: n > S.reached, 'aria-current': n === S.step ? 'step' : false, 'aria-label': `第 ${n} 步：${STEPS[n].name}`, onclick: () => go(n) },
-      h('span', { class: 'n' }, n < S.step && n <= S.reached ? '✓' : String(n)), h('span', { class: 't' }, s.name)));
+  const stages = [
+    { name: '需求', first: 1, last: 1 },
+    { name: '3D 提案', first: 2, last: 3 },
+    { name: '預算', first: 4, last: 4 },
+  ];
+  $('#steps').replaceChildren(...stages.map(({ name, first, last }, i) => {
+    const current = S.step >= first && S.step <= last;
+    const done = S.step > last;
+    const target = current ? S.step : Math.min(last, S.reached);
+    return h('li', {}, h('button', {
+      class: current ? 'now' : done ? 'done' : '',
+      disabled: first > S.reached,
+      'aria-current': current ? 'step' : false,
+      'aria-label': `第 ${i + 1} 步：${name}`,
+      onclick: () => go(target),
+    }, h('span', { class: 'n', 'aria-hidden': 'true' }, done ? '✓' : String(i + 1)),
+    h('span', { class: 't' }, name)));
   }));
   $('#restart').hidden = S.reached === 1;
   // 重畫後把鍵盤焦點放回同一個位置（同一步內），用 Tab 操作的人不會被丟回頁首
   const FOCUSABLE = 'button:not(:disabled),input,textarea,a[href]';
   const sig = (el) => el && (el.id || `${el.tagName}:${el.textContent.trim().slice(0, 24)}`);
+  const oldQuestion = app.querySelector('[data-question]')?.dataset.question;
   const at = Number(app.dataset.step) === S.step ? [...app.querySelectorAll(FOCUSABLE)].indexOf(document.activeElement) : -1, was = sig(document.activeElement);
   pending = false;
   app.replaceChildren(); $('#actions').replaceChildren();
   $('#shareslot').replaceChildren(...(S.step >= 3 && !multi() ? [shareBtn()] : []));
   app.dataset.step = S.step;
   SCREENS[S.step]();
-  if (at >= 0) { const el = app.querySelectorAll(FOCUSABLE)[at]; if (sig(el) === was) el.focus({ preventScroll: true }); }   // 位置上換了別的東西就不硬放
+  const newQuestion = app.querySelector('[data-question]')?.dataset.question;
+  const previousControl = at >= 0 ? app.querySelectorAll(FOCUSABLE)[at] : null;
+  if (oldQuestion && newQuestion && oldQuestion !== newQuestion) focusScreen();
+  else if (previousControl && sig(previousControl) === was) previousControl.focus({ preventScroll: true });
   syncStage();
   save();
 }
@@ -274,7 +310,7 @@ async function readPlan(file) {
 
 /* ---- 開場：先講承諾、先給成果看、先問想弄哪裡 ---- */
 function intro() {
-  const pick = (name) => { S.started = true; S.home = null; S.cond.space = name; render(); };
+  const pick = (name) => { S.started = true; S.home = null; S.cond.space = name; render(); focusScreen(); };
   // 丟平面圖：送去讀出房間與尺寸。讀不出來才退回三房兩廳的範本，並說明原因。
   const take = async (files) => {
     const f = files[0]; if (!f || S.reading) return;
@@ -288,6 +324,7 @@ function intro() {
     S.planNote = got.rooms ? '' : PLAN_ERRORS[got.error] ?? PLAN_ERRORS.failed;
     S.room = S.home.rooms[0].id; S.started = true; S.cond.space = kindOf(S.home.rooms[0].name);
     render();
+    focusScreen();
   };
   const file = h('input', { type: 'file', id: 'planFile', class: 'sr', accept: ACCEPT, onchange: (e) => take([...e.target.files]) });
   const zone = h('label', { for: 'planFile', class: 'upload', id: 'upload',
@@ -298,8 +335,8 @@ function intro() {
   if (S.reading) { zone.classList.add('busy'); file.disabled = true; }
   app.append(h('div', { class: 'intro' },
     h('p', { class: 'eyebrow' }, 'AI 室內設計師・亮亮'),
-    h('h1', {}, '把平面圖丟給我，', h('br'), '整個家一次設計好。'),
-    h('p', { class: 'lead', id: 'greeting' }, '幾房幾廳都可以，一間一間看設計，整戶加總花費。'),
+    h('h1', {}, '先從你家的空間開始，', h('br'), '看看生活的樣子。'),
+    h('p', { class: 'lead', id: 'greeting' }, '上傳平面圖確認房間，或先從一間房開始。接著看 3D 提案與預算區間。'),
     file, zone,
     S.docError ? h('p', { class: 'err', role: 'alert' }, S.docError) : null,
     h('p', { class: 'or' }, '還沒有平面圖？先挑一個空間試試'),
@@ -330,9 +367,9 @@ function roomsScreen() {
     }
     return li;
   };
-  app.append(h('div', { class: 'shead' }, backBtn(1, '換一張圖', () => { S.home = null; S.started = false; S.editing = null; S.planNote = ''; render(); }), h('h1', {}, '你家有這些房間，對嗎？')),
+  app.append(h('div', { class: 'shead' }, backBtn(1, S.planNote ? '重新上傳平面圖' : '換一張圖', () => { S.home = null; S.started = false; S.editing = null; S.planNote = ''; render(); }), h('h1', {}, '你家有這些房間，對嗎？')),
     agent(S.home.read ? `我從平面圖讀到 ${rooms.length} 間。${rooms.some((r) => r.unsure) ? '標「請確認」的尺寸圖上沒直接寫，是我換算的，不對就點「改」。' : '尺寸照圖上的標註。'}`
-      : `${S.planNote || '這份清單不是從圖上讀的。'}先給你三房兩廳的範本，點「改」換成你家的。`, { id: 'asking' }),
+      : `${S.planNote || '這份清單不是從圖上讀的。'}先給你三房兩廳的範本，點「改」換成你家的。`, { id: 'asking', role: S.planNote ? 'alert' : false }),
     h('ul', { class: 'rooms', id: 'rooms' }, ...rooms.map(row)),
     h('div', { class: 'inline' },
       h('button', { class: 'soft', id: 'addroom', onclick: () => { const id = 'r' + (Math.max(0, ...rooms.map((x) => Number(x.id.slice(1)) || 0)) + 1); rooms.push({ id, name: '新房間', len: '3', wid: '3', on: true, edits: [] }); S.editing = id; render(); } }, '＋ 加一間'),
@@ -533,7 +570,13 @@ function sizeScreen() {
     const el = $('#f-' + wrong); el.focus(); el.scrollIntoView({ block: 'center', behavior: reducedMotion() ? 'auto' : 'smooth' });
   };
   // 一個畫面只問一件事：設計師問一句，答案就在那句話下面；完整欄位與參考圖收起來，要的人再打開
-  const q = nextQuestion(c), formOpen = S.formOpen || NUMERIC.some((key) => S.bad[key]);
+  const q = nextQuestion(c);
+  const questionTitle = {
+    len: `你家${c.space}大概多大？`, floors: '建物總共幾層？', partition: '這次會動隔間嗎？',
+    sprinkler: '天花板有撒水頭嗎？', unitFloor: '你家在第幾樓？',
+    height: '天花板大概多高？', age: '你家是什麼屋況？',
+  };
+  const formOpen = S.formOpen || NUMERIC.some((key) => S.bad[key]);
   const chipsFor = (key, opts) => h('div', { class: 'inline ask', role: 'group' }, ...opts.map(([v, label]) => h('button', { class: 'chip', onclick: () => { c[key] = v; if (key === 'age') c.ageSet = true; render(); } }, label)));
   const quick = formOpen || !q.key ? null
     : q.key === 'len' ? h('div', { class: 'quick' }, h('div', { class: 'fields two' }, field('len', '長', '公尺'), field('wid', '寬', '公尺')), ...errors('len', 'wid'))
@@ -565,7 +608,7 @@ function sizeScreen() {
     S.docError ? h('p', { class: 'err', role: 'alert' }, S.docError) : h('span', { hidden: true }),
     S.docs.length ? list : h('span', { hidden: true }));
   dock(cta(pct ? '下一步：挑風格' : '先跳過，挑風格', start, '', { id: 'generate' }));
-  app.append(...[h('div', { class: 'shead' }, backBtn(1, '上一步', () => { S.started = false; render(); }), h('h1', {}, `你家${c.space}大概多大？`)),
+  app.append(...[h('div', { class: 'shead' }, backBtn(1, '上一步', () => { S.started = false; render(); }), h('h1', { 'data-question': q.key ?? 'ready' }, questionTitle[q.key] ?? '你家的需求已整理好')),
     agent(q.text, { id: 'asking' }), quick,
     h('div', { class: 'voice' }, mic, h('div', { class: 'voicebody' }, say, micLabel), send),
     h('div', { class: 'inline more' },
@@ -718,7 +761,7 @@ SCREENS[4] = () => {
   const drawings = h('div', { class: 'cardbox' + (mine && !S.unlocked ? ' locked' : ''), id: 'drawings' },
     h('div', { class: 'unlockrow' }, h('h2', {}, multi() ? `${roomLabel()}的施工圖初稿${S.unlocked ? '（已解鎖）' : ''}` : !mine ? '施工圖初稿（範例）' : S.unlocked ? '你家尺寸的施工圖初稿（已解鎖）' : '你家尺寸的施工圖初稿'),
       !mine ? h('span', { class: 'note' }, '6 張・點任一張放大看') : S.unlocked ? null : h('span', { class: 'note' }, '6 張・付費後清晰可放大、可下載')),
-    h('p', { class: 'note', id: 'docsnote' }, !mine ? `這是範例空間的圖，讓你先看會拿到什麼。要產生你家的，還缺：${missing.join('、')}（手動填寫；上傳的平面圖目前不會被自動判讀）。`
+    h('p', { class: 'note', id: 'docsnote' }, !mine ? `這是範例空間的圖，讓你先看會拿到什麼。要產生你家的，還缺：${missing.join('、')}。請手動補齊，或返回需求頁確認讀圖取得的資料。`
       : `依你填的 ${c.len || '—'} × ${c.wid || '—'} 公尺配置。${docs.total ? `已附 ${docs.text}，留給專業團隊確認時參考。` : ''}`),
     h('div', { class: 'sheets' }, ...sheets.map((s) => h('button', { class: 'sheetbtn', 'aria-label': `${s.title}${!mine ? '（範例），點擊放大' : S.unlocked ? '，點擊放大' : '（未解鎖）'}`, onclick: () => open(s) },
       fromHTML(s.svg), h('span', { class: 'tag' }, !mine ? `${s.title}・範例` : s.title), mine && !S.unlocked ? h('span', { class: 'lock', 'aria-hidden': 'true' }, '🔒') : null))),
