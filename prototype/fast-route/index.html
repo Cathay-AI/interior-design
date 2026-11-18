@@ -326,7 +326,8 @@ main h1:focus{outline:none}
   #steps button::before{top:auto;bottom:2px}
   #steps .t{position:static;width:auto;height:auto;clip:auto}
   #steps .n{display:none}
-  .swatches{top:8px}
+  .swatches{top:8px;left:50%;transform:translateX(-50%);max-width:calc(100% - 8px);gap:0}
+  .scenewrap:has(.swatches:not([hidden])) .scene-status{top:68px}
   .hint{display:none}
   .scene:not(.flat){touch-action:pan-y}
   .pricecard,.sizecard{bottom:10px}
