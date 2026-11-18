@@ -48,8 +48,8 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
       .slice(0, 8).map((e) => `${e.tagName.toLowerCase()}${e.id ? '#' + e.id : ''}${e.className && typeof e.className === 'string' ? '.' + e.className.trim().replace(/\s+/g, '.') : ''}→${Math.round(e.getBoundingClientRect().right)}`));
     assert.ok(overflow <= 1, `${name} ${at}: horizontal overflow ${overflow}px by ${who.join(', ')}`);
   };
+  // A new browser context already has empty storage. Avoid aborting the first module load.
   await page.goto(base);
-  await page.evaluate(() => localStorage.clear()); await page.reload();   // 從乾淨的狀態開始
 
   // ① 開場：丟平面圖就開始；房間從第一秒就在舞台上，同一個 canvas 一路用到最後
   await page.getByRole('heading', { name: /先從你家的空間開始/ }).waitFor();
