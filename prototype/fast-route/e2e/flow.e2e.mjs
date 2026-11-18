@@ -391,7 +391,7 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   await page.locator('#where').getByRole('button', { name: '客廳' }).click();
   await page.fill('#say', '只想裝潢主臥，大概 5 坪，長 4 米 2、寬 3 米 8，天花板 2 米 7，老屋，12 樓高的大樓，不動隔間'); await page.press('#say', 'Enter');
   await page.getByText('聽到：空間 臥室、坪數 5 坪、長 4.2 公尺、寬 3.8 公尺、天花板高 2.7 公尺、建物總樓層 12 層、隔間 不動、屋況 老屋、坪數依長寬換算為 4.8 坪').waitFor();
-  await page.getByRole('heading', { name: '你家臥室大概多大？' }).waitFor();
+  await page.getByRole('heading', { name: '天花板有撒水頭嗎？' }).waitFor();
   await page.locator('#generate').click();
   assert.match(await page.locator('#talk').innerText(), /^\s*圖是客廳的，先挑風格。\s*$/);
   await page.locator('.round.like').click();
