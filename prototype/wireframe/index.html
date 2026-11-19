@@ -7,13 +7,28 @@
   <link rel="stylesheet" href="./oak.css">
 </head>
 <body>
-  <header>
-    <a class="brand" href="#entry">亮亮 <span>AI 室內設計</span></a>
-    <nav aria-label="設計階段" id="steps"></nav>
-    <a href="#homes">我的家</a>
+  <header class="site-header">
+    <a class="brand" href="#entry" aria-label="亮亮｜首頁"><span aria-hidden="true"></span></a>
+    <a class="home-link" href="#homes">我的家</a>
+    <nav class="rail" aria-label="專案導覽" hidden>
+      <a data-rail="project" aria-label="這個家" title="這個家"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10h-6v-6H9v6H3z"/></svg></a>
+      <a data-rail="read" aria-label="空間條件" title="空間條件"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg></a>
+      <a data-rail="result" aria-label="3D 與報價" title="3D 與報價"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Zm0 9 8-4.5M12 12 4 7.5M12 12v9"/></svg></a>
+      <a data-rail="drawings" aria-label="施工圖與團隊" title="施工圖與團隊"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5h6l2 2h10v13H3V7Z"/></svg></a>
+    </nav>
+    <details class="project-menu" hidden>
+      <summary aria-label="開啟專案選單"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h13M4 18h9"/></svg></summary>
+      <nav aria-label="專案導覽">
+        <a href="#homes">我的家</a>
+        <a data-rail="project">這個家</a>
+        <a data-rail="read">空間條件</a>
+        <a data-rail="result">3D 與報價</a>
+        <a data-rail="drawings">施工圖與團隊</a>
+      </nav>
+    </details>
   </header>
   <main id="screen" tabindex="-1"></main>
-  <footer>室內設計示意原型 · <a href="./fast-route/">快速找風格</a> · <a href="./style-studio/prototype/">風格實驗室</a></footer>
+  <footer><a href="./fast-route/">快速找風格</a><a href="./style-studio/prototype/">風格實驗室</a></footer>
   <script type="importmap">{"imports":{"three":"./fast-route/vendor/three.module.min.js","three/addons/":"./fast-route/vendor/addons/"}}</script>
   <script src="./style-studio/prototype/catalog.js"></script>
   <script type="module" src="./oak.js"></script>

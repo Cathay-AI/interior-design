@@ -24,7 +24,7 @@ const load3D = () => (room3d ??= import(moduleAttempt ? `./lib/room3d-retry.js?r
   moduleAttempt += 1;
   throw error;
 }));
-let live = null; // the mounted 3D room, disposed whenever the screen changes
+let live = null; // The mounted renderer is reused across screens until a failure.
 
 /* ================= content ================= */
 // 步驟名稱以「你家」為主詞
@@ -80,6 +80,11 @@ const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').match
 const sceneEl = $('#scene');
 let stageLoading = false, costsOpen = true;
 let stageKey = '', stageFailed = false, shownPrice = null, rollTimer = 0;
+let liveRoom = null, zoomRecovery = null;
+// A deleted whole-home room's public ID can be reused. The room object survives in-place edits.
+const stageRoom = () => ({ project: S, home: S.home, room: S.home ? curRoom() : S.cond.space });
+const sameStageRoom = (previous, current) => previous?.project === current.project
+  && previous.home === current.home && previous.room === current.room;
 /* ---- 整戶：一串房間，一次看一間 ---- */
 const multi = () => Boolean(S.home);
 const curRoom = () => S.home?.rooms.find((r) => r.id === S.room) ?? null;
@@ -100,6 +105,8 @@ const roomLabel = () => (multi() ? curRoom()?.name ?? S.cond.space : S.cond.spac
 // 舞台上現在該是哪個設計：還沒定風格時，用滑卡目前領先的那一種
 const stageLook = () => (S.cond.style && S.versions.length ? look() : STYLES[pickStyle(S.scores)]);
 function syncStage() {
+  const room = stageRoom();
+  if (zoomRecovery && !sameStageRoom(zoomRecovery.room, room)) zoomRecovery = null;
   const c = S.cond, cur = stageLook(), est = tighten(designEstimate(c, cur), knowledge().score), size = { ...roomSize(c, est.ping), space: c.space };
   // 整戶時，舞台在「看整個家」的畫面改放示意平面圖；3D 留在底下不卸載
   const introMode = !S.started;
@@ -136,6 +143,7 @@ function syncStage() {
   views.replaceChildren(...Object.entries(VIEW_NAMES).map(([v, label]) => h('button', { 'aria-pressed': String(S.view === v), 'aria-label': `視角 ${v}：${label}`, 'data-view': v,
     onclick: () => { S.view = v; live?.setView(v); views.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === v))); save(); } }, label)));
   if (planMode) return;
+  if (live) liveRoom = room;
   const key = JSON.stringify([cur, size]);
   if (key === stageKey) return;
   stageKey = key;
@@ -154,8 +162,12 @@ function updateSceneControls() {
 
 function showStageFallback() {
   const restoreFocus = document.activeElement.closest('#views, #zoom');
+  if (live && sameStageRoom(liveRoom, stageRoom())) {
+    zoomRecovery = { room: liveRoom, index: live.zoomBy(0).index };
+  }
   live?.dispose();
   live = window.__room = null;
+  liveRoom = null;
   delete sceneEl.dataset.ready;
   stageFailed = true;
   flatStage(stageLook());
@@ -175,8 +187,11 @@ async function mountStage() {
   if (!stageFailed) $('#poster').hidden = !(stageLook() === STYLES.warm && S.cond.space === '客廳' && !S.cond.len);
   try {
     const m = await load3D();
-    const now = stageNow();
-    live = window.__room = m.mountRoom3D(sceneEl, now.look, S.view, now.size, showStageFallback);
+    const now = stageNow(), room = stageRoom();
+    const zoomIndex = zoomRecovery && sameStageRoom(zoomRecovery.room, room) ? zoomRecovery.index : undefined;
+    live = window.__room = m.mountRoom3D(sceneEl, now.look, S.view, now.size, showStageFallback, zoomIndex);
+    liveRoom = room;
+    zoomRecovery = null;
     sceneEl.querySelector(':scope > svg')?.remove();
     sceneEl.classList.remove('flat');
     sceneEl.setAttribute('aria-label', '3D 空間，可拖曳旋轉');
@@ -297,7 +312,15 @@ let pressing = false, pending = false;
 addEventListener('pointerdown', () => { pressing = true; }, true);
 for (const type of ['pointerup', 'pointercancel']) addEventListener(type, () => setTimeout(() => { pressing = false; if (pending) render(); }, 0), true);
 const renderSoon = () => { pending = true; if (!pressing) setTimeout(() => { if (pending) render(); }, 0); };
-$('#restart').addEventListener('click', () => { S.docs.forEach((d) => d.url && URL.revokeObjectURL(d.url)); try { localStorage.removeItem(KEY); } catch { /* ignore */ } cancelPlanSelection(); S = fresh(); go(1); });
+$('#restart').addEventListener('click', () => {
+  S.docs.forEach((d) => d.url && URL.revokeObjectURL(d.url));
+  try { localStorage.removeItem(KEY); } catch { /* ignore */ }
+  cancelPlanSelection();
+  live?.resetZoom();
+  updateZoom();
+  S = fresh();
+  go(1);
+});
 
 const setStyle = (key) => { S.cond.style = key; const edits = multi() ? [...(curRoom()?.edits ?? [])] : []; S.versions = [{ look: edits.reduce((l, n) => EDITS[n][1]({ ...l }), { ...STYLES[key] }), edits }]; S.v = 0; };
 const look = () => S.versions[S.v].look;

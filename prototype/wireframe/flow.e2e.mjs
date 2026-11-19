@@ -6,15 +6,44 @@ const browser = await chromium.launch();
 try {
   for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
     const page = await browser.newPage({ viewport });
+    await page.addInitScript(() => {
+      const projections = new WeakMap();
+      window.testRoomProjection = () => projections.get(document.querySelector('.model canvas'));
+      const webgl = WebGL2RenderingContext.prototype;
+      const uniform = webgl.uniformMatrix4fv;
+      webgl.uniformMatrix4fv = function(location, transpose, matrix, ...options) {
+        if (matrix[11] === -1) projections.set(this.canvas, matrix[5]);
+        return uniform.call(this, location, transpose, matrix, ...options);
+      };
+    });
     const errors = [];
+    const modelRequests = [];
+    await page.route('**/room3d.js*', async request => {
+      modelRequests.push(request.request().url());
+      if (modelRequests.length === 1) await request.fulfill({status:503, body:'暫時無法讀取模組'});
+      else await request.continue();
+    });
     page.on('pageerror', error => errors.push(error.message));
     page.on('response', result => {
+      if (result.status() === 503 && result.url() === modelRequests[0]) return;
       if (result.url().startsWith(base) && result.status() >= 400) errors.push(result.status() + ' ' + result.url());
     });
-    const link = name => page.getByRole('link', { name, exact: true }).click();
+    const link = async name => {
+      const target = page.getByRole('link', {name, exact:true});
+      if (name === '我的家' && viewport.width === 390 && !(await target.count())) {
+        await page.locator('summary[aria-label="開啟專案選單"]').click();
+      }
+      await target.click();
+    };
     const press = name => page.getByRole('button', { name, exact: true }).click();
     const fit = async () => {
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    };
+    const capture = async (name, fullPage = true) => {
+      await fit();
+      if (process.env.WIREFRAME_SCREENSHOTS) {
+        await page.screenshot({path:process.env.WIREFRAME_SCREENSHOTS + '/' + name + '-' + viewport.width + '.png', fullPage});
+      }
     };
     const route = async (target, query) => {
       await page.evaluate(([view, parameters]) => {location.hash = view + '?' + parameters;}, [target, query]);
@@ -25,16 +54,57 @@ try {
     await page.goto(base + '#drawings');
     await page.getByRole('button', {name:'示意解鎖'}).waitFor();
     await page.goto(base);
+    const entry = page.getByRole('main');
+    const upload = entry.getByText('上傳建商平面圖', {exact:true});
+    const uploadBounds = await upload.boundingBox();
+    assert(uploadBounds && uploadBounds.y + uploadBounds.height <= viewport.height, 'upload is visible in the first viewport');
+    const heroPhoto = entry.getByRole('img', {name:'靜謐橡木客廳示意'});
+    const heroSrc = await heroPhoto.getAttribute('src');
+    assert(await heroPhoto.evaluate(async img => {
+      await img.decode();
+      return img.naturalWidth >= 1440;
+    }));
+    if (viewport.width === 390) {
+      assert.equal(await page.getByRole('navigation', {name:'設計階段'}).count(), 0);
+      assert.equal(await page.getByText('26–48 萬', {exact:true}).isVisible(), false);
+      for (const name of ['現場拍照', '說一句話']) {
+        const bounds = await entry.getByRole('link', {name, exact:true}).boundingBox();
+        assert(bounds && bounds.y + bounds.height <= viewport.height, name + ' is visible in the first viewport');
+      }
+    }
+    if (viewport.width === 1440) {
+      await page.getByLabel('看磚紅單椅').click();
+      await page.getByText('布面搭配橡木椅腳').waitFor();
+      await page.getByLabel('看磚紅單椅').click();
+    }
+    await capture('entry', false);
+    await link('現場拍照');
+    await page.getByLabel('從相簿選或拍攝').waitFor();
+    await link('亮亮｜首頁');
     await page.getByLabel('上傳建商平面圖').setInputFiles({
       name:'示意平面圖.pdf', mimeType:'application/pdf', buffer:Buffer.from('%PDF-1.4'),
     });
     await link('查看解析結果');
+    await press('客廳 9 坪');
+    assert(await page.getByLabel('長度（公尺）').evaluate(input => document.activeElement === input));
+    await page.getByLabel('長度（公尺）').fill('6');
+    await page.getByLabel('寬度（公尺）').fill('5');
+    await press('儲存客廳尺寸');
+    await page.getByRole('button', {name:'客廳 9.1 坪', exact:true}).waitFor();
+    await page.getByLabel('重選平面圖').setInputFiles({
+      name:'更新的平面圖.pdf', mimeType:'application/pdf', buffer:Buffer.from('%PDF-1.4'),
+    });
+    await page.getByText('更新的平面圖.pdf', {exact:true}).waitFor();
+    await link('查看解析結果');
+    await page.getByRole('button', {name:'客廳 9.1 坪', exact:true}).waitFor();
+    await capture('conditions');
     await press('待補 2');
     await page.getByText('天花板高度', {exact:true}).waitFor();
     await link('補充偏好');
     await page.getByLabel('想要什麼樣的家').fill('橡木與自然光');
     await link('選風格');
     await press('A · 靜謐橡木');
+    await capture('style');
     await link('確認方向，看成品');
     await page.getByText('26–48 萬', {exact:true}).waitFor();
     await page.getByRole('heading', {name:'法規初檢 · 示意'}).waitFor({timeout:2500});
@@ -46,7 +116,93 @@ try {
       range.setEnd(text, text.length);
       return range.getClientRects().length === 1;
     }), '報價 should remain on the same line');
+    const sofaSwap = page.getByRole('button', {name:'換一款：沙發', exact:true});
+    const chairSwap = page.getByRole('button', {name:'換一款：單椅', exact:true});
+    await sofaSwap.waitFor({timeout:2000});
+    await chairSwap.waitFor({timeout:2000});
+    await capture('living', false);
+    const livingPhoto = page.getByRole('img', {name:'客廳 · 完工示意'});
+    const expectVariant = async (asset, estimate) => {
+      await page.locator('.result-quote > .price').filter({hasText:estimate}).waitFor();
+      assert.equal(await livingPhoto.getAttribute('src'), './imagery/' + asset + '.webp');
+      await livingPhoto.evaluate(img => img.decode());
+    };
+    await expectVariant('living-4', '26–48 萬');
+    await chairSwap.click();
+    await expectVariant('living-chair', '27–49 萬');
+    await page.getByText('苔綠休閒椅', {exact:true}).waitFor();
+    await sofaSwap.click();
+    await expectVariant('living-sofa-chair', '28–51 萬');
+    await page.getByText('淺灰模組沙發', {exact:true}).waitFor();
+    await capture('furniture-variants');
+    await page.getByRole('textbox', {name:'就地微調'}).fill('單椅換回磚紅');
+    await press('套用微調');
+    await expectVariant('living-sofa', '27–50 萬');
+    await page.getByRole('textbox', {name:'就地微調'}).fill('沙發換成米白');
+    await press('套用微調');
+    await expectVariant('living-4', '26–48 萬');
+    const assertCost = async (name, low, high) => {
+      const details = page.locator('details').filter({has:page.getByText(name, {exact:true})});
+      await details.getByText(name, {exact:true}).click();
+      const rows = await details.locator('li strong').allTextContents();
+      const totals = rows.reduce(([a,b], value) => {
+        const [x,y] = value.match(/\d+/g).map(Number);
+        assert(x <= y, value);
+        return [a + x, b + y];
+      }, [0,0]);
+      assert(rows.length > 3);
+      assert.deepEqual(totals, [low,high]);
+      await capture(name.includes('整戶') ? 'whole-cost' : 'room-cost');
+      await details.getByText(name, {exact:true}).click();
+    };
+    await assertCost('看單室費用明細', 26, 48);
+    await press('等角');
+    await page.getByText('3D 中斷，已顯示實景示意。', {exact:true}).waitFor();
+    assert.equal(modelRequests.length, 1);
+    const failedRoute = page.url();
+    await press('重試 3D');
+    const canvas = page.locator('.model[data-ready] canvas');
+    await canvas.waitFor();
+    assert.equal(modelRequests.length, 2);
+    assert.equal(new URL(modelRequests[0]).pathname, new URL(modelRequests[1]).pathname);
+    assert.notEqual(modelRequests[0], modelRequests[1]);
+    assert.equal(page.url(), failedRoute);
+    await capture('module-retry');
+    await page.waitForFunction(() => Number.isFinite(window.testRoomProjection()));
+    const normalProjection = await page.evaluate(() => window.testRoomProjection());
+    const expectZoom = (scale) => page.waitForFunction(([normal,wanted]) =>
+      Math.abs(window.testRoomProjection() / normal - wanted) < .015, [normalProjection, scale]);
+    const zoomIn = page.getByRole('button', {name:'放大 3D'});
+    await zoomIn.click();
+    await zoomIn.click();
+    await page.getByText('縮放 1.5×', {exact:true}).waitFor();
+    await expectZoom(1.5);
+    await canvas.evaluate(node => {
+      const extension = node.getContext('webgl2')?.getExtension('WEBGL_lose_context');
+      if (!extension) throw new Error('需要 WEBGL_lose_context');
+      extension.loseContext();
+    });
+    await press('重試 3D');
+    await canvas.waitFor();
+    await page.getByText('縮放 1.5×', {exact:true}).waitFor();
+    await expectZoom(1.5);
+    assert(await zoomIn.isDisabled());
+    await capture('zoom-retry');
+    const wholeLink = page.getByRole('link', {name:'整戶', exact:true});
+    await wholeLink.scrollIntoViewIfNeeded();
+    assert(await wholeLink.evaluate(anchor => {
+      const {x,y,width,height} = anchor.getBoundingClientRect();
+      return anchor.contains(document.elementFromPoint(x + width / 2, y + height / 2));
+    }), '整戶連結須可直接點選，不被解鎖按鈕覆蓋');
+    await link('整戶');
+    await assertCost('看整戶費用明細', 168, 280);
+    await press('餐廳');
+    await page.getByText('縮放 1×', {exact:true}).waitFor();
+    await press('客廳');
+    await press('實景');
+    await link('返回成品');
     const living = await page.getByRole('img', {name:'客廳 · 完工示意'}).getAttribute('src');
+    assert.equal(living, heroSrc, '首頁與靜謐橡木成品共用同一客廳主圖');
     await link('毛胚到完成');
     const bare = await page.getByRole('img', {name:'客廳 · 毛胚示意'}).getAttribute('src');
     const stageImages = new Set([bare]);
@@ -54,10 +210,11 @@ try {
       await press(stage);
       const stageImage = page.getByRole('img', {name:'客廳 · ' + stage + '示意', exact:true});
       await stageImage.waitFor();
-      assert(await stageImage.evaluate(img => img.complete && img.naturalWidth > 0));
+      assert(await stageImage.evaluate(async img => { await img.decode(); return img.naturalWidth > 0; }));
       stageImages.add(await stageImage.getAttribute('src'));
     }
     assert.equal(stageImages.size, 5);
+    await capture('living-comparison');
     const download = page.waitForEvent('download');
     await press('存成對比圖');
     assert.equal((await download).suggestedFilename(), 'renovation-comparison.png');
@@ -83,17 +240,24 @@ try {
     const enclosedKitchen = await kitchen.getAttribute('src');
     assert.match(enclosedKitchen, /imagery\/kitchen-4\.webp$/);
     assert(await kitchen.evaluate(async img => {await img.decode(); return img.naturalWidth >= 390;}));
-    await fit();
-    if (process.env.WIREFRAME_SCREENSHOTS) {
-      await page.screenshot({path:process.env.WIREFRAME_SCREENSHOTS + '/kitchen-' + viewport.width + '.png', fullPage:true});
-    }
+    await capture('kitchen');
     await link('家具與材質');
     await press('確認換款');
     await page.getByText('暖白廚櫃', {exact:true}).waitFor();
     await press('確認換款');
     await link('看更新後報價');
-    await link('解鎖下一步');
+    await link('解鎖精修與施工');
     await press('示意解鎖');
+    const drawingParams = new URL(page.url()).hash.split('?')[1];
+    const kitchenSheet = async () => {
+      await route('drawings', drawingParams);
+      return page.getByRole('img', {name:'A-01 平面配置圖 · 示意'}).evaluate(async img => {
+        await img.decode();
+        return decodeURIComponent(img.src.split(',')[1]);
+      });
+    };
+    const enclosedSheet = await kitchenSheet();
+    await route('layout', drawingParams);
     await press('下一關');
     await press('天天煮');
     await page.getByText('示意調整：開放廚房與中島').waitFor();
@@ -108,6 +272,11 @@ try {
     await route('result', checkedParams);
     await page.getByText('30–48 萬', {exact:true}).waitFor();
     assert.match(await kitchen.getAttribute('src'), /imagery\/open-kitchen-4\.webp$/);
+    const openSheet = await kitchenSheet();
+    assert.match(openSheet, /開放廚房示意開口/);
+    assert.match(openSheet, /中島/);
+    assert.doesNotMatch(openSheet, /門（示意）/);
+    await capture('A-01-open');
     await route('compliance', checkedParams);
     await fit();
     await page.getByLabel('你家在第幾樓？').fill('12');
@@ -125,6 +294,7 @@ try {
     await route('result', checkedParams);
     await page.getByText('28–46 萬', {exact:true}).waitFor({timeout:2500});
     assert.equal(await kitchen.getAttribute('src'), enclosedKitchen);
+    assert.equal(await kitchenSheet(), enclosedSheet, '撤回開放廚房應恢復 A-01');
     await route('compliance', checkedParams);
     await link('看風水');
     await press('客廳動線 · 已選');
@@ -141,6 +311,7 @@ try {
     await fit();
     const svg = page.getByRole('img', {name:'M-01 插座與弱電配置圖 · 示意'});
     await svg.waitFor();
+    await capture('drawings');
     const sheet = decodeURIComponent((await svg.getAttribute('src')).split(',')[1]);
     assert(sheet.includes('圖號 M-01') && sheet.includes('插座與弱電配置圖'));
     assert(!sheet.includes('圖號 E-02'));
@@ -173,7 +344,7 @@ try {
     await link('選風格');
     await link('確認方向，看成品');
     await page.getByText('26–48 萬', {exact:true}).waitFor();
-    await link('解鎖下一步');
+    await link('解鎖精修與施工');
     await press('示意解鎖');
     const newParameters = new URL(page.url()).hash.split('?')[1];
     await route('team', newParameters);
@@ -190,9 +361,60 @@ try {
     assert.equal(await page.getByLabel('想要什麼樣的家').inputValue(),'小家庭・審查示例');
     await route('brief', newParameters);
     assert.equal(await page.getByLabel('想要什麼樣的家').inputValue(),'新案・白牆');
-    await fit();
+    await page.goto(base);
+    const pdfFile = name => ({name, mimeType:'application/pdf', buffer:Buffer.from('%PDF-1.4')});
+    await page.getByLabel('上傳建商平面圖').setInputFiles(pdfFile('原平面圖.pdf'));
+    await link('查看解析結果');
+    await press('客廳 9 坪');
+    await page.getByLabel('長度（公尺）').fill('7');
+    await page.getByLabel('寬度（公尺）').fill('3');
+    await press('儲存客廳尺寸');
+    await page.getByLabel('重選平面圖').setInputFiles(pdfFile('更新平面圖.pdf'));
+    await link('查看解析結果');
+    await page.getByRole('button', {name:'客廳 6.4 坪', exact:true}).waitFor();
+    await link('再拍幾張');
+    const photoFixture = await page.request.get(base + 'imagery/living-4.webp');
+    assert(photoFixture.ok());
+    await page.getByLabel('從相簿選或拍攝').setInputFiles({
+      name:'相簿-客廳.webp', mimeType:'image/webp', buffer:await photoFixture.body(),
+    });
+    await link('拍完了');
+    await page.getByText('目前來源：現場照片', {exact:true}).waitFor();
+    await page.getByText('相簿-客廳.webp', {exact:true}).waitFor();
+    assert.equal(await page.getByText('更新平面圖.pdf', {exact:true}).count(), 0);
+    await capture('photo-source');
+    await link('查看解析結果');
+    await page.getByRole('button', {name:'客廳 6.4 坪', exact:true}).waitFor();
+    assert.equal(await page.getByLabel('長度（公尺）').inputValue(), '7');
+    assert.equal(await page.getByLabel('寬度（公尺）').inputValue(), '3');
+    await link('直接選風格');
+    await link('確認方向，看成品');
+    await press('等角');
+    await canvas.waitFor();
+    await page.getByText('7000 × 3000 mm', {exact:true}).waitFor();
+    await capture('3d-dimensions');
+    await link('解鎖精修與施工');
+    await press('示意解鎖');
+    await route('drawings', 'project=oak');
+    const dimensionSheet = page.getByRole('img', {name:'A-01 平面配置圖 · 示意'});
+    const dimSvg = await dimensionSheet.evaluate(async img => {
+      await img.decode();
+      return decodeURIComponent(img.src.split(',')[1]);
+    });
+    assert.match(dimSvg, /<text[^>]*>7000<\/text>/);
+    assert.match(dimSvg, /<text[^>]*>3000<\/text>/);
+    assert.match(dimSvg, /空間尺寸 7000 × 3000 mm/);
+    await capture('A-01-dimensions');
+    await page.emulateMedia({media:'print'});
+    assert(await dimensionSheet.isVisible());
+    assert(!(await page.getByRole('heading', {name:'圖面清單 · 10 張'}).isVisible()));
+    if (process.env.WIREFRAME_SCREENSHOTS) {
+      await page.pdf({path:process.env.WIREFRAME_SCREENSHOTS + '/A-01-dimensions-' + viewport.width + '.pdf',
+        format:'A4',printBackground:true});
+    }
+    await page.emulateMedia({media:'screen'});
     assert.deepEqual(errors, []);
-    console.log(viewport.width + ' px：法規初檢與重查、分房五階段、跨案隔離、M-01 預覽與列印均通過');
+    console.log(viewport.width + ' px：個別換款和微調、PDF 轉照片、503 重試與 WebGL 1.5×、A-01 7000×3000、廚房套用撤回及明細通過');
     await page.close();
   }
 } finally {
