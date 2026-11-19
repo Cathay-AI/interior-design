@@ -1,6 +1,6 @@
 // UI for the 快速找風格 prototype: 滑卡（Pinterest 靈感圖）→ 3D 成品 → 估價與施工圖.
 // Decision logic lives in ./lib (pure, unit-tested); this file owns state, rendering and browser APIs.
-import { STYLES, REASONS, emptyScores, applySwipe, undoSwipe, pickStyle, topStyles } from './lib/taste.js';
+import { STYLES, SWIPE_ORDER, REASONS, emptyScores, applySwipe, undoSwipe, pickStyle, topStyles } from './lib/taste.js';
 import { designEstimate, resolvePing } from './lib/estimate.js';
 import { STATES, CERTAINTY, CHECKED, LAWS, lawUrl, ruleFindings, regSummary } from './lib/rules.js';
 import { AGES, parseHome } from './lib/intake.js';
