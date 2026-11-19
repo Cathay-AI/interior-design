@@ -35,7 +35,7 @@ const loadHDRI = () => (hdri ??= new EXRLoader().loadAsync(new URL('../assets/en
 /** Start downloading a look's furniture and materials ahead of time (cached for the session). */
 export const preload = (look) => { loadAssets(look).catch(() => {}); loadHDRI().catch(() => {}); };
 
-export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM) {
+export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM, onContextLost) {
   const scaleOf = (sz) => Math.max(sz.w / DEFAULT_ROOM.w, sz.d / DEFAULT_ROOM.d, sz.h / DEFAULT_ROOM.h, 0.7);
   let f = scaleOf(size), gen = 0;
   const viewPos = (v) => new T.Vector3(...VIEWS[v]).multiplyScalar(f);
@@ -106,8 +106,8 @@ export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM) {
   const standIn = setTimeout(() => { if (!room) show(null, false); }, 120);
   const load = () => {
     const mine = ++gen;
-    loadAssets(look).then((a) => { clearTimeout(standIn); if (mine === gen) show(a); },
-      () => { clearTimeout(standIn); if (mine !== gen) return; show(null, false); ready = true; container.dataset.ready = 'true'; }); // offline or blocked: the hand-built room
+    loadAssets(look).then((a) => { clearTimeout(standIn); if (!disposed && mine === gen) show(a); },
+      () => { clearTimeout(standIn); if (disposed || mine !== gen) return; show(null, false); ready = true; container.dataset.ready = 'true'; }); // offline or blocked: the hand-built room
   };
   load();
   loadHDRI().then((t) => {
@@ -131,7 +131,10 @@ export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM) {
   });
   resize.observe(container);
   renderer.shadowMap.needsUpdate = true;
-  renderer.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault());
+  renderer.domElement.addEventListener('webglcontextlost', (event) => {
+    event.preventDefault();
+    if (!disposed) onContextLost?.();
+  });
 
   let current = view;
   const flyTo = (to, ms) => {
@@ -149,7 +152,18 @@ export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM) {
       };
       requestAnimationFrame(step);
   };
+  const zoomSteps = [0.8, 1, 1.25, 1.5];
+  let zoomIndex = 1;
   return {
+    zoomBy(delta) {
+      if (delta) {
+        zoomIndex = T.MathUtils.clamp(zoomIndex + delta, 0, zoomSteps.length - 1);
+        camera.zoom = zoomSteps[zoomIndex];
+        camera.updateProjectionMatrix();
+        scheduler.request();
+      }
+      return { atMin: zoomIndex === 0, atMax: zoomIndex === zoomSteps.length - 1 };
+    },
     setView(v) { current = v; flyTo(viewPos(v), 520); },
     update(nextLook, nextSize) {
       const resized = nextSize.w !== size.w || nextSize.d !== size.d || nextSize.h !== size.h;
