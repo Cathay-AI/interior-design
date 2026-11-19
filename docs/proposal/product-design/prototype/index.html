@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="回家之前：風格定案流程的可點擊 mock prototype。資料與圖片為示意，3D 家具使用免費授權模型，未連接任何後端。">
+<title>回家之前 Prototype</title>
+<link rel="icon" href="../logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="prototype.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
+</head>
+<body>
+<div class="stage">
+  <aside class="notes" id="notes" aria-label="設計與技術註記">
+    <header>
+      <a class="notes-brand" href="../index.html">← 產品設計簡報</a>
+      <p class="notes-title">回家之前</p>
+      <p class="notes-lead">Mock prototype：可點擊的流程示意。插畫由程式繪製，3D 家具用免費授權模型，偏好模型在瀏覽器內計算，不連接任何後端。</p>
+    </header>
+    <section class="notes-block">
+      <h2>這一步</h2>
+      <p id="note-screen" class="note-screen"></p>
+    </section>
+    <section class="notes-block">
+      <h2>系統學到</h2>
+      <ol id="note-learned" class="learned"></ol>
+    </section>
+    <section class="notes-block">
+      <h2>決策引擎視角 <small>貝氏 logit 基準模型（示意）</small></h2>
+      <div id="note-engine" class="engine"></div>
+    </section>
+    <section class="notes-block">
+      <h2>正式版技術與風險</h2>
+      <ul id="note-tech" class="tech"></ul>
+    </section>
+    <footer class="notes-foot">
+      <button type="button" id="reset">重新開始</button>
+      <button type="button" id="voice-toggle" aria-pressed="false">亮亮語音：關</button>
+      <button type="button" id="mode-toggle">流程：AI 版</button>
+      <label class="jump"><span>跳到</span><select id="jump"></select></label>
+    </footer>
+  </aside>
+
+  <div class="device">
+    <div class="phone" id="phone">
+      <!-- The 3D room sits behind every screen; screens are overlays on top of it. -->
+      <div class="stage" id="stage" aria-hidden="true"><img class="stage-poster" id="stage-poster" src="../key-visuals/app/intro.jpg" alt=""><div class="stage-scrim"></div></div>
+      <div class="stage-ui" id="stage-ui"></div>
+      <header class="topbar">
+        <button type="button" class="icon-btn" id="back" aria-label="上一步"></button>
+        <div class="wayfind">
+          <div class="home-map" id="home-map" aria-hidden="true"></div>
+          <p class="stage-label" id="stage-label" aria-live="polite"></p>
+        </div>
+        <button type="button" class="icon-btn" id="info" aria-label="設計註記"></button>
+      </header>
+      <div class="resume" id="resume" role="status" hidden>
+        <span>已接續上次的進度</span>
+        <button type="button" id="resume-restart">從頭開始</button>
+        <button type="button" class="resume-close" id="resume-close" aria-label="關閉提示"></button>
+      </div>
+      <main class="screen" id="screen" tabindex="-1"></main>
+      <!-- 亮亮 only appears when there is feedback; hints are announced to screen readers. -->
+      <div class="bubble" id="bubble" role="status" aria-live="polite"><span class="mascot" id="mascot" aria-hidden="true"></span><p id="bubble-text"></p></div>
+      <p class="sr" id="guide-line" aria-live="polite"></p>
+      <div class="chapter-card" id="chapter-card" role="status" aria-live="polite" hidden></div>
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+      <div class="sheet-backdrop" id="sheet" hidden></div>
+    </div>
+  </div>
+</div>
+<script src="icons.js"></script>
+<script src="catalog.js"></script>
+<script src="prototype.js"></script>
+</body>
+</html>
