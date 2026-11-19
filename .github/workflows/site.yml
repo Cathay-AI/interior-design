@@ -7,10 +7,10 @@ name: site
 #   deploy     Vercel's Git integration builds main (production) and every pull request (preview); see vercel.json
 on:
   pull_request:
-    paths: ["prototype/**", "scripts/build-site.sh", "vercel.json", ".github/workflows/site.yml"]
+    paths: ["prototype/**", "scripts/build-site.sh", "scripts/bundle-room.mjs", "package*.json", "vercel.json", ".github/workflows/site.yml"]
   push:
     branches: [main]
-    paths: ["prototype/**", "scripts/build-site.sh", "vercel.json", ".github/workflows/site.yml"]
+    paths: ["prototype/**", "scripts/build-site.sh", "scripts/bundle-room.mjs", "package*.json", "vercel.json", ".github/workflows/site.yml"]
   workflow_dispatch:
 
 permissions:
@@ -27,6 +27,7 @@ jobs:
       - name: Unit tests
         working-directory: prototype/fast-route
         run: npm test
+      - run: npm ci
       - name: Build site
         run: sh scripts/build-site.sh
       - name: End-to-end (desktop + phone)

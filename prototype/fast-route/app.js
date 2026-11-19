@@ -19,7 +19,7 @@ import { KINDS, ACCEPT, MAX_FILES, MAX_MB, guessKind, rejectReason, summarize } 
 // The 3D module (Three.js) is loaded on demand so the first screen stays light.
 let room3d = null;
 let moduleAttempt = 0;
-const load3D = () => (room3d ??= import(moduleAttempt ? `./lib/room3d.js?retry=${moduleAttempt}` : './lib/room3d.js').catch((error) => {
+const load3D = () => (room3d ??= import(moduleAttempt ? `./lib/room3d-retry.js?retry=${moduleAttempt}` : './lib/room3d.js').catch((error) => {
   room3d = null;
   moduleAttempt += 1;
   throw error;
@@ -149,6 +149,7 @@ function updateSceneControls() {
 }
 
 function showStageFallback() {
+  const restoreFocus = document.activeElement.closest('#views, #zoom');
   live?.dispose();
   live = window.__room = null;
   delete sceneEl.dataset.ready;
@@ -156,6 +157,7 @@ function showStageFallback() {
   flatStage(stageLook());
   $('#scene-status').textContent = '3D 無法顯示，目前使用 2D 示意圖。';
   updateSceneControls();
+  if (restoreFocus && !$('#retry3d').hidden) $('#retry3d').focus({ preventScroll: true });
 }
 
 async function mountStage() {
@@ -223,7 +225,17 @@ function rollPrice(low, high) {
 }
 
 /* ================= navigation ================= */
+let replacingPlan = false;
+let planRequest = null;
+function cancelPlanSelection() {
+  replacingPlan = false;
+  planRequest?.abort();
+  planRequest = null;
+  S.reading = false;
+}
+
 function go(step) {
+  cancelPlanSelection();
   S.note = '';
   S.step = step; S.reached = Math.max(S.reached, step);
   render();
@@ -281,7 +293,7 @@ let pressing = false, pending = false;
 addEventListener('pointerdown', () => { pressing = true; }, true);
 for (const type of ['pointerup', 'pointercancel']) addEventListener(type, () => setTimeout(() => { pressing = false; if (pending) render(); }, 0), true);
 const renderSoon = () => { pending = true; if (!pressing) setTimeout(() => { if (pending) render(); }, 0); };
-$('#restart').addEventListener('click', () => { S.docs.forEach((d) => d.url && URL.revokeObjectURL(d.url)); try { localStorage.removeItem(KEY); } catch { /* ignore */ } S = fresh(); go(1); });
+$('#restart').addEventListener('click', () => { S.docs.forEach((d) => d.url && URL.revokeObjectURL(d.url)); try { localStorage.removeItem(KEY); } catch { /* ignore */ } cancelPlanSelection(); S = fresh(); go(1); });
 
 const setStyle = (key) => { S.cond.style = key; const edits = multi() ? [...(curRoom()?.edits ?? [])] : []; S.versions = [{ look: edits.reduce((l, n) => EDITS[n][1]({ ...l }), { ...STYLES[key] }), edits }]; S.v = 0; };
 const look = () => S.versions[S.v].look;
@@ -348,11 +360,11 @@ async function shrink(file) {
   const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0, c.width, c.height);
   return new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.88));
 }
-async function readPlan(file) {
+async function readPlan(file, signal) {
   try {
     const pdf = file.type === 'application/pdf', blob = pdf ? file : await shrink(file);
     if (!blob || blob.size > MAX_BYTES) return { error: 'toobig' };
-    const res = await fetch('/api/read-plan', { method: 'POST', headers: { 'content-type': 'application/json' }, signal: AbortSignal.timeout(75000),
+    const res = await fetch('/api/read-plan', { method: 'POST', headers: { 'content-type': 'application/json' }, signal: AbortSignal.any([signal, AbortSignal.timeout(75000)]),
       body: JSON.stringify({ media: pdf ? 'application/pdf' : 'image/jpeg', data: await b64of(blob) }) });
     const body = await res.json();
     const rooms = res.ok && Array.isArray(body.rooms) ? roomsFromPlan({ is_floor_plan: true, rooms: body.rooms.map((r) => ({ name: r.name, length_m: Number(r.len), width_m: Number(r.wid), size_source: r.unsure ? 'scaled' : 'labeled' })) }) : null;
@@ -368,9 +380,12 @@ function intro() {
     const f = files[0]; if (!f || S.reading) return;
     const why = rejectReason(f, S.docs.length);
     if (why) { S.docError = why; return render(); }
+    const request = new AbortController();
+    planRequest = request;
     S.docError = ''; S.reading = true; render();
-    const got = await readPlan(f);
-    S.reading = false;
+    const got = await readPlan(f, request.signal);
+    if (planRequest !== request) return;
+    cancelPlanSelection();
     const keptRooms = !got.rooms && S.home;
     if (!keptRooms) {
       S.docs.push({ name: f.name, kind: 'plan', pdf: f.type === 'application/pdf', url: f.type.startsWith('image/') ? URL.createObjectURL(f) : null });
@@ -397,9 +412,10 @@ function intro() {
     h('p', { class: 'lead', id: 'greeting' }, '上傳平面圖確認房間，或先從一間房開始。接著看 3D 提案與預算區間。'),
     file, zone,
     S.docError ? h('p', { class: 'err', role: 'alert' }, S.docError) : null,
+    replacingPlan ? h('button', { class: 'soft', onclick: () => { S.docError = ''; go(1); } }, '返回原房間清單') : null,
     h('p', { class: 'or' }, '還沒有平面圖？先挑一個空間試試'),
     h('div', { class: 'chips', role: 'group', 'aria-label': '先挑一個空間', id: 'where', style: 'justify-content:center' },
-      ...['客廳', '臥室', '廚房', '衛浴', '書房'].map((name) => h('button', { class: 'chip', disabled: S.reading, onclick: () => pick(name) }, name)))),
+      ...['客廳', '臥室', '廚房', '衛浴', '書房'].map((name) => h('button', { class: 'chip', disabled: S.reading, onclick: () => { cancelPlanSelection(); pick(name); } }, name)))),
     h('div', { class: 'how' }, ...[['1', '丟平面圖', '確認有哪些房間'], ['2', '滑卡挑風格', '整個家一起套用'], ['3', '看設計與花費', '一間一間看，整戶加總']].map(([n, t, d]) => h('div', {}, h('i', {}, n), h('b', {}, t), h('span', {}, d)))));
 }
 
@@ -425,7 +441,7 @@ function roomsScreen() {
     }
     return li;
   };
-  app.append(h('div', { class: 'shead' }, backBtn(1, S.planNote ? '重新上傳平面圖' : '換一張圖', () => { S.started = false; S.editing = null; S.planNote = ''; go(1); }), h('h1', {}, '你家有這些房間，對嗎？')),
+  app.append(h('div', { class: 'shead' }, backBtn(1, S.planNote ? '重新上傳平面圖' : '換一張圖', () => { replacingPlan = true; S.docError = ''; S.editing = null; render(); focusScreen(); }), h('h1', {}, '你家有這些房間，對嗎？')),
     agent(S.home.read && !S.planNote ? `我從平面圖讀到 ${rooms.length} 間。${rooms.some((r) => r.unsure) ? '標「請確認」的尺寸圖上沒直接寫，是我換算的，不對就點「改」。' : '尺寸照圖上的標註。'}`
       : `${S.planNote || '這份清單不是從圖上讀的。'}${S.planRetained ? '保留你原先確認或修改的房間。' : '先給你三房兩廳的範本，點「改」換成你家的。'}`, { id: 'asking', role: S.planNote ? 'alert' : false }),
     h('ul', { class: 'rooms', id: 'rooms' }, ...rooms.map(row)),
@@ -531,7 +547,7 @@ SCREENS[2] = () => {
 const warm3D = () => load3D().then((m) => m.preload(STYLES[pickStyle(S.scores)])).catch(() => {});
 
 /* ---- 1 你家：開場 → 整戶確認房間，或單一房間填尺寸 ---- */
-SCREENS[1] = () => (!S.started ? intro() : multi() ? roomsScreen() : sizeScreen());
+SCREENS[1] = () => (!S.started || replacingPlan ? intro() : multi() ? roomsScreen() : sizeScreen());
 function sizeScreen() {
   const add = (files) => {
     S.docError = '';

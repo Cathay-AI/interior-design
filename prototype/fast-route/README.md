@@ -162,8 +162,9 @@ RWD：820px 以下單欄、主要按鈕貼底。
 ```sh
 npm run dev      # http://localhost:5173
 npm test         # 單元測試（node:test）
-node e2e/flow.e2e.mjs http://127.0.0.1:5173/   # 需要 playwright
 ```
+
+從 repo 根目錄執行 `npm ci`、`sh scripts/build-site.sh`，再以 `python3 -m http.server 5173 --bind 127.0.0.1 --directory dist` 預覽完整建置。E2E 使用 `node prototype/fast-route/e2e/flow.e2e.mjs http://127.0.0.1:5173/`（需 Playwright 1.49.1 與 Chromium）。3D 入口或任一子模組中斷時，重試改用建置生成的獨立模組；開發伺服器只供原始碼預覽。
 
 ## 結構
 
@@ -199,4 +200,4 @@ node e2e/flow.e2e.mjs http://127.0.0.1:5173/   # 需要 playwright
 - **自動合併**：從這個 repo 的 `claude/*` 分支開的 PR，測試通過後會自動轉正並合併（合併的是被測過的那個 commit）。想先擋住就在 PR 加上 `hold` 標籤。其他分支與 fork 來的 PR 不會自動合併。
 - **部署**：Vercel 的 Git 整合負責，`main` 是正式站，每個 PR 有預覽。
 
-注意：自動合併只在 PR 動到 `prototype/**`、`scripts/build-site.sh`、`vercel.json` 或這個 workflow 時才會觸發（因為測試只在這些路徑變動時跑）；只改文件的 PR 仍需手動合併。
+注意：自動合併只在 PR 動到 `prototype/**`、`scripts/build-site.sh`、`scripts/bundle-room.mjs`、套件清單、`vercel.json` 或這個 workflow 時才會觸發（因為測試只在這些路徑變動時跑）；只改文件的 PR 仍需手動合併。

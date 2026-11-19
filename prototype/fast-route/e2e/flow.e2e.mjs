@@ -294,6 +294,14 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   await firstRoom.getByRole('button', { name: '完成' }).click();
   await page.getByRole('button', { name: '中古屋' }).click();
   await page.getByRole('button', { name: /重新上傳平面圖/ }).click();
+  await page.getByRole('button', { name: '返回原房間清單' }).click();
+  assert.match(await firstRoom.innerText(), /合成修改/);
+  await page.getByRole('button', { name: /重新上傳平面圖/ }).click();
+  await page.setInputFiles('#planFile', { name: '合成.txt', mimeType: 'text/plain', buffer: Buffer.from('test') });
+  await page.locator('#app .err').waitFor();
+  await page.getByRole('button', { name: '返回原房間清單' }).click();
+  assert.match(await firstRoom.innerText(), /合成修改/);
+  await page.getByRole('button', { name: /重新上傳平面圖/ }).click();
   await page.setInputFiles('#planFile', { name: '合成平面圖.png', mimeType: 'image/png', buffer: PNG });
   await page.getByText(/保留你原先確認或修改的房間/).waitFor();
   assert.match(await firstRoom.innerText(), /合成修改/);
@@ -386,6 +394,50 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   await page.reload();                                                          // 重新整理：整戶的房間還在
   await page.locator('#byroom').waitFor();
   assert.equal(await page.locator('#byroom li').count(), 8, 'seven rooms plus the one switched off stay listed');
+  const designStep = page.getByRole('button', { name: /第 2 步/ });
+  const intakeStep = page.getByRole('button', { name: /第 1 步/ });
+  await designStep.click();
+  await page.locator('#roomtabs').getByRole('button', { name: '客廳' }).click();
+  await ready(page);
+  await intakeStep.click();
+  await page.getByRole('button', { name: /換一張圖/ }).click();
+  await designStep.click();
+  assert.equal(await page.locator('#plan').isVisible(), false, 'return to design preserves single-room stage');
+  assert.equal(await page.locator('#roomtabs').getByRole('button', { name: '客廳' }).getAttribute('aria-pressed'), 'true');
+  await page.locator('#roomtabs').getByRole('button', { name: '整戶' }).click();
+  const originalRooms = await page.locator('#plan [data-room]').allTextContents();
+  assert.equal(originalRooms.length, 6, 'two unchecked rooms are excluded from the stage');
+  for (const abandon of [designStep, page.locator('#restart')]) {
+    let requestStarted, releaseResponse;
+    const started = new Promise(resolve => { requestStarted = resolve; });
+    const delayed = new Promise(resolve => { releaseResponse = resolve; });
+    let responseSettled;
+    const settled = new Promise(resolve => { responseSettled = resolve; });
+    await page.route('**/api/read-plan', async route => {
+      requestStarted();
+      await delayed;
+      try { await route.fulfill({ json: { rooms: [{ name: '過期結果', len: '5', wid: '4' }] } }); }
+      catch { /* navigation can abort the request before the mock responds */ }
+      finally { responseSettled(); }
+    }, { times: 1 });
+    await intakeStep.click();
+    await page.getByRole('button', { name: /換一張圖/ }).click();
+    await page.setInputFiles('#planFile', { name: '延遲.png', mimeType: 'image/png', buffer: PNG });
+    await started;
+    const abandoned = page.waitForEvent('requestfailed', request => new URL(request.url()).pathname === '/api/read-plan');
+    await abandon.click();
+    await abandoned;
+    releaseResponse();
+    await settled;
+    if (abandon === designStep) {
+      await page.getByRole('heading', { name: '整個家' }).waitFor();
+      assert.equal(await page.locator('#plan').isVisible(), true, 'navigation keeps the whole-home stage');
+      assert.deepEqual(await page.locator('#plan [data-room]').allTextContents(), originalRooms);
+    } else {
+      await page.getByRole('heading', { name: /先從你家的空間開始/ }).waitFor();
+      assert.equal(await page.locator('#plan').isVisible(), false);
+    }
+  }
   await context.close();
 }
 
@@ -412,7 +464,8 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
 { // A transient failure of the 3D entry module can recover without a reload.
   const context = await browser.newContext({ viewport: { width: 320, height: 740 }, hasTouch: true, isMobile: true, ...quiet });
   const page = await open(context, 'retry-3d');
-  await page.route('**/lib/room3d.js', route => route.abort(), { times: 1 });
+  let failedSubmodule = 0;
+  await page.route('**/lib/render-scheduler.js', route => { failedSubmodule += 1; return route.abort(); }, { times: 1 });
   await page.goto(base);
   await page.getByText('3D 無法顯示，目前使用 2D 示意圖。').waitFor();
   await page.locator('#where').getByRole('button', { name: '客廳' }).tap();
@@ -424,6 +477,7 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   if (shots) await page.screenshot({ path: `${shots}/3d-before-retry.png` });
   await page.getByRole('button', { name: '重試 3D' }).click();
   await ready(page);
+  assert.equal(failedSubmodule, 1, 'the initial same-origin static dependency failed once');
   assert.equal(await page.locator('.scene > svg').count(), 0);
   assert.equal(await page.getByRole('button', { name: /視角 A/ }).getAttribute('aria-pressed'), 'true');
   const zoomIn = page.getByRole('button', { name: '放大', exact: true });
@@ -439,12 +493,41 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   assert.match(await page.locator('#dims').innerText(), /5.6 × 4.7/);
   const viewB = page.getByRole('button', { name: /視角 B/ });
   await viewB.tap();
+  await viewB.focus();
   await page.locator('#scene canvas').evaluate(canvas => canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true })));
   await page.getByText('3D 無法顯示，目前使用 2D 示意圖。').waitFor();
+  assert.equal(await page.locator(':focus').getAttribute('id'), 'retry3d');
   await page.getByRole('button', { name: '重試 3D' }).tap();
   await ready(page);
   assert.equal(await viewB.getAttribute('aria-pressed'), 'true', 'retry preserves the chosen view');
   assert.match(await page.locator('#dims').innerText(), /5.6 × 4.7/);
+  await context.close();
+}
+
+{ // A disposed renderer must not mark its replacement ready if its assets fail late.
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, ...quiet });
+  const page = await open(context, 'disposed-renderer');
+  await page.route('**/lib/scene.js', async route => {
+    const response = await route.fetch();
+    const source = await response.text();
+    await route.fulfill({ response, body: source + `
+      window.rejectAssets = [];
+      loadAssets = () => new Promise((resolve, reject) => window.rejectAssets.push(reject));
+    ` });
+  });
+  await page.goto(base);
+  await page.waitForFunction(() => window.rejectAssets?.length === 1);
+  await page.locator('#scene canvas').evaluate(canvas => canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true })));
+  await page.getByRole('button', { name: '重試 3D' }).click();
+  await page.waitForFunction(() => window.rejectAssets?.length === 2);
+  const markedReady = await page.evaluate(async () => {
+    window.rejectAssets[0](new Error('synthetic old asset failure'));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    return document.querySelector('#scene').hasAttribute('data-ready');
+  });
+  assert.equal(markedReady, false, 'the old renderer cannot publish readiness');
+  await page.evaluate(() => window.rejectAssets[1](new Error('synthetic current asset failure')));
+  await ready(page);
   await context.close();
 }
 

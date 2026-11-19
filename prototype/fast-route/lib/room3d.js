@@ -106,8 +106,8 @@ export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM, on
   const standIn = setTimeout(() => { if (!room) show(null, false); }, 120);
   const load = () => {
     const mine = ++gen;
-    loadAssets(look).then((a) => { clearTimeout(standIn); if (mine === gen) show(a); },
-      () => { clearTimeout(standIn); if (mine !== gen) return; show(null, false); ready = true; container.dataset.ready = 'true'; }); // offline or blocked: the hand-built room
+    loadAssets(look).then((a) => { clearTimeout(standIn); if (!disposed && mine === gen) show(a); },
+      () => { clearTimeout(standIn); if (disposed || mine !== gen) return; show(null, false); ready = true; container.dataset.ready = 'true'; }); // offline or blocked: the hand-built room
   };
   load();
   loadHDRI().then((t) => {
