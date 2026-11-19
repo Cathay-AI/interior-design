@@ -70,3 +70,14 @@ All from [Poly Haven](https://polyhaven.com/textures), CC0.
 | `vase-antique.glb` | Antique Ceramic Vase 01 | James Ray Cock |
 | `vase-ceramic.glb` | Ceramic Vase 03 | James Ray Cock |
 | `vase-brass.glb` | Brass Vase 02 | Rico Cilliers |
+| `chinese-armchair.glb` | [Chinese Armchair](https://polyhaven.com/a/chinese_armchair) | Kirill Sannikov |
+| `rocking-chair.glb` | [Rockingchair 01](https://polyhaven.com/a/Rockingchair_01) | Jorge Camacho |
+| `green-chair.glb` | [Green Chair 01](https://polyhaven.com/a/GreenChair_01) | Kirill Sannikov |
+| `coffee-table-02.glb` | [Modern Coffee Table 02](https://polyhaven.com/a/modern_coffee_table_02) | Amin |
+| `coffee-table-classic.glb` | [Coffee Table 01](https://polyhaven.com/a/CoffeeTable_01) | Fernando Quinn |
+| `chinese-cabinet.glb` | [Chinese Cabinet](https://polyhaven.com/a/chinese_cabinet) | Kirill Sannikov |
+| `painted-cabinet-02.glb` | [Painted Wooden Cabinet 02](https://polyhaven.com/a/painted_wooden_cabinet_02) | Kirill Sannikov |
+| `worn-bookshelf.glb` | [Wooden Bookshelf Worn](https://polyhaven.com/a/wooden_bookshelf_worn) | Ulan Cabanilla |
+| `planter-box.glb` | [Planter Box 01](https://polyhaven.com/a/planter_box_01) (also with `--simplify`) | James Ray Cock |
+| `marble-bust.glb` | [Marble Bust 01](https://polyhaven.com/a/marble_bust_01) | Rico Cilliers |
+| `wooden-elephant.glb` | [Carved Wooden Elephant](https://polyhaven.com/a/carved_wooden_elephant) | Greg Zaal |

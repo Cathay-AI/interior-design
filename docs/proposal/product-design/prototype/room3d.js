@@ -241,10 +241,14 @@ export async function createRoom({ onProgress, models = './models/', textures = 
   const texLoader = new THREE.TextureLoader(), texCache = {};
   let running = false; // declared before redraw: preloaded textures may fire onLoad before the loop section runs
   const redraw = () => { if (!running) renderer.render(scene, camera); };
+  // Snapshots taken while a material is still downloading show a black floor; callers wait on this and retake.
+  let texPending = 0; const texWaiters = [];
+  const texSettled = () => { if (--texPending === 0) texWaiters.splice(0).forEach(r => r()); };
   function tex(id, kind, rx = 1, ry = rx) {
     const key = `${id}/${kind}/${rx}/${ry}`;
     if (texCache[key]) return texCache[key];
-    const t = texLoader.load(`${textures}${id}/${kind}.webp`, redraw);
+    texPending++;
+    const t = texLoader.load(`${textures}${id}/${kind}.webp`, () => { redraw(); texSettled(); }, undefined, texSettled);
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 8;
     if (kind === 'diff') t.colorSpace = THREE.SRGBColorSpace;
     return (texCache[key] = t);
@@ -522,6 +526,7 @@ export async function createRoom({ onProgress, models = './models/', textures = 
     day: { sun: 2.6, sunColor: '#fff1d6', sunPos: [6, 4.2, -1.2], hemi: .9, lamp: 0, env: .35, exposure: 1.05, sky: false, door: 0, beam: 0 },
     golden: { sun: 4.4, sunColor: '#ffad62', sunPos: [7, 2.1, -1.6], hemi: .26, lamp: 2, env: .16, exposure: .9, sky: 'golden', door: 0, beam: 1 },
     dusk: { sun: 0, sunColor: '#fff1d6', sunPos: [6, 4.2, -1.2], hemi: .05, lamp: 5.5, env: .05, exposure: 1.0, sky: true, door: 0, beam: 0 },
+    night: { sun: 0, sunColor: '#fff1d6', sunPos: [6, 4.2, -1.2], hemi: .02, lamp: 3.6, env: .03, exposure: .92, sky: true, door: 0, beam: 0 },
   };
   const ca = new THREE.Color(), cb = new THREE.Color(), tmp = new THREE.Vector3();
   const mix = (a, b, t) => a + (b - a) * t;
@@ -618,6 +623,8 @@ export async function createRoom({ onProgress, models = './models/', textures = 
     get frameMs() { return frameMs; }, get live() { return running; },
     // For callers that photograph options whose model may still be loading.
     modelReady: k => !!fitted[k],
+    get texturesLoading() { return texPending > 0; },
+    texturesReady: () => texPending ? new Promise(r => texWaiters.push(r)) : Promise.resolve(),
     whenModel: k => !MODELS[k] || fitted[k] ? Promise.resolve() : load(MODELS[k].file).then(() => fitted[k] ? undefined : new Promise(res => { (fitWaiters[k] = fitWaiters[k] || []).push(res); })),
     keyScope(el) { keyScope = el; }, setView, turn, pick, toggleGyro, enterVR, vrSupported, start, stop,
     views: Object.entries(VIEWS).map(([k, v]) => [k, v.label]),

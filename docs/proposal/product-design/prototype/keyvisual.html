@@ -8,13 +8,13 @@
 <link rel="icon" href="../logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700&family=Noto+Sans+TC:wght@500;700&display=swap">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
 <!-- Key-visual studio: renders the prototype's three.js living room as cinematic stills.
      Open with ?shot=opener|cover|share|style-0…style-5 at the target viewport size (see SHOTS below).
      The page sets window.__ready once the frame is drawn, so a headless browser can screenshot it. -->
 <style>
-  :root{--ink:#29251f;--surface:#fbf8f2;--accent:#a2562d;--glow:#ffd98a;--font:"Manrope","PingFang TC","Noto Sans TC",sans-serif;--serif:"Songti TC","Noto Serif TC","PMingLiU",serif}
+  :root{--ink:#29251f;--surface:#fbf8f2;--accent:#a2562d;--glow:#ffd98a;--font:"Manrope","PingFang TC","Noto Sans TC",sans-serif;--display:"Manrope","PingFang TC","Noto Sans TC",-apple-system,BlinkMacSystemFont,sans-serif}
   *{box-sizing:border-box;margin:0}
   html,body{height:100%;background:#14110e;overflow:hidden}
   .frame{position:fixed;inset:0;color:var(--surface);font-family:var(--font)}
@@ -26,11 +26,11 @@
   .scrim{position:absolute;pointer-events:none}
   .type{position:absolute;display:grid;gap:.5em}
   .type.ink{color:var(--ink)}
-  .type h1{font-family:var(--serif);font-weight:700;letter-spacing:-.02em;line-height:1.05}
+  .type h1{font-family:var(--display);font-weight:700;letter-spacing:-.02em;line-height:1.05}
   .type p{font-weight:500;opacity:.92;line-height:1.5;text-wrap:balance}
   .type .meta{font-size:.8em;opacity:.7}
   .logo{width:1.4em;height:1.4em}
-  .brand{display:flex;align-items:center;gap:.4em;font-family:var(--serif);font-weight:700}
+  .brand{display:flex;align-items:center;gap:.4em;font-family:var(--display);font-weight:700}
 </style>
 </head>
 <body>

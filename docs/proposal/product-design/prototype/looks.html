@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>風格搭配圖譜</title>
+<link rel="icon" href="../logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700&family=Noto+Sans+TC:wght@500;700&display=swap">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
+<!-- Atlas of the curated looks the viewing step draws from: a taste map, then every look rendered by the
+     prototype's three.js room. Sets window.__ready when every shot is in, for headless export. -->
+<style>
+  :root{--ink:#29251f;--muted:#6f675c;--line:#ece6dc;--paper:#ffffff;--wash:#f7f3ec;--accent:#a2562d;
+    --font:"Manrope","PingFang TC","Noto Sans TC",sans-serif;--display:"Manrope","PingFang TC","Noto Sans TC",-apple-system,BlinkMacSystemFont,sans-serif}
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased}
+  main{max-width:1320px;margin:0 auto;padding:56px 32px 96px}
+  header{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:48px;align-items:end;margin-bottom:56px}
+  h1{font-family:var(--display);font-size:clamp(34px,5vw,60px);line-height:1.05;letter-spacing:-.02em}
+  .lede{margin-top:16px;color:var(--muted);line-height:1.65;max-width:34em}
+  .count{display:flex;gap:28px;margin-top:28px}
+  .count b{display:block;font-family:var(--display);font-size:34px;line-height:1}
+  .count span{font-size:13px;color:var(--muted)}
+  .map{background:var(--wash);border-radius:20px;padding:20px}
+  .map svg{display:block;width:100%;height:auto}
+  .map text{font-family:var(--font)}
+  .map figcaption{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5}
+  section.style{display:grid;grid-template-columns:200px minmax(0,1fr);gap:28px;padding:32px 0;border-top:1px solid var(--line)}
+  .style h2{font-family:var(--display);font-size:26px;line-height:1.1;display:flex;align-items:center;gap:10px}
+  .style h2 i{width:10px;height:10px;border-radius:50%;flex:none}
+  .style .note{margin-top:10px;font-size:13px;line-height:1.6;color:var(--muted)}
+  .looks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+  figure.look{display:grid;gap:10px}
+  .shot{aspect-ratio:4/3;border-radius:14px;overflow:hidden;background:var(--wash)}
+  .shot img{width:100%;height:100%;object-fit:cover;display:block}
+  .look figcaption{display:grid;gap:6px}
+  .look b{font-size:15px;font-weight:700}
+  .look b small{font-weight:500;color:var(--muted);font-size:12px;margin-left:6px}
+  .chips{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--muted)}
+  .chips span{display:inline-flex;align-items:center;gap:5px}
+  .chips i{width:9px;height:9px;border-radius:50%;box-shadow:inset 0 0 0 1px #0000001a}
+  footer{margin-top:48px;font-size:12px;color:var(--muted);line-height:1.6}
+  @media (max-width:900px){
+    main{padding:32px 16px 64px}
+    header{grid-template-columns:1fr;gap:28px}
+    section.style{grid-template-columns:1fr;gap:16px}
+    .looks{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>風格搭配圖譜</h1>
+      <p class="lede">看屋階段的每一張選擇圖，都是一組事先搭好的客廳：同一風格裡挑過地板、牆色、沙發、地毯、窗簾、燈具和光線，彼此相容、不撞色。每種風格四組，兩兩比較時永遠是不同風格。</p>
+      <div class="count" id="count"></div>
+    </div>
+    <figure class="map"><svg id="map" viewBox="0 0 640 400" role="img" aria-labelledby="map-title"><title id="map-title">五十六組搭配在溫度與裝飾兩個維度上的分佈</title></svg>
+      <figcaption>每個點是一組搭配，位置來自它的材質與顏色：越右越暖、越上越豐富。點越大越明亮。</figcaption></figure>
+  </header>
+  <div id="atlas"></div>
+  <footer>畫面由 prototype 的 three.js 客廳即時算繪；家具為免費授權模型，材質來自 Poly Haven（出處見 models/CREDITS.md）。搭配清單在 catalog.js 的 LOOKS。</footer>
+</main>
+<script src="catalog.js"></script>
+<script type="module">
+import { createRoom } from './room3d.js';
+const { STYLES, PARTS, LOOKS, LOOK_CAMS, MODELS, lookX } = window.HB_CATALOG;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const names = Object.keys(STYLES);
+// One colour per style, picked by hand so neighbours on the map stay distinguishable on white.
+const HUES = ['#b5633a', '#c49a1c', '#8c3b2e', '#4f555c', '#5f8ea3', '#9a5fb5', '#c27c2c', '#d0788f', '#3f7f5f', '#8a7a62', '#a8452d', '#d4569a', '#2f6fa5', '#3b3a6b'];
+const hue = n => HUES[names.indexOf(n)];
+const LIGHT = { day: '日光', golden: '黃昏', dusk: '夜燈' };
+
+document.getElementById('count').innerHTML = [[LOOKS.length, '組搭配'], [names.length, '種風格'], [PARTS.length, '個元素']].map(([n, l]) => `<div><b>${n}</b><span>${l}</span></div>`).join('');
+
+// Taste map: warmth on x, ornament on y, brightness as dot size.
+{
+  const X = LOOKS.map(lookX), W = 640, H = 400, P = 44;
+  const sx = v => P + (v + 1) / 2 * (W - 2 * P), sy = v => H - P - (v + 1) / 2 * (H - 2 * P);
+  let g = `<g stroke="#d9d1c4" stroke-width="1"><line x1="${sx(0)}" y1="${P / 2}" x2="${sx(0)}" y2="${H - P / 2}"/><line x1="${P / 2}" y1="${sy(0)}" x2="${W - P / 2}" y2="${sy(0)}"/></g>`;
+  g += `<g font-size="12" fill="#6f675c"><text x="${P / 2}" y="${sy(0) - 8}">冷調</text><text x="${W - P / 2}" y="${sy(0) - 8}" text-anchor="end">暖調</text><text x="${sx(0) + 8}" y="${P / 2 + 4}">豐富</text><text x="${sx(0) + 8}" y="${H - P / 2}">極簡</text></g>`;
+  LOOKS.forEach((lk, i) => { const x = X[i]; g += `<circle cx="${sx(x[0]).toFixed(1)}" cy="${sy(x[1]).toFixed(1)}" r="${(4.5 + (x[2] + 1) * 2.2).toFixed(1)}" fill="${hue(lk.style)}" fill-opacity=".78" stroke="#fff" stroke-width="1.5"><title>${esc(lk.style + '・' + lk.name)}</title></circle>`; });
+  // Style label at the centre of its four looks.
+  names.forEach(n => { const pts = LOOKS.map((lk, i) => lk.style === n ? X[i] : null).filter(Boolean), cx = pts.reduce((a, x) => a + x[0], 0) / pts.length, cy = pts.reduce((a, x) => a + x[1], 0) / pts.length;
+    g += `<text x="${sx(cx).toFixed(1)}" y="${(sy(cy) - 12).toFixed(1)}" text-anchor="middle" font-size="12.5" font-weight="700" fill="${hue(n)}" stroke="#f7f3ec" stroke-width="4" paint-order="stroke">${esc(n)}</text>`; });
+  document.getElementById('map').insertAdjacentHTML('beforeend', g);
+}
+
+const partsOf = lk => Object.fromEntries(PARTS.map(p => [p.k, p.list[lk[p.k]]]));
+document.getElementById('atlas').innerHTML = names.map(n => `<section class="style" aria-labelledby="h-${names.indexOf(n)}">
+  <div><h2 id="h-${names.indexOf(n)}"><i style="background:${hue(n)}"></i>${esc(n)}</h2><p class="note">${esc(STYLES[n].note || '')}</p></div>
+  <div class="looks">${LOOKS.map((lk, i) => lk.style !== n ? '' : `<figure class="look"><div class="shot" id="shot-${i}"></div>
+    <figcaption><b>${esc(lk.name)}<small>${LIGHT[lk.light]}</small></b>
+    <div class="chips">${PARTS.map(p => { const o = p.list[lk[p.k]]; return `<span><i style="background:${o.c}"></i>${esc(o.n)}</span>`; }).join('')}</div></figcaption></figure>`).join('')}</div></section>`).join('');
+
+const room = await createRoom({ shadowSize: 1024 });
+room.canvas.style.cssText = 'position:fixed;left:-9999px;top:0;width:720px;height:540px';
+document.body.append(room.canvas);
+for (const [i, lk] of LOOKS.entries()) {
+  const parts = partsOf(lk), style = STYLES[lk.style];
+  const need = [parts.sofa.m, parts.lamp.m, ...Object.values(style.furn || {})].filter(k => k && MODELS[k]);
+  const spec = { parts, style, light: lk.light, ...LOOK_CAMS[i % 3], w: 960, h: 720 };
+  // A model is fitted only once a snapshot has placed it, so shoot, wait for the stragglers, then shoot again.
+  let url = room.snapshot(spec);
+  const missing = need.filter(k => !room.modelReady(k));
+  if (missing.length || room.texturesLoading) { await Promise.all([...missing.map(k => room.whenModel(k)), room.texturesReady()]); url = room.snapshot(spec); }
+  document.getElementById('shot-' + i).innerHTML = `<img src="${url}" alt="${esc(lk.style + '・' + lk.name)}" width="960" height="720">`;
+  await new Promise(r => setTimeout(r, 0));
+}
+window.__ready = true;
+</script>
+</body>
+</html>
