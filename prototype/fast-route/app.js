@@ -1,6 +1,6 @@
 // UI for the 快速找風格 prototype: 滑卡（Pinterest 靈感圖）→ 3D 成品 → 估價與施工圖.
 // Decision logic lives in ./lib (pure, unit-tested); this file owns state, rendering and browser APIs.
-import { STYLES, SWIPE_ORDER, REASONS, emptyScores, applySwipe, undoSwipe, pickStyle, topStyles } from './lib/taste.js';
+import { STYLES, REASONS, emptyScores, applySwipe, undoSwipe, pickStyle, topStyles } from './lib/taste.js';
 import { designEstimate, resolvePing } from './lib/estimate.js';
 import { STATES, CERTAINTY, CHECKED, LAWS, lawUrl, ruleFindings, regSummary } from './lib/rules.js';
 import { AGES, parseHome } from './lib/intake.js';
@@ -12,7 +12,7 @@ import { contextScore, pingFromDims, tighten, aboutThisHome, missingForHome, fie
 import { GREETING, swipeReply, nextQuestion, designNotes, editReply, parseEdit } from './lib/voice.js';
 import { summaryText } from './lib/summary.js';
 import { roomsFromPlan, PLAN_ERRORS, MAX_EDGE, MAX_BYTES } from './lib/plan.js';
-import { templateRooms, kindOf, roomPing, homeTitle, planSVG, homeEstimate } from './lib/home.js';
+import { templateRooms, KINDS as ROOM_KINDS, kindOf, roomPing, homeTitle, planSVG, homeEstimate } from './lib/home.js';
 import { KEY, serialize, restore, toShare, fromShare } from './lib/persist.js';
 import { KINDS, ACCEPT, MAX_FILES, MAX_MB, guessKind, rejectReason, summarize } from './lib/docs.js';
 
@@ -36,9 +36,6 @@ const EDITS = [
   ['地毯拿掉', (l) => ({ ...l, rug: null })],
   ['地板換深色', (l) => ({ ...l, floor: '#6b4a32', floorType: 'wood', floorTex: 'wood_floor' })],
 ];
-// 空間範圍：先做客廳與臥室，其餘先列出來讓人知道會有
-// 每一種空間都做得出設計；「全室」請丟平面圖走整戶流程
-const SPACE_OPTIONS = [['客廳', true], ['臥室', true], ['餐廳', true], ['書房', true], ['廚房', true], ['衛浴', true], ['全室', false]];
 const VIEW_NAMES = { A: '斜角', B: '正面', C: '側面' };
 // 紅筆只給「需辦理」；其餘狀態用墨線與鉛筆色
 const STATE_COLOR = { ok: '#1e2428', conflict: '#d2402e', missing: '#6f797e', review: '#6f797e', action: '#d2402e', na: '#6f797e' };
@@ -100,17 +97,25 @@ function enterRoom(id) {
 const estimateRoom = (r) => { const cond = { ...S.cond, space: kindOf(r.name), len: r.len, wid: r.wid, ping: String(roomPing(r) ?? '') }; return tighten(designEstimate(cond, lookWith(r.edits, styleOf(r))), contextScore(cond, {}).score); };
 const homeNow = () => { keepEdits(); return homeEstimate(S.home.rooms, estimateRoom); };
 const roomLabel = () => (multi() ? curRoom()?.name ?? S.cond.space : S.cond.space);
-// 舞台上現在該是哪個設計：還沒定風格時，用滑卡目前領先的那一種（開場則是訪客點的色票）
-const stageLook = () => (S.cond.style && S.versions.length ? look() : STYLES[S.swiped || !S.tryStyle ? pickStyle(S.scores) : S.tryStyle]);
+// 舞台上現在該是哪個設計：還沒定風格時，用滑卡目前領先的那一種
+const stageLook = () => (S.cond.style && S.versions.length ? look() : STYLES[pickStyle(S.scores)]);
 function syncStage() {
   const c = S.cond, cur = stageLook(), est = tighten(designEstimate(c, cur), knowledge().score), size = { ...roomSize(c, est.ping), space: c.space };
   // 整戶時，舞台在「看整個家」的畫面改放示意平面圖；3D 留在底下不卸載
-  const planMode = S.started && multi() && (S.step !== 3 || S.tab === 'all');
-  const plan = $('#plan'); plan.hidden = !planMode;
+  const introMode = !S.started;
+  const planMode = introMode || (multi() && (S.step !== 3 || S.tab === 'all'));
+  const plan = $('#plan');
+  plan.hidden = !planMode;
+  plan.classList.toggle('sample-plan', introMode);
+  sceneEl.setAttribute('aria-hidden', String(planMode));
   const pickRoom = (e) => { const g = e.target.closest('[data-room]'); if (!g || (e.type === 'keydown' && e.key !== 'Enter')) return; if (S.step < 3 && !S.cond.style) return; enterRoom(g.dataset.room); go(3); };
-  if (planMode) { plan.replaceChildren(fromHTML(planSVG(S.home.rooms, S.step === 3 && S.tab === 'room' ? S.room : null)), h('p', { class: 'note' }, '示意平面圖：只表示有哪些房間和大概的大小，不是你家的實際格局。')); plan.onclick = pickRoom; plan.onkeydown = pickRoom; }
-  const where = $('#where2'); where.hidden = !planMode; if (planMode) where.textContent = `你家・${homeTitle(S.home.rooms)}`;
-  $('#hint').hidden = planMode;
+  if (planMode) {
+    const rooms = introMode ? templateRooms() : S.home.rooms;
+    plan.replaceChildren(fromHTML(planSVG(rooms, null, !introMode)),
+      h('p', { class: 'note' }, introMode ? '整戶示意・三房兩廳範例' : '示意平面圖：只表示有哪些房間和大概的大小，不是你家的實際格局。'));
+  }
+  plan.onclick = plan.onkeydown = introMode ? null : pickRoom;
+  const where = $('#where2'); where.hidden = !planMode || introMode; if (!where.hidden) where.textContent = `你家・${homeTitle(S.home.rooms)}`;
   // 房間列與小平面圖：只在一間一間看設計時出現
   const tabs = $('#roomtabs'); tabs.hidden = !(multi() && S.step === 3);
   if (!tabs.hidden) tabs.replaceChildren(h('button', { 'aria-pressed': String(S.tab === 'all'), onclick: () => { keepEdits(); S.tab = 'all'; render(); } }, '整戶'),
@@ -119,32 +124,31 @@ function syncStage() {
   if (!mini.hidden) { mini.replaceChildren(fromHTML(planSVG(S.home.rooms, S.room)), h('small', {}, '點平面圖換房間')); mini.onclick = pickRoom; }
   // 金額卡：常駐；整戶是合計，還沒挑風格就先不給數字
   const whole = multi() && (S.step === 4 || (S.step === 3 && S.tab === 'all')), home = whole ? homeNow() : null;
-  $('#pricekind').textContent = multi() && S.step < 3 ? '挑完風格就有估算' : whole ? '整戶・範例估算' : !S.started ? '範例估算' : est.assumedPing || !c.ageSet ? '範例估算' : '初步估算';
-  if (multi() && S.step < 3) rollPrice(null); else if (whole) rollPrice(home.low, home.high); else rollPrice(est.low, est.high);
+  $('.pricecard').hidden = introMode;
+  if (!introMode) $('#pricekind').textContent = multi() && S.step < 3 ? '挑完風格就有估算' : whole ? '整戶・範例估算' : est.assumedPing || !c.ageSet ? '範例估算' : '初步估算';
+  if (introMode || (multi() && S.step < 3)) rollPrice(null); else if (whole) rollPrice(home.low, home.high); else rollPrice(est.low, est.high);
   // 尺寸卡
   const dims = $('#dims'); dims.hidden = planMode;
-  dims.replaceChildren(h('small', {}, `${S.started ? `你家${roomLabel()}` : '範例客廳'}・${est.assumedPing ? '約 ' : ''}${est.ping} 坪`), h('b', {}, `${Math.round(size.w * 10) / 10} × ${Math.round(size.d * 10) / 10} 公尺`));
-  // 開場可以先玩：點色票，房間整個換風格
-  const sw = $('#swatches'); sw.hidden = S.started;
-  if (!S.started) sw.replaceChildren(...SWIPE_ORDER.map((k) => h('button', { class: 'swatch', 'aria-label': STYLES[k].name, title: STYLES[k].name, 'aria-pressed': String(STYLES[k] === cur),
-    onclick: () => { S.tryStyle = k; syncStage(); } }, h('i', { style: `background:${STYLES[k].wall}` }), h('i', { style: `background:${STYLES[k].floor}` }))));
+  if (!planMode) dims.replaceChildren(h('small', {}, `你家${roomLabel()}・${est.assumedPing ? '約 ' : ''}${est.ping} 坪`), h('b', {}, `${Math.round(size.w * 10) / 10} × ${Math.round(size.d * 10) / 10} 公尺`));
   // 視角：看單一房間的 3D 時才有用
   updateSceneControls();
   const views = $('#views');
   views.replaceChildren(...Object.entries(VIEW_NAMES).map(([v, label]) => h('button', { 'aria-pressed': String(S.view === v), 'aria-label': `視角 ${v}：${label}`, 'data-view': v,
     onclick: () => { S.view = v; live?.setView(v); views.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === v))); save(); } }, label)));
+  if (planMode) return;
   const key = JSON.stringify([cur, size]);
   if (key === stageKey) return;
-  const first = !stageKey; stageKey = key;
+  stageKey = key;
   if (stageFailed) return flatStage(cur);
   if (live) return live.update(cur, size);
-  if (first) mountStage();
+  mountStage();
 }
 
 function updateSceneControls() {
   const planMode = !$('#plan').hidden;
   $('#views').hidden = $('#zoom').hidden = S.step !== 3 || planMode || !live;
   $('#retry3d').hidden = planMode || !stageFailed;
+  $('#scene-status').hidden = planMode;
   $('#hint').hidden = planMode || (S.step === 3 && !!live);
 }
 
@@ -409,14 +413,22 @@ function intro() {
   app.append(h('div', { class: 'intro' },
     h('p', { class: 'eyebrow' }, 'AI 室內設計師・亮亮'),
     h('h1', {}, '先從你家的空間開始，', h('br'), '看看生活的樣子。'),
-    h('p', { class: 'lead', id: 'greeting' }, '上傳平面圖確認房間，或先從一間房開始。接著看 3D 提案與預算區間。'),
+    h('p', { class: 'lead', id: 'greeting' }, '整戶規劃或單一空間都能開始。挑好風格後，看 3D 提案與預算區間。'),
     file, zone,
     S.docError ? h('p', { class: 'err', role: 'alert' }, S.docError) : null,
     replacingPlan ? h('button', { class: 'soft', onclick: () => { S.docError = ''; go(1); } }, '返回原房間清單') : null,
-    h('p', { class: 'or' }, '還沒有平面圖？先挑一個空間試試'),
+    !replacingPlan ? h('button', { class: 'soft', id: 'start-whole-home', disabled: S.reading, onclick: () => {
+      const rooms = templateRooms();
+      S.home = { rooms, style: null };
+      S.room = rooms[0].id;
+      S.cond.space = kindOf(rooms[0].name);
+      S.started = true;
+      go(1);
+    } }, '沒有平面圖，先規劃整戶') : null,
+    h('p', { class: 'or' }, '只想設計一個空間？'),
     h('div', { class: 'chips', role: 'group', 'aria-label': '先挑一個空間', id: 'where', style: 'justify-content:center' },
-      ...['客廳', '臥室', '廚房', '衛浴', '書房'].map((name) => h('button', { class: 'chip', disabled: S.reading, onclick: () => { cancelPlanSelection(); pick(name); } }, name)))),
-    h('div', { class: 'how' }, ...[['1', '丟平面圖', '確認有哪些房間'], ['2', '滑卡挑風格', '整個家一起套用'], ['3', '看設計與花費', '一間一間看，整戶加總']].map(([n, t, d]) => h('div', {}, h('i', {}, n), h('b', {}, t), h('span', {}, d)))));
+      ...ROOM_KINDS.map((name) => h('button', { class: 'chip', disabled: S.reading, onclick: () => { cancelPlanSelection(); pick(name); } }, name)))),
+    h('div', { class: 'how' }, ...[['1', '選規劃範圍', '整戶或單一空間'], ['2', '滑卡挑風格', '選你喜歡的設計'], ['3', '看設計與花費', '查看 3D 和預算區間']].map(([n, t, d]) => h('div', {}, h('i', {}, n), h('b', {}, t), h('span', {}, d)))));
 }
 
 /* ---- 1 你家（整戶）：確認有哪些房間 ---- */
@@ -580,8 +592,7 @@ function sizeScreen() {
     const got = parseHome(S.said);
     S.heard = Object.entries(got).sort(([a], [b]) => (b === 'space') - (a === 'space')).map(([key, v]) => `${LABEL[key][0]} ${key === 'partition' ? (v === 'yes' ? '會動' : '不動') : key === 'sprinkler' ? (v === 'yes' ? '有' : '沒有') : key === 'housing' ? '透天' : v}${LABEL[key][1] ? ' ' + LABEL[key][1] : ''}`);
     const space = got.space; delete got.space;
-    const ready = SPACE_OPTIONS.find(([name]) => name === space)?.[1];
-    if (space && ready && space !== c.space) { c.space = space; S.generated = false; }
+    if (ROOM_KINDS.includes(space) && space !== c.space) { c.space = space; S.generated = false; }
     for (const key of NUMERIC) if (key in got) setField(key, got[key]);
     if (got.age) { c.age = got.age; c.ageSet = true; }
     if (got.partition) c.partition = got.partition;

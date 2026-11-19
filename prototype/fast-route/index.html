@@ -69,6 +69,9 @@ header{position:sticky;top:0;z-index:10;height:var(--head);background:var(--surf
 .plan{position:absolute;inset:0;z-index:1;background:var(--stage);display:grid;place-items:center;padding:70px 40px 110px}
 .plan svg{width:min(100%,720px);height:auto;max-height:100%;background:#fffdf9;border-radius:6px;box-shadow:0 18px 40px rgba(41,37,31,.14)}
 .plan p{position:absolute;left:0;right:0;bottom:118px;text-align:center}
+.plan.sample-plan{grid-template-rows:minmax(0,1fr) auto;gap:12px;padding:clamp(16px,4vw,54px)}
+.plan.sample-plan svg{height:100%;background:none;border-radius:0;box-shadow:none}
+.plan.sample-plan p{position:static;margin:0}
 .float{position:absolute;z-index:2;background:var(--surface);border-radius:999px;box-shadow:0 4px 14px rgba(41,37,31,.08)}
 .hint{right:24px;top:24px;font-size:13px;color:var(--muted);padding:8px 14px;pointer-events:none}
 .seg{left:24px;top:24px;display:flex;gap:2px;padding:4px}
@@ -80,9 +83,6 @@ header{position:sticky;top:0;z-index:10;height:var(--head);background:var(--surf
 .pricecard{position:absolute;z-index:2;right:24px;bottom:24px;background:var(--ink);color:#fff;border-radius:16px;padding:12px 16px 10px;box-shadow:0 10px 26px rgba(41,37,31,.28);display:grid;justify-items:end;line-height:1.15;min-width:150px}
 .pricecard small{font-size:12px;color:#d8cfc2}.pricecard b{font-family:var(--serif);font-weight:900;font-size:40px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .pricecard b.flash{color:var(--glow)}
-.swatches{position:absolute;z-index:2;left:50%;bottom:24px;transform:translateX(-50%);display:flex;gap:6px;padding:6px;background:var(--surface);border-radius:999px;box-shadow:0 4px 14px rgba(41,37,31,.08)}
-.swatch{width:36px;height:36px;border-radius:50%;overflow:hidden;display:grid;grid-template-rows:1fr 1fr;padding:0;border:2px solid transparent}
-.swatch i{display:block}.swatch[aria-pressed="true"]{border-color:var(--accent)}
 .minimap{position:absolute;z-index:2;right:24px;top:76px;width:236px;background:var(--surface);border-radius:16px;padding:12px 12px 8px;box-shadow:0 4px 14px rgba(41,37,31,.08);display:grid;gap:6px}
 .minimap svg{width:100%;height:auto}.minimap small{font-size:12px;color:var(--muted);text-align:center}
 
@@ -263,7 +263,6 @@ dialog.viewer{max-width:min(96vw,1100px);width:100%}dialog.viewer svg{width:100%
   .hint{right:12px;top:12px;padding:6px 10px;font-size:12px}.seg{left:12px;top:12px}.seg button{height:32px;padding:0 10px;font-size:13px}.where{left:12px;top:12px;font-size:13px;padding:7px 12px}
   .sizecard{left:12px;bottom:32px;padding:8px 12px}.sizecard b{font-size:15px}
   .pricecard{right:12px;bottom:32px;padding:10px 12px 8px;min-width:0}.pricecard b{font-size:28px}
-  .swatches{bottom:auto;top:52px;left:12px;transform:none;padding:4px}.swatch{width:30px;height:30px}
   .minimap{display:none}
   .side{position:relative;z-index:2;margin-top:-22px;border-radius:24px 24px 0 0;min-height:calc(100dvh - var(--head) - 288px)}
   main{overflow:visible;padding:24px 20px calc(110px + env(safe-area-inset-bottom));gap:14px}
@@ -287,7 +286,6 @@ dialog.viewer{max-width:min(96vw,1100px);width:100%}dialog.viewer svg{width:100%
 .scene-status{position:absolute;z-index:2;top:12px;left:50%;transform:translateX(-50%);max-width:90%;background:var(--surface);padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;pointer-events:none}
 .scene-status:empty{opacity:0}
 .scene-retry{top:68px;left:50%;transform:translateX(-50%);min-height:44px;padding:0 14px;color:var(--ink)}
-.scenewrap:has(.swatches:not([hidden])) .scene-retry{top:126px}
 #zoom{left:auto;right:12px}
 #zoom button[aria-disabled=true],.scene-retry[aria-disabled=true]{opacity:.6}
 .cost-details summary{min-height:44px;align-content:center;cursor:pointer;font-weight:700}
@@ -307,8 +305,7 @@ main{padding:clamp(24px,3.2vw,50px);scroll-padding:16px}
 .btn,.soft,.field input,.ask input{border-radius:10px}
 .chip,.seg button{border-radius:9px;min-height:44px}
 .roomtabs button,.stepper button,.docs .rm,.mini{min-height:44px;min-width:44px}
-.seg button,.swatch{min-width:44px;min-height:44px}
-.swatches{max-width:calc(100% - 24px)}
+.seg button{min-width:44px;min-height:44px}
 .intro h1{font-size:clamp(32px,4vw,52px);letter-spacing:-.025em;text-wrap:balance}
 .cardbox,.drop,.upload,.meter{border-radius:12px}
 .cardbox{border:1px solid var(--line)}
@@ -332,8 +329,6 @@ main h1:focus{outline:none}
   #steps button::before{top:auto;bottom:2px}
   #steps .t{position:static;width:auto;height:auto;clip:auto}
   #steps .n{display:none}
-  .swatches{top:8px;left:50%;transform:translateX(-50%);max-width:calc(100% - 8px);gap:0}
-  .scenewrap:has(.swatches:not([hidden])) .scene-status{top:68px}
   .hint{display:none}
   /* OrbitControls sets touch-action inline on the canvas. Leave vertical swipes to the page on mobile. */
   .scene:not(.flat),.scene canvas{touch-action:pan-y pinch-zoom!important}
@@ -363,7 +358,6 @@ main h1:focus{outline:none}
       <span class="float where" id="where2" hidden></span>
       <div class="minimap" id="minimap" hidden></div>
       <div class="sizecard" id="dims"></div>
-      <div class="swatches" id="swatches" role="group" aria-label="先試試風格" hidden></div>
       <div class="pricecard"><small id="pricekind">範例估算</small><b id="teaser"></b></div>
     </div>
   </section>

@@ -51,25 +51,29 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   // A new browser context already has empty storage. Avoid aborting the first module load.
   await page.goto(base);
 
-  // ① 開場：丟平面圖就開始；房間從第一秒就在舞台上，同一個 canvas 一路用到最後
+  // ① 開場：先展示整戶範例，再讓使用者決定從哪裡開始。
   await page.getByRole('heading', { name: /先從你家的空間開始/ }).waitFor();
-  await ready(page);
-  await page.evaluate(() => { window.__canvas = document.querySelector('#scene canvas'); });
-  assert.match(await page.locator('#pricekind').innerText(), /範例估算/);
-  const sample = await page.locator('#teaser').innerText();
-  assert.match(sample, /^\d+–\d+ 萬$/);
-  assert.match(await page.locator('#dims').innerText(), /範例客廳・約 8 坪\s*5\.6 × 4\.7 公尺/);
-  await page.locator('#swatches').getByRole('button', { name: '深色現代' }).click();   // 還沒選空間就能玩：點色票，房間與金額都變
-  await page.waitForFunction((t) => document.querySelector('#teaser').textContent !== t, sample);
-  await page.locator('#swatches').getByRole('button', { name: '溫暖木質' }).click();
+  await page.getByRole('img', { name: /整戶示意平面圖/ }).waitFor();
+  assert.match(await page.locator('#plan').innerText(), /整戶示意・三房兩廳範例/);
+  assert.equal(await page.locator('#plan [tabindex]').count(), 0, 'the sample diagram has no inactive controls');
+  assert.equal(await page.locator('.pricecard').isVisible(), false, 'intake starts without a single-room price');
+  assert.equal(await page.locator('#scene canvas').count(), 0, '3D waits until a room is selected');
   assert.deepEqual(await page.locator('#steps .t').allTextContents(), ['需求', '3D 提案', '預算']);
-  assert.deepEqual(await page.locator('#where button:not(:disabled)').allTextContents(), ['客廳', '臥室', '廚房', '衛浴', '書房'], 'every space can be picked; nothing is held back');
+  assert.deepEqual(await page.locator('#where button:not(:disabled)').allTextContents(), ['客廳', '臥室', '餐廳', '廚房', '衛浴', '書房'], 'every space can be picked; nothing is held back');
   if (name === 'desktop') await onStage('1', '#upload');
   await snap('1-intro'); await noOverflow('1');
+  await page.getByRole('button', { name: '沒有平面圖，先規劃整戶' }).click();
+  await page.getByRole('heading', { name: '你家有這些房間，對嗎？' }).waitFor();
+  assert.equal(await page.getByRole('checkbox', { name: '做主臥' }).isChecked(), true);
+  assert.equal(await page.getByRole('checkbox', { name: '做餐廳' }).isChecked(), true);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
 
   // 還沒有平面圖：先挑一個空間。一個畫面只問一件事
   await page.locator('#where').getByRole('button', { name: '客廳' }).click();
   await page.getByRole('heading', { name: '你家客廳大概多大？' }).waitFor();
+  await ready(page);
+  await page.evaluate(() => { window.__canvas = document.querySelector('#scene canvas'); });
   assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'H1', 'room selection moves keyboard focus to the new heading');
   assert.match(await page.locator('#score').innerText(), /基本資料完整度 0%/);
   await onStage('1 size', '#generate');
@@ -273,7 +277,6 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, ...quiet });
   const page = await open(context, 'home');
   await page.goto(base);
-  await ready(page);
   // 讀圖的服務在測試裡用假的：第一次讀不出來（退回範本並說原因），換一張圖後讀成功
   const READ = [['客廳', '5.6', '4.7'], ['餐廳', '3.4', '3.0'], ['廚房', '3.4', '2.4', true], ['主臥', '4.3', '3.9'], ['次臥 1', '3.2', '3.0'], ['次臥 2', '3.6', '3.0', true], ['主衛', '2.4', '2.0'], ['客衛', '2.2', '2.0']];
   let calls = 0, sent = null;
@@ -435,7 +438,7 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
       assert.deepEqual(await page.locator('#plan [data-room]').allTextContents(), originalRooms);
     } else {
       await page.getByRole('heading', { name: /先從你家的空間開始/ }).waitFor();
-      assert.equal(await page.locator('#plan').isVisible(), false);
+      await page.getByRole('img', { name: /整戶示意平面圖/ }).waitFor();
     }
   }
   await context.close();
@@ -446,8 +449,8 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   const page = await open(context, 'no-webgl');
   await page.addInitScript(() => { const get = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (type, ...a) { return /webgl/.test(type) ? null : get.call(this, type, ...a); }; });
   await page.goto(base);
-  await page.getByText('2D 示意圖（這台裝置無法顯示 3D）').waitFor({ timeout: 30000 });
   await page.locator('#where').getByRole('button', { name: '客廳' }).click();
+  await page.getByText('2D 示意圖（這台裝置無法顯示 3D）').waitFor({ timeout: 30000 });
   await page.locator('#generate').click();
   await page.locator('#skip').click();
   await page.getByRole('heading', { name: '客廳・溫暖木質' }).waitFor();
@@ -467,8 +470,8 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   let failedSubmodule = 0;
   await page.route('**/lib/render-scheduler.js', route => { failedSubmodule += 1; return route.abort(); }, { times: 1 });
   await page.goto(base);
-  await page.getByText('3D 無法顯示，目前使用 2D 示意圖。').waitFor();
   await page.locator('#where').getByRole('button', { name: '客廳' }).tap();
+  await page.getByText('3D 無法顯示，目前使用 2D 示意圖。').waitFor();
   await page.locator('#say').fill('長五米六、寬四米七');
   await page.locator('#say').press('Enter');
   await page.locator('#generate').tap();
@@ -516,6 +519,7 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
     ` });
   });
   await page.goto(base);
+  await page.locator('#where').getByRole('button', { name: '客廳' }).click();
   await page.waitForFunction(() => window.rejectAssets?.length === 1);
   await page.locator('#scene canvas').evaluate(canvas => canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true })));
   await page.getByRole('button', { name: '重試 3D' }).click();

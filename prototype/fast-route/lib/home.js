@@ -23,9 +23,10 @@ export const homeTitle = (rooms) => {
 /**
  * 示意平面圖：把房間依面積排成兩排的方塊。只表示「有哪些房間、大概多大」，不是實際格局。
  * @param {{id:string,name:string,len:string,wid:string,on:boolean}[]} rooms @param {string|null} current 目前在看的房間
- * @returns {string} SVG；每個房間是一個帶 data-room 的 <g>，可以點
+ * @param {boolean} interactive 房間是否為可操作的控制項
+ * @returns {string} SVG
  */
-export function planSVG(rooms, current = null) {
+export function planSVG(rooms, current = null, interactive = true) {
   const W = 600, H = 420, pad = 10, list = rooms.filter((r) => r.on).map((r) => ({ r, a: Math.max(1, (Number(r.len) || 3) * (Number(r.wid) || 3)) }));
   if (!list.length) return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="還沒有房間"></svg>`;
   const total = list.reduce((a, x) => a + x.a, 0);
@@ -37,7 +38,8 @@ export function planSVG(rooms, current = null) {
     const ra = row.reduce((a, x) => a + x.a, 0), hgt = (H - pad * 2) * (ra / total); let x = pad;
     for (const { r, a } of row) {
       const w = (W - pad * 2) * (a / ra), on = r.id === current, size = Math.max(11, Math.min(18, w / (r.name.length + 1)));
-      out.push(`<g data-room="${r.id}" tabindex="0" role="button" aria-label="${r.name}" style="cursor:pointer"><rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${hgt.toFixed(1)}" fill="${on ? '#f1dfcb' : '#fffdf9'}" stroke="#29251f" stroke-width="${on ? 4 : 2.5}"/>`
+      const controls = interactive ? ` data-room="${r.id}" tabindex="0" role="button" aria-label="${r.name}" style="cursor:pointer"` : '';
+      out.push(`<g${controls}><rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${hgt.toFixed(1)}" fill="${on ? '#f1dfcb' : '#fffdf9'}" stroke="#29251f" stroke-width="${on ? 4 : 2.5}"/>`
         + `<text x="${(x + w / 2).toFixed(1)}" y="${(y + hgt / 2 + size / 3).toFixed(1)}" text-anchor="middle" font-size="${size.toFixed(1)}" font-weight="${on ? 700 : 500}" fill="#29251f">${r.name}</text></g>`);
       x += w;
     }
