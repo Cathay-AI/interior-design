@@ -32,7 +32,8 @@ function dimH(x0, x1, y, label) {
 function dimV(y0, y1, x, label) {
   return `<g class="dim"><path d="M${x} ${y0}V${y1}M${x - 5} ${y0}h10M${x - 5} ${y1}h10M${x - 3} ${y0 + 3}l6 -6M${x - 3} ${y1 + 3}l6 -6"/>${text(x - 6, (y0 + y1) / 2, label, `text-anchor="middle" transform="rotate(-90 ${x - 6} ${(y0 + y1) / 2})"`)}</g>`;
 }
-function sheet({ no, title, scale = `1 : ${N}`, project, date }, body) {
+function sheet({ no, title, scale = `1 : ${N}`, project, date, label, demo }, body) {
+  if (label) ({ no, title } = label);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}（草稿）">
 <style>.sh{font-family:"PingFang TC","Noto Sans TC",sans-serif;fill:#1d1d1b;font-size:10px}.sh path,.sh rect,.sh circle,.sh ellipse,.sh line{fill:none;stroke:#1d1d1b;stroke-width:1}.sh .wall{fill:#1d1d1b;stroke:none}.sh .thin path,.sh .thin rect,.sh .thin circle,.sh .thin line,.sh .thin ellipse{stroke-width:.6}.sh .dash{stroke-dasharray:5 4}.sh .dim path{stroke-width:.6}.sh .dim text{font-size:9px}.sh .fill{fill:#1d1d1b}.sh .tb text{font-size:9px}.sh .big{font-size:15px;font-weight:700}.sh .hatch path{stroke-width:.35;stroke:#6b6b68}.sh .red path,.sh .red circle,.sh .red rect,.sh .red line{stroke:#b3261e}.sh .red text{fill:#b3261e}.sh .blue path,.sh .blue circle,.sh .blue rect{stroke:#1d4f91}.sh .blue text{fill:#1d4f91}</style>
 <rect width="${W}" height="${H}" fill="#fdfdfb"/>
@@ -43,21 +44,26 @@ ${body}
 ${text(W - 226, H - 85, title, 'class="big"')}
 ${text(W - 226, H - 55, '專案：' + project)}
 ${text(W - 226, H - 25, '圖號 ' + no)}${text(W - 116, H - 31, '比例 ' + scale)}${text(W - 116, H - 19, '日期 ' + date)}</g>
-${text(24, H - 22, 'AI 初稿・需現場丈量，經專業團隊確認後才是可施工的圖', 'style="font-size:9px;fill:#6b6b68"')}
+${text(24, H - 22, demo ? '示意圖面・待丈量與專業覆核' : 'AI 初稿・需現場丈量，經專業團隊確認後才是可施工的圖', 'style="font-size:9px;fill:#6b6b68"')}
 </g></svg>`;
 }
 
 /* ---------- shared plan pieces ---------- */
-function shell() {
+function shell(openKitchen = false) {
   const t = 0.12 * S, x0 = px(-ROOM.w / 2), x1 = px(ROOM.w / 2), z0 = pz(-ROOM.d / 2), z1 = pz(ROOM.d / 2);
   const wx0 = px(WINDOW.x0), wx1 = px(WINDOW.x1), door = 0.9 * S;
+  // The demo opening occupies the side of the original door and has no door swing.
+  const openingTop = openKitchen ? pz(-ROOM.d * 0.22) : z1 - 12 - door;
+  const openingBottom = openKitchen ? pz(ROOM.d * 0.38) : z1 - 12;
+  const doorSwing = openKitchen ? '' :
+    `<path d="M${x1} ${z1 - 12}h${-door}" /><path class="dash" d="M${x1 - door} ${z1 - 12}A${door} ${door} 0 0 1 ${x1} ${z1 - 12 - door}"/>`;
   return `<g>
 <rect class="wall" x="${x0 - t}" y="${z0 - t}" width="${wx0 - x0 + t}" height="${t}"/><rect class="wall" x="${wx1}" y="${z0 - t}" width="${x1 - wx1 + t}" height="${t}"/>
-<rect class="wall" x="${x0 - t}" y="${z0}" width="${t}" height="${z1 - z0 + t}"/><rect class="wall" x="${x1}" y="${z0}" width="${t}" height="${z1 - z0 - door - 12}"/>
-<rect class="wall" x="${x1}" y="${z1 - 12}" width="${t}" height="${12 + t}"/><rect class="wall" x="${x0}" y="${z1}" width="${x1 - x0}" height="${t}"/>
+<rect class="wall" x="${x0 - t}" y="${z0}" width="${t}" height="${z1 - z0 + t}"/><rect class="wall" x="${x1}" y="${z0}" width="${t}" height="${openKitchen ? openingTop - z0 : z1 - z0 - door - 12}"/>
+<rect class="wall" x="${x1}" y="${openingBottom}" width="${t}" height="${openKitchen ? z1 - openingBottom + t : 12 + t}"/><rect class="wall" x="${x0}" y="${z1}" width="${x1 - x0}" height="${t}"/>
 <g class="thin"><rect x="${wx0}" y="${z0 - t}" width="${wx1 - wx0}" height="${t}"/><path d="M${wx0} ${z0 - t / 2}H${wx1}M${(wx0 + wx1) / 2} ${z0 - t}v${t}"/>
-<path d="M${x1} ${z1 - 12}h${-door}" /><path class="dash" d="M${x1 - door} ${z1 - 12}A${door} ${door} 0 0 1 ${x1} ${z1 - 12 - door}"/></g>
-${text(x1 + t + 6, z1 - 12 - door / 2, '門（示意）', 'style="font-size:9px"')}${text(wx1 + 6, z0 - t - 4, '窗（示意）', 'style="font-size:9px"')}</g>`;
+${doorSwing}</g>
+${text(x1 + t + 6, openKitchen ? (openingTop + openingBottom) / 2 : z1 - 12 - door / 2, openKitchen ? '開放廚房示意開口' : '門（示意）', 'style="font-size:9px"')}${text(wx1 + 6, z0 - t - 4, '窗（示意）', 'style="font-size:9px"')}</g>`;
 }
 function furniture() {
   const r = (L, rx = 4) => `<rect x="${px(L.x - L.sx / 2)}" y="${pz(L.z - L.sz / 2)}" width="${(L.sx * S).toFixed(1)}" height="${(L.sz * S).toFixed(1)}" rx="${Math.min(rx, S / 12)}"/>`;
@@ -108,10 +114,10 @@ const at = (x, z, sym, cls = '') => `<g class="${cls}" transform="translate(${px
 
 const tagSym = (n) => `<circle r="7.5" style="fill:#fdfdfb"/><text text-anchor="middle" y="3.4" style="font-size:9.5px;font-weight:700">${n}</text>`;
 const tag = (n, x, z) => `<g transform="translate(${px(x)} ${pz(z)})">${tagSym(n)}</g>`;
-function planSheet(meta, dm) {
+function planSheet(meta, dm, openKitchen = false) {
   const { sofa, table, chair, sideboard, bed, anchor } = LAYOUT, back = pz(-ROOM.d / 2), fx = LAYOUT.fixtures ?? [], k = meta.kind;
   const TALL = { 臥室: '衣櫃（高櫃）', 餐廳: '餐櫃（高櫃）', 書房: '書櫃（高櫃）' }, LOW = { 臥室: '窗下斗櫃', 餐廳: '窗下備餐櫃' };
-  const MAIN = { dtable: '餐桌', desk: '書桌', counter: '流理台（水槽、爐具）', vanity: '洗手台浴櫃' }, OTHER = { fridge: '冰箱', toilet: '馬桶', shower: '淋浴間', upper: '吊櫃（虛線）' };
+  const MAIN = { dtable: '餐桌', desk: '書桌', counter: '流理台（水槽、爐具）', vanity: '洗手台浴櫃' }, OTHER = { fridge: '冰箱', toilet: '馬桶', shower: '淋浴間', upper: '吊櫃（虛線）', island: '中島（示意）' };
   // 編號標在家具裡面，名稱放圖例：不會壓到旁邊的家具或尺寸線
   const named = [...(LAYOUT.noCabinet ? [] : [[TALL[k] ?? '收納高櫃', (CABINET.x0 + CABINET.x1) / 2, -ROOM.d / 2 + CABINET.depth / 2]]),
     ...(sideboard ? [[LOW[k] ?? '窗下低櫃', sideboard.x, sideboard.z]] : []),
@@ -121,7 +127,8 @@ function planSheet(meta, dm) {
     ...(chair ? [[k === '書房' ? '閱讀椅' : '單椅', chair.x, chair.z]] : [])];
   const tags = named.map(([label, x, z], i) => [String(i + 1), label, x, z]);
   const main = sofa ?? bed ?? anchor;
-  return sheet({ ...meta, no: 'A-01', title: '平面配置圖' }, shell() + furniture() + roomDimsSVG(dm)
+  return sheet({ ...meta, no: 'A-01', title: '平面配置圖' }, shell(openKitchen) + furniture() + roomDimsSVG(dm)
+    + (meta.demo ? text(24, H - 42, '空間尺寸 ' + dm.w + ' × ' + dm.d + ' mm') : '')
     + (LAYOUT.noCabinet ? '' : dimH(px(CABINET.x0), px(CABINET.x1), back - 14, String(dm.mm(CABINET.x1 - CABINET.x0))))
     + dimH(px(WINDOW.x0), px(WINDOW.x1), back - 14, String(dm.mm(WINDOW.x1 - WINDOW.x0)))
     + (table ? dimH(px(sofa.x + sofa.sx / 2), px(table.x - table.sx / 2), pz(sofa.z + table.sz / 2) + 14, String(dm.mm(table.x - table.sx / 2 - (sofa.x + sofa.sx / 2)))) : '')
@@ -129,7 +136,7 @@ function planSheet(meta, dm) {
       : dimV(pz(main.z - main.sz / 2), pz(main.z + main.sz / 2), px(main.x + main.sx / 2) + (bed ? -14 : 16), String(dm.mm(main.sz))) + (bed || main.sx >= 0.9 ? dimH(px(main.x - main.sx / 2), px(main.x + main.sx / 2), pz(main.z + main.sz / 2) + 16, String(dm.mm(main.sx))) : ''))
     + tags.map(([n, , x, z]) => tag(n, x, z)).join('')
     + legend([...(RUG ? [['<path class="dash" d="M-10 0h20"/>', '地毯範圍']] : []), ['<rect x="-8" y="-4" width="16" height="8"/>', '固定櫃體（木作／系統）'], ['<circle r="6"/>', '活動家具'],
-      ...tags.map(([n, label]) => [tagSym(n), label]), ['<path d="M-10 0h20"/>', '門、窗位置為示意，以現場為準']]));
+      ...tags.map(([n, label]) => [tagSym(n), label]), ['<path d="M-10 0h20"/>', openKitchen ? '開口、窗位置為示意，以現場為準' : '門、窗位置為示意，以現場為準']]));
 }
 /** 嵌燈依房間大小排成格點：約每 2.2 m 一盞，離牆半個間距。 */
 export function downlights(room) {
@@ -250,4 +257,48 @@ export function drawingSet(cond, look, est, date) {
     ['A-03', '地坪材料計畫圖', floorSheet(meta, dm)],
     ['Q-01', '工程估價明細表', costSheet(meta, est)],
   ].map(([no, title, svg]) => ({ no, title, svg, file: `${no}-${FILE[no]}.svg` }));
+}
+
+/** Numbered specimen sheets for the Wireframe project. The published fast route keeps its original series. */
+export function wireframeDrawingSet(cond, look, est, date, appliedLayout = false) {
+  const size = roomSize(cond, est.ping);
+  const room = { ...size, space: cond.space };
+  useRoom(room);
+  RUG = Boolean(look.rug);
+  const dm = roomDims(size);
+  const meta = { project: cond.space + '・' + look.name, date, kind: cond.space,
+    bedroom: cond.space === '臥室', ping: est.ping, floorType: look.floorType,
+    floorName: '示意地板', cabinet: '示意櫃體', demo: true };
+  const drawPlan = (label, dims) => {
+    if (!appliedLayout || cond.space !== '廚房') return planSheet(label, dims);
+    useRoom({ ...room, openKitchen: true });
+    try {
+      return planSheet(label, dims, true);
+    } finally {
+      useRoom(room);
+    }
+  };
+  const outline = shell() + roomDimsSVG(dm);
+  const elevation = (label, width, x) => {
+    const floor = 425;
+    return `<path d="M70 ${floor}H575"/><rect x="${x}" y="${floor - 190}" width="${width}" height="190"/>`
+      + text(x + 12, floor - 164, label) + dimH(x, x + width, floor + 30, '示意尺寸');
+  };
+  const plumbing = outline + `<g class="blue"><path class="dash" d="M${px(-ROOM.w / 3)} ${pz(-ROOM.d / 4)}H${px(ROOM.w / 3)}V${pz(ROOM.d / 4)}"/>`
+    + text(px(0), pz(0), '給排水路徑示意・待現場丈量') + '</g>';
+  const specs = [
+    ['平面', 'A-01', '平面配置圖', drawPlan, '示意已覆核'],
+    ['平面', 'A-03', '地坪材料計畫圖', floorSheet, '示意已覆核'],
+    ['平面', 'A-02', '尺寸平面圖', label => sheet(label, outline), '覆核中'],
+    ['立面', 'E-01', '窗牆與收納立面圖', elevationSheet, '示意已覆核'],
+    ['立面', 'E-02', '主臥衣櫃立面', label => sheet(label, elevation('衣櫃', 260, 120)), '覆核中'],
+    ['立面', 'E-03', '玄關櫃立面', label => sheet(label, elevation('玄關收納', 180, 180)), '覆核中'],
+    ['立面', 'E-04', '電視牆立面', label => sheet(label, elevation('電視牆', 330, 110)), '覆核中'],
+    ['水電', 'M-01', '插座與弱電配置圖', powerSheet, '覆核中'],
+    ['水電', 'M-02', '給排水配置圖', label => sheet(label, plumbing), '待現場丈量'],
+    ['水電', 'M-03', '天花板燈具配置圖', lightingSheet, '覆核中'],
+  ];
+  return specs.map(([type, no, title, draw, status]) => ({
+    type, no, title, status, svg: draw({ ...meta, no, title, label: {no, title} }, dm),
+  }));
 }

@@ -23,6 +23,15 @@ async function open(context, label) {
 }
 const ready = (page) => page.locator('.scene[data-ready] canvas').waitFor({ timeout: 30000 });
 const txt = (l) => l.evaluate((e) => e.textContent);
+const loseContext = (page) => page.locator('#scene canvas').evaluate((canvas, actualLoss) => {
+  if (actualLoss) {
+    const extension = canvas.getContext('webgl2')?.getExtension('WEBGL_lose_context');
+    if (!extension) throw new Error('WEBGL_lose_context is unavailable');
+    extension.loseContext();
+  } else {
+    canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
+  }
+}, process.env.FAST_ROUTE_GPU_LOSS === '1');
 
 for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['phone', { width: 390, height: 844 }]]) {
   const context = await browser.newContext({ viewport, ...quiet });
@@ -465,9 +474,17 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   await context.close();
 }
 
-{ // A transient failure of the 3D entry module can recover without a reload.
-  const context = await browser.newContext({ viewport: { width: 320, height: 740 }, hasTouch: true, isMobile: true, ...quiet });
+// A failed initial load starts at 1×; a lost live context recovers the chosen zoom.
+for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+  const context = await browser.newContext({ viewport, hasTouch: true, isMobile: viewport.width === 390, ...quiet });
   const page = await open(context, 'retry-3d');
+  await page.addInitScript(() => {
+    const getContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (type, ...options) {
+      if (window.rejectWebGL && type.startsWith('webgl')) return null;
+      return getContext.call(this, type, ...options);
+    };
+  });
   let failedSubmodule = 0;
   await page.route('**/lib/render-scheduler.js', route => { failedSubmodule += 1; return route.abort(); }, { times: 1 });
   await page.goto(base);
@@ -478,7 +495,7 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   await page.locator('#generate').tap();
   await page.locator('#skip').tap();
   assert.match(await page.locator('#dims').innerText(), /5.6 × 4.7/);
-  if (shots) await page.screenshot({ path: `${shots}/3d-before-retry.png` });
+  if (shots) await page.screenshot({ path: `${shots}/${viewport.width}-3d-first-load-fallback.png` });
   await page.getByRole('button', { name: '重試 3D' }).click();
   await ready(page);
   assert.equal(failedSubmodule, 1, 'the initial same-origin static dependency failed once');
@@ -486,27 +503,142 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   assert.equal(await page.getByRole('button', { name: /視角 A/ }).getAttribute('aria-pressed'), 'true');
   const zoomIn = page.getByRole('button', { name: '放大', exact: true });
   const zoomOut = page.getByRole('button', { name: '縮小', exact: true });
+  assert.equal(await zoomIn.getAttribute('aria-disabled'), 'false');
+  assert.equal(await zoomOut.getAttribute('aria-disabled'), 'false');
   await zoomIn.focus();
   await page.keyboard.press('Enter');
   await page.keyboard.press('Space');
   assert.equal(await zoomIn.getAttribute('aria-disabled'), 'true');
   await zoomOut.tap();
   assert.equal(await zoomIn.getAttribute('aria-disabled'), 'false');
-  if (shots) await page.screenshot({ path: `${shots}/3d-after-retry.png` });
+
 
   assert.match(await page.locator('#dims').innerText(), /5.6 × 4.7/);
   const viewB = page.getByRole('button', { name: /視角 B/ });
   await viewB.tap();
+  await zoomIn.tap();
+  assert.equal(await zoomIn.getAttribute('aria-disabled'), 'true');
+  const estimateBeforeLoss = await page.locator('#teaser').innerText();
+  assert.equal(estimateBeforeLoss, '28–46 萬');
+  if (shots) await page.screenshot({ path: `${shots}/${viewport.width}-3d-before-context-loss.png` });
   await viewB.focus();
-  await page.locator('#scene canvas').evaluate(canvas => canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true })));
-  await page.getByText('3D 無法顯示，目前使用 2D 示意圖。').waitFor();
+  await loseContext(page);
+  const retry = page.getByRole('button', { name: '重試 3D' });
+  await retry.waitFor();
   assert.equal(await page.locator(':focus').getAttribute('id'), 'retry3d');
-  await page.getByRole('button', { name: '重試 3D' }).tap();
+  if (shots) await page.screenshot({ path: `${shots}/${viewport.width}-3d-context-fallback.png` });
+  await page.evaluate(() => { window.rejectWebGL = true; });
+  await page.keyboard.press('Enter');
+  await page.getByText('3D 無法顯示，目前使用 2D 示意圖。').waitFor();
+  assert.equal(await page.locator('#scene canvas').count(), 0, 'failed retry keeps the 2D fallback');
+  assert.equal(await page.locator(':focus').getAttribute('id'), 'retry3d');
+  await page.evaluate(() => { window.rejectWebGL = false; });
+  await page.keyboard.press('Enter');
   await ready(page);
+  if (shots) await page.screenshot({ path: `${shots}/${viewport.width}-3d-after-context-loss.png` });
+  assert.equal(await zoomIn.getAttribute('aria-disabled'), 'true', 'same-room recovery must preserve maximum zoom');
   assert.equal(await viewB.getAttribute('aria-pressed'), 'true', 'retry preserves the chosen view');
   assert.match(await page.locator('#dims').innerText(), /5.6 × 4.7/);
+  assert.equal(await page.locator('#teaser').innerText(), estimateBeforeLoss);
+  assert.equal(await page.locator(':focus').evaluate(el => el.tagName), 'H1');
+  await zoomOut.tap();
+  assert.equal(await zoomIn.getAttribute('aria-disabled'), 'false');
+  await loseContext(page);
+  await retry.click();
+  await ready(page);
+  await zoomIn.tap();
+  assert.equal(await zoomIn.getAttribute('aria-disabled'), 'true', 'recover the intermediate zoom, one step below maximum');
+  await page.reload();
+  await ready(page);
+  await zoomIn.tap();
+  assert.equal(await zoomIn.getAttribute('aria-disabled'), 'false', 'reload starts at 1×');
+  await zoomIn.tap();
+  assert.equal(await zoomIn.getAttribute('aria-disabled'), 'true');
+  await page.getByRole('button', { name: '重新開始' }).click();
+  await page.locator('#where').getByRole('button', { name: '客廳' }).tap();
+  await page.locator('#generate').tap();
+  await page.locator('#skip').tap();
+  await ready(page);
+  await zoomIn.tap();
+  assert.equal(await zoomIn.getAttribute('aria-disabled'), 'false', 'restart starts at 1× even with a healthy renderer');
+  await zoomIn.tap();
+  await loseContext(page);
+  await retry.waitFor();
+  await page.getByRole('button', { name: '第 1 步：需求' }).click();
+  await page.locator('#say').fill('想裝潢主臥，長五米六、寬四米七');
+  await page.locator('#say').press('Enter');
+  await page.locator('#micnote').filter({ hasText: '空間 臥室' }).waitFor();
+  await page.locator('#generate').click();
+  await page.locator('#skip').click();
+  await retry.click();
+  await ready(page);
+  await zoomIn.tap();
+  assert.equal(await zoomIn.getAttribute('aria-disabled'), 'false', 'changing rooms during fallback discards the old zoom');
+  console.log(`${viewport.width} px: 3D context recovery preserved maximum zoom, view, dimensions, price and focus`);
   await context.close();
 }
+
+// The public room ID can be reused after deletion, but its 3D zoom belongs to the deleted room.
+const replacementZoom = [];
+for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+  const context = await browser.newContext({ viewport, hasTouch: true, isMobile: viewport.width === 390, ...quiet });
+  const page = await open(context, 'replaced-room');
+  await page.route('**/api/read-plan', route => route.fulfill({ json: { rooms: [
+    { name: '客廳', len: '5.6', wid: '4.7' },
+    { name: '餐廳', len: '3.4', wid: '3.0' },
+    { name: '主臥', len: '4.3', wid: '3.9' },
+  ] } }));
+  await page.goto(base);
+  await page.setInputFiles('#planFile', { name: '合成.png', mimeType: 'image/png', buffer: PNG });
+  await page.locator('#roomsok').tap();
+  await page.locator('#skip').tap();
+  const selectRoom = (name) => page.locator('#roomtabs').getByRole('button', { name, exact: true }).tap();
+  const roomId = (name) => page.locator(`#minimap [data-room][aria-label="${name}"]`).getAttribute('data-room');
+  const retry = page.getByRole('button', { name: '重試 3D', exact: true });
+  const zoomIn = page.getByRole('button', { name: '放大', exact: true });
+  await selectRoom('主臥');
+  await ready(page);
+  const oldId = await roomId('主臥');
+  await zoomIn.tap();
+  await zoomIn.tap();
+  assert.equal(await zoomIn.getAttribute('aria-disabled'), 'true');
+
+  await loseContext(page);
+  await retry.tap();
+  await ready(page);
+  assert.equal(await zoomIn.getAttribute('aria-disabled'), 'true', 'retrying the original room keeps its zoom');
+
+  await loseContext(page);
+  await retry.waitFor();
+  await page.getByRole('button', { name: '第 1 步：需求' }).tap();
+  await page.getByRole('button', { name: '改主臥', exact: true }).tap();
+  await page.getByRole('button', { name: '刪除', exact: true }).tap();
+  await page.locator('#addroom').tap();
+  const edit = page.locator('#rooms .edit');
+  await edit.getByRole('textbox', { name: '房間名稱' }).fill('次臥');
+  await edit.getByRole('spinbutton', { name: '長（公尺）' }).fill('4.3');
+  await edit.getByRole('spinbutton', { name: '寬（公尺）' }).fill('3.9');
+  await edit.getByRole('button', { name: '完成', exact: true }).tap();
+  await page.locator('#roomsok').tap();
+  await page.locator('#skip').tap();
+  await selectRoom('次臥');
+  assert.equal(await roomId('次臥'), oldId, 'the replacement must reuse the deleted room ID');
+  await retry.tap();
+  await ready(page);
+  const atMax = await zoomIn.getAttribute('aria-disabled');
+  if (atMax === 'false') await zoomIn.tap();
+  replacementZoom.push({
+    width: viewport.width,
+    atMax,
+    afterOneStep: await zoomIn.getAttribute('aria-disabled'),
+  });
+  await context.close();
+}
+assert.deepEqual(replacementZoom, [
+  { width: 1440, atMax: 'false', afterOneStep: 'false' },
+  { width: 390, atMax: 'false', afterOneStep: 'false' },
+], 'a replacement with the same room ID must start at 1×');
+console.log('1440 and 390 px: a replacement that reuses a room ID starts at 1×');
 
 { // A disposed renderer must not mark its replacement ready if its assets fail late.
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, ...quiet });
@@ -562,6 +694,9 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   await page.locator('#undoedit').waitFor();
   assert.match(await page.locator('#designer').innerText(), /好，地毯拿掉。[\s\S]*「衣櫃換成白色」我還不會改/);
   const price = await page.locator('#teaser').innerText();
+  await page.locator('#zoomin').click();
+  await page.locator('#zoomin').click();
+  assert.equal(await page.locator('#zoomin').getAttribute('aria-disabled'), 'true');
   await page.locator('#share').click();
   await page.getByText('已複製連結').waitFor();
   const url = await page.evaluate(() => navigator.clipboard.readText());
@@ -579,6 +714,9 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   assert.match(await other.locator('#assume').innerText(), /老屋估算/);
   assert.equal(await other.getByRole('button', { name: '地毯拿掉' }).getAttribute('aria-pressed'), 'true');
   assert.equal(new URL(other.url()).hash, '', 'the hash is consumed so a reload keeps the local copy');
+  await ready(other);
+  await other.locator('#zoomin').click();
+  assert.equal(await other.locator('#zoomin').getAttribute('aria-disabled'), 'false', 'a shared design starts at 1×');
   await context.close();
 }
 await browser.close();
