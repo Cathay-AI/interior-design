@@ -592,7 +592,8 @@ function sizeScreen() {
     const got = parseHome(S.said);
     S.heard = Object.entries(got).sort(([a], [b]) => (b === 'space') - (a === 'space')).map(([key, v]) => `${LABEL[key][0]} ${key === 'partition' ? (v === 'yes' ? '會動' : '不動') : key === 'sprinkler' ? (v === 'yes' ? '有' : '沒有') : key === 'housing' ? '透天' : v}${LABEL[key][1] ? ' ' + LABEL[key][1] : ''}`);
     const space = got.space; delete got.space;
-    if (ROOM_KINDS.includes(space) && space !== c.space) { c.space = space; S.generated = false; }
+    const ready = ROOM_KINDS.includes(space);
+    if (ready && space !== c.space) { c.space = space; S.generated = false; }
     for (const key of NUMERIC) if (key in got) setField(key, got[key]);
     if (got.age) { c.age = got.age; c.ageSet = true; }
     if (got.partition) c.partition = got.partition;
@@ -603,7 +604,7 @@ function sizeScreen() {
       c.ping = String(p); delete S.bad.ping;
       if (got.ping && Number(got.ping) !== p) S.heard.push(`坪數依長寬換算為 ${p} 坪`);
     }
-    if (space && !ready) S.heard.push('整個家請回上一步丟平面圖');
+    if (space && !ready) S.heard.push('整戶規劃請回上一步，可上傳平面圖或用整戶範本開始');
     renderSoon();
   };
   // 一個欄位的值：合理就收下，不合理就留在欄位上並說明原因（不拿去算）
