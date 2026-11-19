@@ -165,7 +165,7 @@ function itemArt(t, c) {
   return `<svg class="item-art" viewBox="0 0 200 120" aria-hidden="true">${art}</svg>`;
 }
 
-const MASCOT = `<svg viewBox="-6 -6 212 212" aria-hidden="true"><circle cx="100" cy="118" r="72" fill="#ffd98a" opacity=".16"/><circle cx="100" cy="118" r="50" fill="#ffd98a" opacity=".3"/><path d="M100 0v40" stroke="#29251f" stroke-width="2.2"/><rect x="93" y="36" width="14" height="10" rx="2" fill="#b8935a"/><path d="M62 113a38 38 0 0 0 76 0Z" fill="#fff0cc"/><path d="M100 44C60 44 34 76 30 113H170C166 76 140 44 100 44Z" fill="#a2562d"/><path d="M100 44C140 44 166 76 170 113H100Z" fill="#6f3518" opacity=".28"/><rect x="28" y="111" width="144" height="4.5" rx="2.2" fill="#c9a56a"/><circle cx="85.5" cy="130" r="3.1" fill="#29251f"/><circle cx="114.5" cy="130" r="3.1" fill="#29251f"/></svg>`;
+const MASCOT = `<svg viewBox="-6 -6 212 212" aria-hidden="true"><circle cx="100" cy="118" r="72" fill="#ffd98a" opacity=".16"/><circle cx="100" cy="118" r="50" fill="#ffd98a" opacity=".3"/><path d="M100 0v40" stroke="#141414" stroke-width="2.2"/><rect x="93" y="36" width="14" height="10" rx="2" fill="#b8935a"/><path d="M62 113a38 38 0 0 0 76 0Z" fill="#fff0cc"/><path d="M100 44C60 44 34 76 30 113H170C166 76 140 44 100 44Z" fill="#141414"/><path d="M100 44C140 44 166 76 170 113H100Z" fill="#000000" opacity=".35"/><rect x="28" y="111" width="144" height="4.5" rx="2.2" fill="#c9a56a"/><circle cx="85.5" cy="130" r="3.1" fill="#141414"/><circle cx="114.5" cy="130" r="3.1" fill="#141414"/></svg>`;
 
 // ---------- state ----------
 const KEY = 'hb-proto-v6';
@@ -758,7 +758,7 @@ def('intro', {
       </div>
     </div>
     <div class="walkin-track" aria-hidden="true"></div>
-    ${cta(`<div class="style-ribbon" role="group" aria-label="或從一個風格開始"><p>或從一個風格開始</p><div class="ribbon-row">${Object.keys(STYLES).map(n => `<button class="ribbon-item" data-act="seed" data-arg="${n}">${stylePlate(n, true)}<span>${n}</span></button>`).join('')}</div></div>`,
+    ${cta(`<div class="style-ribbon" role="group" aria-label="或從一個風格開始"><p>或從一個風格開始</p><div class="ribbon-row" id="ribbon-row">${Object.keys(STYLES).map(n => `<button class="ribbon-item" data-act="seed" data-arg="${n}">${stylePlate(n, true)}<span>${n}</span></button>`).join('')}<button type="button" class="ribbon-more" data-act="moreStyles" aria-expanded="false">全部 ${Object.keys(STYLES).length} 種</button></div></div>`,
       '<button class="btn orange" data-act="start">拿起鑰匙，開門</button>', S.mode === 'ai' ? '<button class="btn text" data-act="refs">我已經有參考圖</button>' : '', '<p class="disclaimer">Mock prototype：圖片、數字與模型皆為示意</p>')}</div>`,
   mount(el) {
     const walkin = $('#walkin', el), track = $('.walkin-track', el), chapters = [...el.querySelectorAll('.chapter')];
@@ -788,6 +788,8 @@ def('intro', {
   },
   on: {
     start() { hold(); mascot('speak'); const play = SCREENS.intro._play; if (play) play(() => next()); else next(); },
+    // The landing shows seven styles and a tile that opens all of them, instead of a strip that hides the rest off screen.
+    moreStyles(_, el) { const row = $('#ribbon-row'); const open = row.classList.toggle('open'); el.setAttribute('aria-expanded', open); el.textContent = open ? '收起' : `全部 ${Object.keys(STYLES).length} 種`; },
     refs() { checkpoint(); S.route = 'ref'; learn('路線：已有參考圖'); go('refs', true); },
     // A style picked on the landing page is a starting guess, not an answer: the A/B rounds still run and can overturn it.
     seed(n) { checkpoint(); S.eng.mu = STYLES[n].x.map(x => x * .8); S.eng.v = [1, 1, 1]; learn(`開場選了「${n}」當起點`); S._react = `從${n}開始，看屋時會再確認。`; SCREENS.intro.on.start(); },
@@ -1227,7 +1229,7 @@ const loadImg = src => new Promise((ok, no) => { const i = new Image(); i.onload
 async function shareCard({ kicker, title, line, tags, file }) {
   const W = 1080, H = 1350, c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d');
-  try { g.drawImage(await loadImg('../key-visuals/app/share-bg.jpg'), 0, 0, W, H); } catch (e) { g.fillStyle = '#29251f'; g.fillRect(0, 0, W, H); }
+  try { g.drawImage(await loadImg('../key-visuals/app/share-bg.jpg'), 0, 0, W, H); } catch (e) { g.fillStyle = '#141414'; g.fillRect(0, 0, W, H); }
   const fade = g.createLinearGradient(0, H * .38, 0, H); fade.addColorStop(0, 'rgba(13,10,7,0)'); fade.addColorStop(.45, 'rgba(13,10,7,.78)'); fade.addColorStop(1, 'rgba(13,10,7,.92)');
   g.fillStyle = fade; g.fillRect(0, 0, W, H);
   const sans = '"Manrope","PingFang TC","Noto Sans TC",sans-serif', serif = sans;
@@ -1389,7 +1391,7 @@ def('lock', {
   tech: [['low', '在 AI 生成圖上「只換沙發、其他不變」：純文字生圖做不到一致；需要 inpainting / 分割遮罩，延遲數秒到數十秒、成本高'], ['ok', '替代：預先準備分層素材（6 個元素各一層）即時合成，如本 prototype；生成只用在最後一張'], ['ok', '搭配約束：每個選項標相容風格＋衝突表；重抽時過濾（本 prototype 已示範）'], ['mid', '相容與衝突表需要設計師維護；選項變多後要改成規則或打分，不是手寫清單'], ['mid', '$ 相對價位需要材料單價表，且要標明區域與日期']],
   html: () => {
     const d = S.design, n = rerollable(d).length;
-    return `<h1 class="title">鎖住喜歡的，其他重抽</h1>
+    return `<div class="taste-head lock-head"><h1 class="title">鎖住喜歡的，其他重抽</h1>${glReady() ? '<button type="button" class="chip taste-look" id="lock-look" aria-pressed="false">看客廳</button>' : ''}</div>
       ${glReady() ? `<p class="cue">${S._loading ? '重抽中…' : S.lockHintSeen ? `${d.style}・第 ${S.rounds + 1} 輪` : '點畫面上的家具或下方清單，鎖住想留下的東西'}</p>` : `      <div class="pin-room${S._loading ? ' loading' : ''}" aria-busy="${!!S._loading}">${room(designPalette(), { title: `${d.style}客廳` })}
         ${PARTS.map(({ k, n: name, pin: [x, y] }) => `<button class="pin${S.locks[k] ? ' locked' : ''}" style="left:${x}%;top:${y}%" data-act="lock" data-arg="${k}" tabindex="-1" aria-hidden="true">${icon(S.locks[k] ? 'lock-simple' : 'plus')}${name}</button>`).join('')}
         ${S.lockHintSeen ? '' : '<span class="lock-hint">點圖上的標籤或下方清單，鎖住想留下的東西</span>'}</div>`}
@@ -1398,19 +1400,35 @@ def('lock', {
       ${(() => { const r = bestSwap(d); return r ? `<button class="reco-chip" data-act="reco">${icon('lightning')}<span><small>這一輪推薦</small>${PART[r.k].n}換成${PART[r.k].list[r.v].n}</span></button>` : ''; })()}
       <div class="look-pick" role="group" aria-label="${d.style}的精選搭配"><p>或直接套用${d.style}的精選搭配（鎖住的不會變）</p><div class="chips">${LOOKS.map((l, i) => [l, i]).filter(([l]) => l.style === d.style).map(([l, i]) => `<button class="chip" data-act="look" data-arg="${i}">${l.name}</button>`).join('')}</div></div>
       <p class="sub small">重抽只在「${d.style}」相容的選項裡挑。</p>
+      ${S._changes ? `<p class="lock-changes" role="status">${esc(S._changes)}</p>` : ''}
       ${cta(`<div class="row2"><button class="btn ghost" data-act="reroll" ${!n || S._loading ? 'disabled' : ''}>${icon('arrow-clockwise')}重抽 ${n} 項</button><button class="btn" data-act="go">就這樣</button></div>`)}`;
   },
-  mount() {
+  mount(el) {
     if (!glReady()) return;
+    // The room behind is what changes, so after a reroll the sheet steps aside for a moment: only the title row, the
+    // list of what changed and the actions stay, over a see-through sheet. 看客廳 keeps it aside until tapped again.
+    const look = $('#lock-look', el); let peekTimer = 0;
+    // With the sheet aside the camera steps back to the doorway so the whole room is in frame, and returns after.
+    const peek = on => {
+      if (screenEl.classList.contains('peek-lock') !== on && glReady()) {
+        const c = gl3d.ctl, to = on ? { ...CAMS.door, bias: 0 } : { ...CAMS.high, bias: .3 };
+        stageReady = c.glide({ ...to, light: c.lightOf('day') }, reduceMotion.matches ? 0 : 700); stageReady.then(() => place && place());
+      }
+      screenEl.classList.toggle('peek-lock', on); $('#phone').classList.toggle('peeking', on);
+      if (look) { look.textContent = on ? '回到清單' : '看客廳'; look.setAttribute('aria-pressed', on); }
+    };
+    let place = null;
+    if (look) look.addEventListener('click', () => { clearTimeout(peekTimer); peek(!screenEl.classList.contains('peek-lock')); });
+    if (S._autoPeek) { S._autoPeek = false; peek(true); peekTimer = setTimeout(() => peek(false), reduceMotion.matches ? 3200 : 2200); }
     const ui = $('#stage-ui');
     ui.innerHTML = PARTS.map(({ k, n }) => `<button class="pin on-stage${S.locks[k] ? ' locked' : ''}" data-k="${k}" tabindex="-1" aria-hidden="true">${icon(S.locks[k] ? 'lock-simple' : 'plus')}${n}</button>`).join('');
-    const place = () => {
-      const phone = $('#phone').getBoundingClientRect(), first = screenEl.firstElementChild, top = 76, bottom = first ? first.getBoundingClientRect().top - phone.top - 24 : 9999;
+    place = () => {
+      const phone = $('#phone').getBoundingClientRect(), first = screenEl.classList.contains('peek-lock') ? screenEl.querySelector('.lock-changes, .cta') : screenEl.firstElementChild, top = 76, bottom = first ? first.getBoundingClientRect().top - phone.top - 24 : 9999;
       ui.querySelectorAll('.pin').forEach(b => { const p = gl3d.ctl.project(b.dataset.k), ok = !!p && p[1] > top && p[1] < bottom; b.classList.toggle('shown', ok); if (p) { b.style.left = clamp(p[0], 48, phone.width - 48) + 'px'; b.style.top = p[1] + 'px'; } });
     };
     stageReady.then(place);
     ui.onclick = e => { const b = e.target.closest('.pin'); if (b) SCREENS.lock.on.lock(b.dataset.k); };
-    return () => { ui.innerHTML = ''; ui.onclick = null; };
+    return () => { ui.innerHTML = ''; ui.onclick = null; clearTimeout(peekTimer); peek(false); };
   },
   on: {
     lock(k) { if (busy) return; checkpoint(); S.locks[k] = !S.locks[k]; S.lockHintSeen = true; const p = PART[k]; if (S.locks[k]) { learn(`鎖定${p.n}：${opt(S.design, k).n}`); S._react = `${p.n}鎖住了，重抽時不會變。`; } save(); render(false); },
@@ -1425,14 +1443,18 @@ def('lock', {
           if (!clashes(nd).length) break;
           avoided++;
         }
+        const changed = PARTS.filter(p => nd[p.k] !== S.design[p.k]).map(p => `${p.n}換成${opt(nd, p.k).n}`);
+        S._changes = changed.length ? `這輪換了：${changed.join('、')}` : '這輪沒有可換的組合'; S._autoPeek = true;
         S.design = nd; S.rounds++; S._loading = false;
         learn(`重抽第 ${S.rounds} 輪（限${S.design.style}相容選項${avoided ? `，避開 ${avoided} 個衝突搭配` : ''}）`);
         S._react = `第 ${S.rounds} 輪重抽完成${avoided ? '，避開了不搭的組合' : ''}。`; save(); render(false); mascot('speak');
       }, 450);
     },
-    reco() { const r = bestSwap(S.design); if (!r) return; checkpoint(); S.design[r.k] = r.v; learnTags([PART[r.k].list[r.v]], .3); S.rounds++; learn(`採用推薦：${PART[r.k].n}換成${PART[r.k].list[r.v].n}`); S._react = `${PART[r.k].n}換成${PART[r.k].list[r.v].n}。`; save(); render(false); },
+    reco() { const r = bestSwap(S.design); if (!r) return; checkpoint(); S._changes = `這輪換了：${PART[r.k].n}換成${PART[r.k].list[r.v].n}`; S._autoPeek = true; S.design[r.k] = r.v; learnTags([PART[r.k].list[r.v]], .3); S.rounds++; learn(`採用推薦：${PART[r.k].n}換成${PART[r.k].list[r.v].n}`); S._react = `${PART[r.k].n}換成${PART[r.k].list[r.v].n}。`; save(); render(false); },
     look(i) {
       const lk = LOOKS[+i]; checkpoint();
+      const changed = PARTS.filter(p => !S.locks[p.k] && S.design[p.k] !== lk[p.k]).map(p => `${p.n}換成${p.list[lk[p.k]].n}`);
+      S._changes = changed.length ? `套用「${lk.name}」：${changed.join('、')}` : `「${lk.name}」和現在一樣`; S._autoPeek = true;
       PARTS.forEach(p => { if (!S.locks[p.k]) S.design[p.k] = lk[p.k]; });
       S.rounds++; learn(`套用精選搭配：${lk.name}`); S._react = `換成「${lk.name}」了${PARTS.some(p => S.locks[p.k]) ? '，鎖住的沒動' : ''}。`; save(); render(false);
     },
@@ -1580,7 +1602,7 @@ def('card', {
   tech: [['ok', '定案卡是結構化 JSON（鎖定、不要、準則、彈性），直接當 3D 生成條件'], ['ok', '元素清單單一來源：鎖定、定案卡、3D 物件名、語音指令、報價明細共用'], ['ok', '版本化保存：之後修改留下歷史'], ['mid', '家人在定案後才完成：只更新準則，或提示使用者重新確認']],
   html: () => {
     const c = finalCard(), f = c.family;
-    const chips = (list, rm, add, addLabel) => `<span class="edit-chips">${list.map(x => `<button class="chip rm" data-act="${rm}" data-arg="${esc(x)}" aria-label="移除「${esc(x)}」">${x}${icon('x')}</button>`).join('')}<button class="chip add" data-act="${add}">${icon('plus')}<span class="sr">${addLabel}</span></button></span>`;
+    const chips = (list, rm, add, addLabel) => `<span class="edit-chips">${list.map(x => `<button class="chip rm" data-act="${rm}" data-arg="${esc(x)}" aria-label="移除「${esc(x)}」">${x}${icon('x')}</button>`).join('')}<button class="chip add${list.length ? '' : ' empty'}" data-act="${add}">${icon('plus')}${list.length ? `<span class="sr">${addLabel}</span>` : addLabel}</button></span>`;
     return `${glReady() ? '' : room(designPalette(), { title: '定案客廳' })}
       <h1 class="style-name">${c.style}</h1>
       <p class="lead">這是你的風格定案卡。「不要」和「準則」可以直接增刪，進 3D 之後每一項還能用說的改。</p>
@@ -1688,14 +1710,14 @@ def('f3d', {
       ${gl ? '' : `<div class="versions" role="group" aria-label="版本">${V.versions.map((_, i) => `<button class="${i === V.cur ? 'on' : ''}" data-act="ver" data-arg="${i}" aria-pressed="${i === V.cur}">版本 ${i + 1}</button>`).join('')}</div>`}
       <details class="quote-box"${V.openQuote ? ' open' : ''}><summary class="quote"><span>粗略報價・假設 8 坪${icon('caret-left')}</span>${V.busy ? '<span class="sk" aria-label="重新計算中"></span>' : `<b>${quoteRange(v)}</b>`}</summary>
         <ul class="quote-items">${quoteItems(v).map(([n, o, c]) => `<li><span>${n}<small>${o}</small></span><b>${c.toFixed(1)} 萬</b></li>`).join('')}<li class="note">示意單價，客廳 8 坪；上限抓下限的 1.3 倍，不含家電</li></ul></details>
-      ${gl ? '<p class="credit">沙發 GlamVelvetSofa（Eric Chadwick © Wayfair，已改色）與 SheenWoodLeatherSofa（Eric Chadwick © Darmstadt Graphics Group），CC BY 4.0・其他家具與材質 Poly Haven、Khronos（CC0）・<a href="models/CREDITS.md">來源</a></p>' : ''}
       ${V.pending ? `<div class="confirm"><p>我聽到 ${V.pending.length} 件事，對嗎？</p>
         <ul class="confirm-list">${V.pending.map(c => `<li>${c.label}<em class="${c.blocked ? 'no' : c.wait ? 'wait' : 'now'}">${c.blocked ? '做不到' : c.wait ? '需要重新生成' : '馬上看到'}</em></li>`).join('')}</ul>
         ${V.pending.filter(c => c.blocked).map(c => `<p class="caveat">${icon('warning')}${c.blocked}</p>`).join('')}${V.pending.some(c => c.kind === 'storage') ? `<p class="caveat">${icon('warning')}收納櫃深度要等尺寸確認。</p>` : ''}</div>
         ${cta(`<div class="row2"><button class="btn ghost" data-act="cancel">再想想</button><button class="btn orange" data-act="apply" ${V.pending.every(c => c.blocked) ? 'disabled' : ''}>對，開始改</button></div>`)}`
       : `<div class="mic-row"><button class="mic" id="mic" aria-label="${SR ? '按住說話' : '打字輸入修改'}">${icon('microphone')}</button>
         <div class="mic-copy"><p class="transcript" id="transcript">${V.heard ? '「' + esc(V.heard) + '」' : '想改哪裡？'}</p><p class="mic-label">${SR ? (finePointer ? '按住說話，或按住空白鍵' : '按住說話') : '點一下打字'}</p></div></div>
-        <div class="chips say-row">${SAY.slice((V.sayI || 0) * 4, (V.sayI || 0) * 4 + 4).map(t => `<button class="chip" data-act="say" data-arg="${t}">${t}</button>`).join('')}<button class="chip" data-act="moreSay">${icon('arrow-clockwise')}換一批</button><button class="chip" data-act="type">用打字</button></div>`}`;
+        <div class="chips say-row">${SAY.slice((V.sayI || 0) * 4, (V.sayI || 0) * 4 + 4).map(t => `<button class="chip" data-act="say" data-arg="${t}">${t}</button>`).join('')}<button class="chip" data-act="moreSay">${icon('arrow-clockwise')}換一批</button><button class="chip" data-act="type">用打字</button></div>`}
+      ${gl ? '<p class="credit end">沙發 GlamVelvetSofa（Eric Chadwick © Wayfair，已改色）與 SheenWoodLeatherSofa（Eric Chadwick © Darmstadt Graphics Group），CC BY 4.0・其他家具與材質 Poly Haven、Khronos（CC0）・<a href="models/CREDITS.md">來源</a></p>' : ''}`;
   },
   mount(el) {
     const world = $('#world', el), V = S.v3d, v = V.versions[V.cur];

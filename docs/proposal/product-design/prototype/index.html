@@ -9,7 +9,7 @@
 <link rel="icon" href="../logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Noto+Sans+TC:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="prototype.css">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
 </head>
@@ -30,19 +30,19 @@
       <h2>系統學到</h2>
       <ol id="note-learned" class="learned"></ol>
     </section>
-    <section class="notes-block">
+    <section class="notes-block dev-only">
       <h2>決策引擎視角 <small>貝氏 logit 基準模型（示意）</small></h2>
       <div id="note-engine" class="engine"></div>
     </section>
-    <section class="notes-block">
+    <section class="notes-block dev-only">
       <h2>正式版技術與風險</h2>
       <ul id="note-tech" class="tech"></ul>
     </section>
     <footer class="notes-foot">
       <button type="button" id="reset">重新開始</button>
       <button type="button" id="voice-toggle" aria-pressed="false">亮亮語音：關</button>
-      <button type="button" id="mode-toggle">流程：AI 版</button>
-      <label class="jump"><span>跳到</span><select id="jump"></select></label>
+      <button type="button" id="mode-toggle" class="dev-only">流程：AI 版</button>
+      <label class="jump dev-only"><span>跳到</span><select id="jump"></select></label>
     </footer>
   </aside>
 

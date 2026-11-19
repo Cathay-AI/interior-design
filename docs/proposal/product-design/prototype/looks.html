@@ -8,13 +8,13 @@
 <link rel="icon" href="../logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700&family=Noto+Sans+TC:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
 <!-- Atlas of the curated looks the viewing step draws from: a taste map, then every look rendered by the
      prototype's three.js room. Sets window.__ready when every shot is in, for headless export. -->
 <style>
-  :root{--ink:#29251f;--muted:#6f675c;--line:#ece6dc;--paper:#ffffff;--wash:#f7f3ec;--accent:#a2562d;
-    --font:"Manrope","PingFang TC","Noto Sans TC",sans-serif;--display:"Manrope","PingFang TC","Noto Sans TC",-apple-system,BlinkMacSystemFont,sans-serif}
+  :root{--ink:#141414;--muted:#5c5c5c;--line:#e6e6e6;--paper:#ffffff;--wash:#f4f3f1;--accent:#141414;
+    --font:"Geist","PingFang TC","Noto Sans TC",sans-serif;--display:"Geist","PingFang TC","Noto Sans TC",-apple-system,BlinkMacSystemFont,sans-serif}
   *{box-sizing:border-box;margin:0}
   body{background:var(--paper);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased}
   main{max-width:1320px;margin:0 auto;padding:56px 32px 96px}
@@ -82,12 +82,12 @@ document.getElementById('count').innerHTML = [[LOOKS.length, '組搭配'], [name
 {
   const X = LOOKS.map(lookX), W = 640, H = 400, P = 44;
   const sx = v => P + (v + 1) / 2 * (W - 2 * P), sy = v => H - P - (v + 1) / 2 * (H - 2 * P);
-  let g = `<g stroke="#d9d1c4" stroke-width="1"><line x1="${sx(0)}" y1="${P / 2}" x2="${sx(0)}" y2="${H - P / 2}"/><line x1="${P / 2}" y1="${sy(0)}" x2="${W - P / 2}" y2="${sy(0)}"/></g>`;
-  g += `<g font-size="12" fill="#6f675c"><text x="${P / 2}" y="${sy(0) - 8}">冷調</text><text x="${W - P / 2}" y="${sy(0) - 8}" text-anchor="end">暖調</text><text x="${sx(0) + 8}" y="${P / 2 + 4}">豐富</text><text x="${sx(0) + 8}" y="${H - P / 2}">極簡</text></g>`;
+  let g = `<g stroke="#dcdcdc" stroke-width="1"><line x1="${sx(0)}" y1="${P / 2}" x2="${sx(0)}" y2="${H - P / 2}"/><line x1="${P / 2}" y1="${sy(0)}" x2="${W - P / 2}" y2="${sy(0)}"/></g>`;
+  g += `<g font-size="12" fill="#5c5c5c"><text x="${P / 2}" y="${sy(0) - 8}">冷調</text><text x="${W - P / 2}" y="${sy(0) - 8}" text-anchor="end">暖調</text><text x="${sx(0) + 8}" y="${P / 2 + 4}">豐富</text><text x="${sx(0) + 8}" y="${H - P / 2}">極簡</text></g>`;
   LOOKS.forEach((lk, i) => { const x = X[i]; g += `<circle cx="${sx(x[0]).toFixed(1)}" cy="${sy(x[1]).toFixed(1)}" r="${(4.5 + (x[2] + 1) * 2.2).toFixed(1)}" fill="${hue(lk.style)}" fill-opacity=".78" stroke="#fff" stroke-width="1.5"><title>${esc(lk.style + '・' + lk.name)}</title></circle>`; });
   // Style label at the centre of its four looks.
   names.forEach(n => { const pts = LOOKS.map((lk, i) => lk.style === n ? X[i] : null).filter(Boolean), cx = pts.reduce((a, x) => a + x[0], 0) / pts.length, cy = pts.reduce((a, x) => a + x[1], 0) / pts.length;
-    g += `<text x="${sx(cx).toFixed(1)}" y="${(sy(cy) - 12).toFixed(1)}" text-anchor="middle" font-size="12.5" font-weight="700" fill="${hue(n)}" stroke="#f7f3ec" stroke-width="4" paint-order="stroke">${esc(n)}</text>`; });
+    g += `<text x="${sx(cx).toFixed(1)}" y="${(sy(cy) - 12).toFixed(1)}" text-anchor="middle" font-size="12.5" font-weight="700" fill="${hue(n)}" stroke="#f4f3f1" stroke-width="4" paint-order="stroke">${esc(n)}</text>`; });
   document.getElementById('map').insertAdjacentHTML('beforeend', g);
 }
 
