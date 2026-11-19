@@ -66,3 +66,14 @@ footer a{color:inherit}
   .plan button{display:grid!important}
 }
 .drawing{width:100%;display:block;border:1px solid var(--line);border-radius:16px}
+.check-result{border-bottom:1px solid var(--line);padding:.75rem 0}
+.check-result h3,.check-result p{margin:0 0 .45rem}
+.check-result .badge{display:inline-block;margin-inline-start:.65rem}
+input[type=number]{display:block;width:100%;padding:.6rem;border:1px solid var(--line);border-radius:12px;font:inherit}
+.drawing-controls .rows li{align-items:center}
+@media print{
+  body:has(.print-sheet) main>div{display:block}
+  body:has(.print-sheet) main h1,body:has(.print-sheet) main .muted,.drawing-controls{display:none!important}
+  .print-sheet{padding:0;border:0;break-inside:avoid}
+  .print-sheet .drawing{max-height:75vh;object-fit:contain}
+}

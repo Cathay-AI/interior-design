@@ -32,7 +32,8 @@ function dimH(x0, x1, y, label) {
 function dimV(y0, y1, x, label) {
   return `<g class="dim"><path d="M${x} ${y0}V${y1}M${x - 5} ${y0}h10M${x - 5} ${y1}h10M${x - 3} ${y0 + 3}l6 -6M${x - 3} ${y1 + 3}l6 -6"/>${text(x - 6, (y0 + y1) / 2, label, `text-anchor="middle" transform="rotate(-90 ${x - 6} ${(y0 + y1) / 2})"`)}</g>`;
 }
-function sheet({ no, title, scale = `1 : ${N}`, project, date }, body) {
+function sheet({ no, title, scale = `1 : ${N}`, project, date, label, demo }, body) {
+  if (label) ({ no, title } = label);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}（草稿）">
 <style>.sh{font-family:"PingFang TC","Noto Sans TC",sans-serif;fill:#1d1d1b;font-size:10px}.sh path,.sh rect,.sh circle,.sh ellipse,.sh line{fill:none;stroke:#1d1d1b;stroke-width:1}.sh .wall{fill:#1d1d1b;stroke:none}.sh .thin path,.sh .thin rect,.sh .thin circle,.sh .thin line,.sh .thin ellipse{stroke-width:.6}.sh .dash{stroke-dasharray:5 4}.sh .dim path{stroke-width:.6}.sh .dim text{font-size:9px}.sh .fill{fill:#1d1d1b}.sh .tb text{font-size:9px}.sh .big{font-size:15px;font-weight:700}.sh .hatch path{stroke-width:.35;stroke:#6b6b68}.sh .red path,.sh .red circle,.sh .red rect,.sh .red line{stroke:#b3261e}.sh .red text{fill:#b3261e}.sh .blue path,.sh .blue circle,.sh .blue rect{stroke:#1d4f91}.sh .blue text{fill:#1d4f91}</style>
 <rect width="${W}" height="${H}" fill="#fdfdfb"/>
@@ -43,7 +44,7 @@ ${body}
 ${text(W - 226, H - 85, title, 'class="big"')}
 ${text(W - 226, H - 55, '專案：' + project)}
 ${text(W - 226, H - 25, '圖號 ' + no)}${text(W - 116, H - 31, '比例 ' + scale)}${text(W - 116, H - 19, '日期 ' + date)}</g>
-${text(24, H - 22, 'AI 初稿・需現場丈量，經專業團隊確認後才是可施工的圖', 'style="font-size:9px;fill:#6b6b68"')}
+${text(24, H - 22, demo ? '示意圖面・待丈量與專業覆核' : 'AI 初稿・需現場丈量，經專業團隊確認後才是可施工的圖', 'style="font-size:9px;fill:#6b6b68"')}
 </g></svg>`;
 }
 
@@ -250,4 +251,38 @@ export function drawingSet(cond, look, est, date) {
     ['A-03', '地坪材料計畫圖', floorSheet(meta, dm)],
     ['Q-01', '工程估價明細表', costSheet(meta, est)],
   ].map(([no, title, svg]) => ({ no, title, svg, file: `${no}-${FILE[no]}.svg` }));
+}
+
+/** Numbered specimen sheets for the Wireframe project. The published fast route keeps its original series. */
+export function wireframeDrawingSet(cond, look, est, date) {
+  const size = roomSize(cond, est.ping);
+  useRoom({ ...size, space: cond.space });
+  RUG = Boolean(look.rug);
+  const dm = roomDims(size);
+  const meta = { project: cond.space + '・' + look.name, date, kind: cond.space,
+    bedroom: cond.space === '臥室', ping: est.ping, floorType: look.floorType,
+    floorName: '示意地板', cabinet: '示意櫃體', demo: true };
+  const outline = shell() + roomDimsSVG(dm);
+  const elevation = (label, width, x) => {
+    const floor = 425;
+    return `<path d="M70 ${floor}H575"/><rect x="${x}" y="${floor - 190}" width="${width}" height="190"/>`
+      + text(x + 12, floor - 164, label) + dimH(x, x + width, floor + 30, '示意尺寸');
+  };
+  const plumbing = outline + `<g class="blue"><path class="dash" d="M${px(-ROOM.w / 3)} ${pz(-ROOM.d / 4)}H${px(ROOM.w / 3)}V${pz(ROOM.d / 4)}"/>`
+    + text(px(0), pz(0), '給排水路徑示意・待現場丈量') + '</g>';
+  const specs = [
+    ['平面', 'A-01', '平面配置圖', planSheet, '示意已覆核'],
+    ['平面', 'A-02', '天花板燈具配置圖', lightingSheet, '示意已覆核'],
+    ['平面', 'A-03', '地坪材料計畫圖', floorSheet, '示意已覆核'],
+    ['平面', 'A-04', '尺寸平面圖', label => sheet(label, outline), '覆核中'],
+    ['立面', 'E-01', '窗牆與收納立面圖', elevationSheet, '示意已覆核'],
+    ['立面', 'E-02', '主臥衣櫃立面', label => sheet(label, elevation('衣櫃', 260, 120)), '覆核中'],
+    ['立面', 'E-03', '玄關櫃立面', label => sheet(label, elevation('玄關收納', 180, 180)), '覆核中'],
+    ['立面', 'E-04', '電視牆立面', label => sheet(label, elevation('電視牆', 330, 110)), '覆核中'],
+    ['水電', 'M-01', '插座與弱電配置圖', powerSheet, '覆核中'],
+    ['水電', 'M-02', '給排水配置圖', label => sheet(label, plumbing), '待現場丈量'],
+  ];
+  return specs.map(([type, no, title, draw, status]) => ({
+    type, no, title, status, svg: draw({ ...meta, no, title, label: {no, title} }, dm),
+  }));
 }
