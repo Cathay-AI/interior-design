@@ -39,6 +39,15 @@ try {
     const fit = async () => {
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     };
+    const assertPanels = async selector => {
+      const grid = page.locator(selector);
+      await grid.waitFor({timeout:5000});
+      const left = await grid.locator(':scope > :first-child').boundingBox();
+      const right = await grid.locator(':scope > :nth-child(2)').boundingBox();
+      assert(left && right);
+      if (viewport.width === 1440) assert(right.x >= left.x + left.width && right.y === left.y);
+      else assert(right.y >= left.y + left.height && right.x === left.x);
+    };
     const capture = async (name, fullPage = true) => {
       await fit();
       if (process.env.WIREFRAME_SCREENSHOTS) {
@@ -81,6 +90,21 @@ try {
     await link('現場拍照');
     await page.getByLabel('從相簿選或拍攝').waitFor();
     await link('亮亮｜首頁');
+    await page.getByLabel('上傳建商平面圖').setInputFiles({
+      name:'示意平面圖.pdf', mimeType:'application/pdf', buffer:Buffer.from('%PDF-1.4'),
+    });
+    await assertPanels('.scan-grid');
+    await page.getByRole('group', {name:'平面圖示意'}).getByText('廚房', {exact:true}).waitFor();
+    const scanSteps = page.getByRole('list', {name:'解析步驟'});
+    assert.equal(await scanSteps.getByRole('listitem').count(), 5);
+    await scanSteps.getByText('比對門窗與採光', {exact:true}).waitFor();
+    await page.getByText('示意解析，使用範例平面。').waitFor();
+    await page.getByText('示意平面圖.pdf', {exact:true}).waitFor();
+    await capture('artboard-16-scanning');
+    const scanHash = new URL(page.url()).hash.split('?')[1];
+    await link('取消');
+    await page.getByRole('heading', {name:/把家的想像/}).waitFor();
+    assert.equal(new URL(page.url()).hash.split('?')[1], scanHash);
     await page.getByLabel('上傳建商平面圖').setInputFiles({
       name:'示意平面圖.pdf', mimeType:'application/pdf', buffer:Buffer.from('%PDF-1.4'),
     });
@@ -305,6 +329,21 @@ try {
     await page.getByText('示意調整：開放廚房與中島').waitFor();
     for (let i = 0; i < 3; i++) await press('下一關');
     await link('看居家人格');
+    await assertPanels('.profile-grid');
+    const profilePlan = page.getByRole('group', {name:'平面圖示意'});
+    const profileQuote = page.getByRole('status', {name:'整戶估價'});
+    assert.equal(await profilePlan.getAttribute('data-open-kitchen'), 'true');
+    await profilePlan.getByText('中島', {exact:true}).waitFor();
+    await profileQuote.getByText('170–282 萬', {exact:true}).waitFor();
+    await page.getByText('廚房 28–46 萬 → 30–48 萬', {exact:true}).waitFor();
+    await capture('artboard-09-adjusted');
+    await press('原本');
+    assert.equal(await profilePlan.getAttribute('data-open-kitchen'), 'false');
+    assert.equal(await profilePlan.getByText('中島', {exact:true}).count(), 0);
+    await profileQuote.getByText('168–280 萬', {exact:true}).waitFor();
+    await capture('artboard-09-original');
+    await press('調整後');
+    await profileQuote.getByText('170–282 萬', {exact:true}).waitFor();
     await press('套用，看法規細評');
     await page.getByRole('heading', {name:'法規細部評估'}).waitFor();
     await page.getByText('格局變更已重查 · 版本 1').waitFor();
@@ -327,10 +366,15 @@ try {
     await page.getByLabel('你家在第幾樓？').fill('12');
     await press('儲存樓層並重查');
     await page.getByText('已補資料・待覆核', {exact:true}).waitFor();
+    await route('profile', checkedParams);
     await link('回精修格局');
     await press('偶爾煮');
     for (let i = 0; i < 3; i++) await press('下一關');
     await link('看居家人格');
+    assert.equal(await profilePlan.getAttribute('data-open-kitchen'), 'false');
+    await profileQuote.getByText('168–280 萬', {exact:true}).waitFor();
+    await page.getByText('廚房 28–46 萬 → 28–46 萬', {exact:true}).waitFor();
+    await capture('artboard-09-withdrawn');
     await link('看法規細評');
     await page.getByText('格局已變更 · 等待重查').waitFor();
     await press('依新格局重查');
@@ -375,16 +419,23 @@ try {
     await fit();
     await link('回我的家');
     await page.getByRole('heading', {name:'我的家',exact:true}).waitFor();
-    const savedProject = page.getByRole('heading',{name:'靜謐橡木',exact:true}).locator('..');
-    const projectLink = name => page.getByRole('heading',{name,exact:true}).locator('..')
-      .getByRole('link',{name:'打開專案'});
+    const recent = page.getByRole('region', {name:'最近的家'});
+    const starts = page.getByRole('region', {name:'從哪裡開始'});
+    const projectCard = name => recent.getByRole('article').filter({has:page.getByRole('heading',{name,exact:true})});
+    const savedProject = projectCard('靜謐橡木');
+    const projectLink = name => projectCard(name).getByRole('link',{name:'打開專案'});
+    assert.equal(await recent.getByRole('article').count(), 4);
+    await savedProject.getByRole('img', {name:'廚房示意預覽'}).waitFor();
+    await savedProject.getByText('示意已送件', {exact:true}).waitFor();
+    await projectCard('三房兩廳').getByRole('group', {name:'平面圖示意'}).waitFor();
+    await projectCard('三房兩廳').getByText('待補', {exact:true}).waitFor();
+    await capture('artboard-13-homes');
     const oldParameters = (await projectLink('靜謐橡木').getAttribute('href')).split('?')[1];
     await projectLink('小家庭').click();
     await page.getByLabel('想要什麼樣的家').fill('小家庭・審查示例');
     const familyParameters = new URL(page.url()).hash.split('?')[1];
     await link('我的家');
-    await press('新建專案');
-    await link('說一句話');
+    await starts.getByRole('button', {name:'說一句話',exact:true}).click();
     assert.equal(await page.getByLabel('想要什麼樣的家').inputValue(),'');
     await page.getByLabel('想要什麼樣的家').fill('新案・白牆');
     await link('選風格');
@@ -407,6 +458,39 @@ try {
     assert.equal(await page.getByLabel('想要什麼樣的家').inputValue(),'小家庭・審查示例');
     await route('brief', newParameters);
     assert.equal(await page.getByLabel('想要什麼樣的家').inputValue(),'新案・白牆');
+    await link('我的家');
+    await starts.getByLabel('上傳平面圖', {exact:true}).setInputFiles({
+      name:'新案-平面圖.pdf', mimeType:'application/pdf', buffer:Buffer.from('%PDF-1.4'),
+    });
+    await page.getByText('新案-平面圖.pdf', {exact:true}).waitFor();
+    const uploadParams = new URL(page.url()).hash.split('?')[1];
+    await link('查看解析結果');
+    await page.getByText('目前來源：平面圖', {exact:true}).waitFor();
+    await link('我的家');
+    const uploadedCard = projectCard('新家 2');
+    await uploadedCard.getByText('待補', {exact:true}).waitFor();
+    await uploadedCard.getByText('新案-平面圖.pdf', {exact:true}).waitFor();
+    await starts.getByRole('button', {name:'現場拍照',exact:true}).click();
+    await page.getByRole('heading', {name:'現場拍照',exact:true}).waitFor();
+    const cameraParams = new URL(page.url()).hash.split('?')[1];
+    assert.equal(new Set([oldParameters, familyParameters, newParameters, uploadParams, cameraParams]).size, 5);
+    const newPhotoFixture = await page.request.get(base + 'imagery/living-4.webp');
+    assert(newPhotoFixture.ok());
+    await page.getByLabel('從相簿選或拍攝').setInputFiles({
+      name:'新案-相簿.webp', mimeType:'image/webp', buffer:await newPhotoFixture.body(),
+    });
+    await link('拍完了');
+    await page.getByText('新案-相簿.webp', {exact:true}).waitFor();
+    assert.equal(await page.getByText('新案-平面圖.pdf', {exact:true}).count(), 0);
+    await link('我的家');
+    const cameraCard = projectCard('新家 3');
+    await cameraCard.getByText('解析中', {exact:true}).waitFor();
+    await cameraCard.getByText('新案-相簿.webp', {exact:true}).waitFor();
+    await projectLink('新家 3').click();
+    await page.getByText('新案-相簿.webp', {exact:true}).waitFor();
+    await route('read', uploadParams);
+    await page.getByText('新案-平面圖.pdf', {exact:true}).waitFor();
+    assert.equal(await page.getByText('新案-相簿.webp', {exact:true}).count(), 0);
     await page.goto(base);
     const pdfFile = name => ({name, mimeType:'application/pdf', buffer:Buffer.from('%PDF-1.4')});
     await page.getByLabel('上傳建商平面圖').setInputFiles(pdfFile('原平面圖.pdf'));
@@ -460,7 +544,7 @@ try {
     }
     await page.emulateMedia({media:'screen'});
     assert.deepEqual(errors, []);
-    console.log(viewport.width + ' px：個別換款和微調、PDF 轉照片、503 重試與 WebGL 1.5×、A-01 7000×3000、廚房套用撤回及明細通過');
+    console.log(viewport.width + ' px：#9／#13／#16、個別換款和微調、PDF 轉照片、503 重試與 WebGL 1.5×、A-01 7000×3000、廚房套用撤回及明細通過');
     await page.close();
   }
 } finally {

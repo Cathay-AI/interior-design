@@ -46,7 +46,7 @@ const questions = [
 ];
 const newDraft = () => ({
   room: 0, style: 0, shot: 0, step: 0, answers: [], roomSizes: new Map(), zoomIndex: 1, editRoomSize: false,
-  filter: '', view: '實景', layoutPreview: true, changedRooms: new Set(), chairChanged: false, tuneMessage: '', photos: [], source: null,
+  filter: '', view: '實景', layoutPreview: true, profileOriginal: false, changedRooms: new Set(), chairChanged: false, tuneMessage: '', photos: [], source: null,
   appliedLayout: false, appliedFeng: [],
   unlocked: false, feng: new Set([0, 1]),
   drawing: 'A-01', comparisonStage: 4, floor: '', floorInput: '',
@@ -81,11 +81,12 @@ const grid = (first, second, extra = '') => el('div', {class:'grid ' + extra}, f
 const stack = (...children) => el('div', {class:'stack'}, ...children);
 const href = (page, id = projectId) => '#' + page + '?project=' + id;
 const go = (page, id = projectId) => { location.hash = href(page, id); };
-function createProject() {
+function createProject(page) {
   const id = 'demo-' + ++projectCount;
-  projects.set(id, {name:'新家 ' + projectCount, page:'project', state:'新建', draft:newDraft()});
-  go('entry', id);
+  projects.set(id, {name:'新家 ' + projectCount, page, state:'新建', draft:newDraft(), resumable:true});
+  return id;
 }
+const startProject = page => go(page, createProject(page));
 const link = (name, page, primary = false) => el('a', {href:href(page),class:'button' + (primary ? ' primary' : '')}, name);
 const button = (name, click, pressed) => el('button', {type:'button',onclick:click,...(pressed == null ? {} : {'aria-pressed':pressed})}, name);
 const refresh = (change) => (event) => {
@@ -102,8 +103,8 @@ const figure = (src, caption, alt = '室內設計參考示意', ...extra) => el(
 const picker = (label, attrs, fn) => el('label', {class:'picker button'}, label,
   el('input', {type:'file','aria-label':label,...attrs,onchange:fn}));
 const price = (values) => values.join('–') + ' 萬';
-const roomArea = (i = draft.room) => {
-  const size = draft.roomSizes.get(i);
+const roomArea = (i = draft.room, projectDraft = draft) => {
+  const size = projectDraft.roomSizes.get(i);
   return size ? Math.round(size.w * size.d / 3.3058 * 10) / 10 : areas[i];
 };
 const roomKind = (i = draft.room) => ['客廳','餐廳','廚房','衛浴','臥室','衛浴','臥室','臥室'][i];
@@ -193,7 +194,7 @@ function modelControls(container) {
 const addPrices = ([low, high], [extraLow, extraHigh]) => [low + extraLow, high + extraHigh];
 const sumCosts = items => items.reduce((total, item) => addPrices(total, item.values), [0,0]);
 
-function roomCostItems(index = draft.room) {
+function roomCostItems(index = draft.room, openKitchen = draft.appliedLayout) {
   const space = roomKind(index);
   const baseline = baseRoomCosts[index];
   const cond = {space, ping:roomArea(index), age:'新成屋'};
@@ -210,7 +211,7 @@ function roomCostItems(index = draft.room) {
     add(baseline.furniture ? 'furniture' : 'cabinet', materialExtra);
   }
   if (index === 0 && draft.chairChanged) add('furniture', livingFurniture[0].extra);
-  if (index === 2 && draft.appliedLayout) add('cabinet', [2,2]);
+  if (index === 2 && openKitchen) add('cabinet', [2,2]);
   if ((index === 0 && draft.appliedFeng.includes(0)) || (index === 4 && draft.appliedFeng.includes(1))) {
     add('furniture', [1,1]);
   }
@@ -233,6 +234,11 @@ function groupCosts(items) {
   return Array.from(groups, ([name, values]) => ({name, values}));
 }
 
+function homeCosts(openKitchen = draft.appliedLayout) {
+  const byRoom = rooms.map((_, index) => roomCostItems(index, openKitchen));
+  return {byRoom, wholeHome:groupCosts(byRoom.flat())};
+}
+
 function costDetails(label, items) {
   const entries = items.map(({name, values, basis}) => el('li', {},
     el('span', {}, name, basis && el('small', {}, basis)),
@@ -242,18 +248,18 @@ function costDetails(label, items) {
     el('ul', {class:'rows'}, entries));
 }
 const estimate = () => price(sumCosts(roomCostItems()));
-const itemChanged = key => key === 'chair' ? draft.chairChanged : draft.changedRooms.has(0);
+const itemChanged = (key, projectDraft = draft) => key === 'chair' ? projectDraft.chairChanged : projectDraft.changedRooms.has(0);
 function selectItem(key, changed) {
   if (key === 'chair') draft.chairChanged = changed;
   else if (changed) draft.changedRooms.add(0);
   else draft.changedRooms.delete(0);
 }
-function projectPhoto(stage = stages.length - 1) {
-  if (draft.room === 0 && stage === stages.length - 1) {
-    const variant = ['sofa', 'chair'].filter(itemChanged).join('-');
+function projectPhoto(stage = stages.length - 1, projectDraft = draft) {
+  if (projectDraft.room === 0 && stage === stages.length - 1) {
+    const variant = ['sofa', 'chair'].filter(key => itemChanged(key, projectDraft)).join('-');
     if (variant) return './imagery/living-' + variant + '.webp';
   }
-  return roomScene(draft.room, stage, draft.appliedLayout);
+  return roomScene(projectDraft.room, stage, projectDraft.appliedLayout);
 }
 function resultFurniture() {
   const tune = el('form', {class:'result-tune',onsubmit:event => {
@@ -304,13 +310,22 @@ function editPlanRoom(index) {
   render(false);
   screen.querySelector('.room-size-fields input')?.focus();
 }
-const plan = (editable = false) => el('div', {class:'plan-stage'},
-  el('div', {class:'plan',role:'group','aria-label':'平面圖示意', 'data-open-kitchen':draft.appliedLayout},
-    rooms.map((name, i) => el('button', {type:'button','aria-label':name + ' ' + roomArea(i) + ' 坪',
-      'aria-pressed':draft.room === i,onclick:editable ? () => editPlanRoom(i) : refresh(() => setRoom(i))},
-      el('span', {}, name), el('small', {}, roomArea(i) + ' 坪'),
-      i === 2 && draft.appliedLayout && el('small', {class:'plan-island'}, '中島'))),
-    el('span', {class:'plan-hall'}, '走道')));
+function planDiagram(projectDraft, openKitchen, selectRoom) {
+  return el('div', {class:'plan',role:'group','aria-label':'平面圖示意','data-open-kitchen':openKitchen},
+    rooms.map((name, index) => {
+      const area = roomArea(index, projectDraft) + ' 坪';
+      const attrs = {class:'plan-room'};
+      if (selectRoom) Object.assign(attrs, {
+        type:'button','aria-label':name + ' ' + area,
+        'aria-pressed':projectDraft.room === index,onclick:selectRoom(index),
+      });
+      return el(selectRoom ? 'button' : 'div', attrs, el('span', {}, name), el('small', {}, area),
+        index === 2 && openKitchen && el('small', {class:'plan-island'}, '中島'));
+    }),
+    el('span', {class:'plan-hall'}, '走道'));
+}
+const plan = (editable = false, openKitchen = draft.appliedLayout) => el('div', {class:'plan-stage'},
+  planDiagram(draft, openKitchen, index => editable ? () => editPlanRoom(index) : refresh(() => setRoom(index))));
 const preview = () => {
   const views = ['實景', '等角', '平面'];
   let content = stack(plan(), draft.appliedLayout && el('p', {class:'muted'}, '格局示意：已套用開放廚房與中島'));
@@ -333,11 +348,12 @@ const preview = () => {
       views.map(view => button(view, refresh(() => {draft.view = view;}), draft.view === view))),
     content, cameraControls);
 };
-function upload(event, isPlan = true) {
+function upload(event, isPlan = true, newProject = false) {
   const file = event.target.files[0];
   if (!file) return;
-  draft.source = {label:isPlan ? '平面圖' : '機電圖', files:[file.name]};
-  go('scanning');
+  const id = newProject ? createProject('scanning') : projectId;
+  projects.get(id).draft.source = {label:isPlan ? '平面圖' : '機電圖', files:[file.name]};
+  go('scanning', id);
 }
 function usePhotos() {
   draft.source = {label:'現場照片', files:draft.photos.filter(Boolean)};
@@ -371,13 +387,15 @@ const floorUpload = () => el('label', {class:'hero-upload'},
   el('input', {type:'file',accept:'image/*,.pdf','aria-label':'上傳建商平面圖',onchange:upload}),
   el('span', {}, el('strong', {}, '上傳建商平面圖'), el('small', {}, '手繪、權狀附圖也可以')),
   el('span', {class:'upload-arrow','aria-hidden':'true'}, '→'));
+const proposedOpenKitchen = () => draft.answers[1] === '天天煮';
 const layoutKey = () => JSON.stringify(draft.answers);
+const backToLayout = () => el('a', {href:href('layout'),class:'button',onclick:() => {draft.step = 1;}}, '回精修格局');
 function recheckLayout() {
   const key = layoutKey();
   if (draft.checkedLayout !== key) draft.layoutVersion++;
   draft.checkedLayout = key;
   draft.checkedKitchen = draft.answers[1];
-  draft.appliedLayout = draft.checkedKitchen === '天天煮';
+  draft.appliedLayout = proposedOpenKitchen();
 }
 function complianceFindings() {
   const openKitchen = draft.checkedKitchen === '天天煮';
@@ -395,6 +413,113 @@ function complianceFindings() {
       detail:'依此範例的空間資料，無撒水頭。', status:'符合示例'},
   ];
 }
+const homeStart = (tag, attrs, icon, title, detail, ...controls) => el(tag, {class:'home-start',...attrs},
+  el('span', {class:'home-start-icon','aria-hidden':'true'}, icon),
+  el('strong', {}, title), el('small', {}, detail), controls);
+
+function recentProject(id, project) {
+  const state = project.draft;
+  const stage = project.state;
+  const isPlan = stage === '待補' || (stage === '解析中' && state.source?.label !== '現場照片' && state.source);
+  const imageStage = stage === '解析中' ? 0 : stage === '進行中' ? 3 : stages.length - 1;
+  const sourceName = state.source?.files[0];
+  const status = stage === '團隊對接' && state.sent ? '示意已送件' : stage;
+  const detail = stage === '解析中' || stage === '待補' ? sourceName ?? '示意空間' :
+    rooms[state.room] + ' · ' + looks[state.style];
+  return el('article', {class:'home-project'},
+    el('div', {class:'home-project-visual'}, isPlan
+      ? planDiagram(state, state.appliedLayout)
+      : el('img', {src:projectPhoto(imageStage, state),alt:rooms[state.room] + '示意預覽'})),
+    el('div', {class:'home-project-info'},
+      el('div', {}, el('h3', {}, project.name), el('small', {}, detail)),
+      el('span', {class:'badge'}, status),
+      el('a', {href:href(project.page, id),class:'home-project-link'}, '打開專案')));
+}
+
+function homesPage() {
+  const entries = [...projects];
+  const newHomes = entries.filter(([, project]) => project.resumable).reverse();
+  const examples = entries.filter(([, project]) => !project.resumable);
+  const recent = [...newHomes, ...examples];
+  return el('div', {class:'homes-dashboard stack'},
+    el('header', {class:'homes-heading'},
+      el('h1', {}, '我的家'), el('button', {type:'button',class:'primary',onclick:() => startProject('entry')}, '新建專案')),
+    el('section', {'aria-labelledby':'home-start-title'},
+      el('h2', {id:'home-start-title'}, '從哪裡開始'),
+      el('p', {class:'muted home-start-hint'}, '選一種方式，開始一個新案。'),
+      el('div', {class:'home-starts'},
+        homeStart('label', {}, '↑', '上傳平面圖', '建商圖、手繪都能讀',
+          el('input', {type:'file',accept:'image/*,.pdf','aria-label':'上傳平面圖',
+            onchange:event => upload(event, true, true)})),
+        homeStart('button', {type:'button','aria-label':'現場拍照',onclick:() => startProject('camera')},
+          '◎', '現場拍照', '跟著引導拍幾張'),
+        homeStart('button', {type:'button','aria-label':'說一句話',onclick:() => startProject('brief')},
+          '…', '說一句話', '描述你想要的家'))),
+    el('section', {'aria-labelledby':'recent-homes-title'},
+      el('h2', {id:'recent-homes-title'}, '最近的家'),
+      el('div', {class:'recent-homes'}, recent.map(([id, project]) => recentProject(id, project)))));
+}
+
+const scanSteps = [
+  ['找出牆和房間', '辨識各房與隔間', '已完成'],
+  ['讀尺寸標註', '換算成公尺與坪數', '已完成'],
+  ['比對門窗與採光', '核對開口與採光方向', '進行中'],
+  ['找樑、柱、管線', '交由屋主補足看不清楚的資料', '待處理'],
+  ['整理成空間條件', '缺少的資料標為待補', '待處理'],
+];
+function scanningPage() {
+  return grid(el('div', {class:'plan-stage scan-plan'},
+    el('h2', {class:'plan-note'}, '示意平面圖'),
+    el('div', {class:'scan-drawing'}, planDiagram(draft, draft.appliedLayout))),
+    card(...heading('正在讀懂你家'),
+      el('p', {class:'panel-note'}, '示意解析，使用範例平面。讀不到的資料可在下一步補。'),
+      sourceDetails(),
+      el('ol', {class:'scan-steps','aria-label':'解析步驟'},
+        scanSteps.map(([title, detail, status], index) =>
+          el('li', {class:'scan-step','data-state':status,...(index === 2 ? {'aria-current':'step'} : {})},
+            el('span', {class:'scan-mark','aria-hidden':'true'}, index < 2 ? '✓' : ''),
+            el('span', {}, el('strong', {}, title), el('small', {}, detail)),
+            el('span', {class:'badge'}, status)))),
+      actions(link('取消', 'entry'), link('查看解析結果', 'read', true))), 'scan-grid');
+}
+
+function profilePage() {
+  const proposed = proposedOpenKitchen();
+  const original = homeCosts(false);
+  const adjusted = proposed ? homeCosts(true) : original;
+  const isOriginal = draft.profileOriginal;
+  const displayed = isOriginal ? original : adjusted;
+  const kitchenBefore = sumCosts(original.byRoom[2]);
+  const kitchenAfter = sumCosts(adjusted.byRoom[2]);
+  const [extraLow, extraHigh] = kitchenAfter.map((amount, index) => amount - kitchenBefore[index]);
+  const extra = extraLow === extraHigh ? extraLow + ' 萬' : price([extraLow, extraHigh]);
+  return grid(el('div', {class:'plan-stage profile-plan'},
+    el('div', {class:'profile-plan-heading'},
+      el('h2', {class:'plan-note'}, '同案格局對照'),
+      el('div', {class:'actions profile-compare',role:'group','aria-label':'比較格局'},
+        button('調整後', refresh(() => {draft.profileOriginal = false;}), !isOriginal),
+        button('原本', refresh(() => {draft.profileOriginal = true;}), isOriginal))),
+    planDiagram(draft, !isOriginal && proposed),
+    el('div', {class:'profile-total',role:'status','aria-label':'整戶估價'},
+      el('small', {}, isOriginal ? '整戶 · 原本估算' : '整戶 · 調整後估算'),
+      el('strong', {}, price(sumCosts(displayed.wholeHome))))),
+    card(...heading('你的居家人格'),
+      el('div', {class:'profile-personality'}, el('small', {}, '你的選擇'),
+        el('h2', {}, proposed ? '窩居料理派' : '自然實用派'),
+        el('p', {}, draft.answers.filter(Boolean).join(' · ') || '回精修格局補上選擇。')),
+      el('section', {class:'profile-changes stack'}, el('h2', {}, '格局跟著這樣變'),
+        el('div', {class:'profile-change'},
+          el('div', {}, el('h3', {}, proposed ? '廚房打開，做中島' : '保留原本廚房'),
+            el('small', {}, proposed ? '移除廚房與餐廳間隔牆，加入示意中島。' : '保留廚房間隔，由原格局估價。')),
+          el('strong', {}, proposed ? '＋' + extra : '無價差')),
+        el('p', {}, '廚房 ' + price(kitchenBefore) + ' → ' + price(kitchenAfter))),
+      el('p', {class:'panel-note'}, proposed ? '格局調整後，法規細評會提示隔間變更的示意檢查。' : '法規細評提供這個家的示意檢查。'),
+      el('div', {class:'profile-actions stack'},
+        actions(link('看法規細評', 'compliance'), link('風水評估', 'feng'), link('略過，去施工圖', 'drawings')),
+        actions(backToLayout(), el('button', {type:'button',class:'primary',onclick:() => {recheckLayout(); go('compliance');}},
+          '套用，看法規細評')))), 'profile-grid');
+}
+
 const pages = {
   entry: () => el('section', {class:'hero','aria-labelledby':'entry-title'},
     el('img', {class:'hero-photo',src:photo,alt:'靜謐橡木客廳示意',width:1536,height:1024,fetchpriority:'high'}),
@@ -409,11 +534,7 @@ const pages = {
       el('p', {class:'hero-promise'}, '給我們你的房子，', el('br'), '還你成品、報價與施工圖。'),
       el('div', {class:'hero-price'}, el('strong', {}, '26–48 萬'), el('small', {}, '這間客廳的初步報價示意')),
       el('p', {}, '成品、報價、法規初檢都免費看。', el('br'), '喜歡了，再解鎖施工圖。'))),
-  homes: () => stack(...heading('我的家', '最近專案 · 示意'),
-    el('div', {class:'tiles'}, card(button('新建專案', createProject)),
-      ...Array.from(projects, ([id, project]) =>
-        card(el('h2', {}, project.name), el('span', {class:'badge'}, project.draft.unlocked ? '已解鎖' : project.state),
-          el('a', {href:href(project.page, id),class:'button'}, '打開專案'))))),
+  homes: homesPage,
   camera: () => grid(figure(photo, '拍照位置示意'), card(...heading('現場拍照', '第 ' + (draft.shot + 1) + ' 張／4'),
     rows(shots.map((name, i) => [name, i < draft.shot ? '已完成' : i === draft.shot ? '正在拍攝' : '待補'])),
     picker('從相簿選或拍攝', {accept:'image/*',capture:'environment'}, event => {
@@ -426,9 +547,7 @@ const pages = {
     draft.photos.some(Boolean) && el('ul', {class:'source-filename'}, draft.photos.filter(Boolean).map(name => el('li', {}, name))),
     actions(button('下一張', refresh(() => {draft.shot = Math.min(3, draft.shot + 1);})),
       el('a', {href:href('scanning'),class:'button primary',onclick:usePhotos}, '拍完了')))),
-  scanning: () => card(...heading('正在讀懂你家', draft.source ? undefined : '示意格局'), sourceDetails(),
-    el('progress', {value:72,max:100,'aria-label':'示意解析進度'}),
-    actions(link('取消', 'entry'), link('查看解析結果', 'read', true))),
+  scanning: scanningPage,
   read: () => grid(plan(true),
     card(...heading('我讀懂的你家'), el('p', {class:'panel-note'}, '示意平面圖讀到 8 間。有 2 項待補、1 項請確認，也可以先選風格。'),
     el('details', {class:'room-size-panel', ...(draft.editRoomSize ? {open:''} : {}),
@@ -474,9 +593,8 @@ const pages = {
     link('3D 與報價', 'result'), link('施工圖與團隊', draft.unlocked ? 'drawings' : 'unlock')),
     roomButtons(), grid(preview(), card(el('h2', {}, '這間的初步報價'), el('strong',{class:'price'},estimate()), link('看整戶', 'whole')))),
   whole: () => {
-    const costsByRoom = rooms.map((_, index) => roomCostItems(index));
+    const {byRoom:costsByRoom, wholeHome} = homeCosts();
     const currentRoom = costsByRoom[draft.room];
-    const wholeHome = groupCosts(costsByRoom.flat());
     return stack(...heading('整戶：一間一間看'), roomButtons(),
       grid(preview(), card(el('h2', {}, rooms[draft.room] + '初步報價'),
         el('strong', {class:'price'}, price(sumCosts(currentRoom))), el('h2', {}, '整戶初步報價'),
@@ -525,17 +643,15 @@ const pages = {
   layout: () => {
     const [prompt, ...choices] = questions[draft.step];
     return grid(stack(...heading('格局精修', '第 ' + (draft.step + 1) + ' 關／5 · ' + ['回家','怎麼煮','怎麼收','怎麼睡','誰會來'][draft.step]),
-      plan(), el('p', {}, draft.layoutPreview && draft.answers[1] === '天天煮' ? '示意調整：開放廚房與中島' : '原本平面')),
+      plan(false, draft.layoutPreview && proposedOpenKitchen()),
+      el('p', {}, draft.layoutPreview && proposedOpenKitchen() ? '示意調整：開放廚房與中島' : '原本平面')),
       card(el('h2', {}, prompt), actions(...choices.map(choice =>
-        button(choice, refresh(() => {draft.answers[draft.step] = choice;}), choice === draft.answers[draft.step]))),
+        button(choice, refresh(() => {draft.answers[draft.step] = choice; draft.profileOriginal = false;}), choice === draft.answers[draft.step]))),
         button('預覽調整／原本平面', refresh(() => {draft.layoutPreview = !draft.layoutPreview;})),
         actions(draft.step > 0 && button('上一關', refresh(() => {draft.step--;})),
           draft.step < 4 ? button('下一關', refresh(() => {draft.step++;})) : link('看居家人格', 'profile', true))));
   },
-  profile: () => grid(preview(), card(...heading('你的居家人格', '自然實用派 · 示意'),
-    rows(questions.map(([prompt], i) => [prompt, draft.answers[i] || '待補'])),
-    actions(button('套用，看法規細評', () => {recheckLayout(); go('compliance');}),
-      link('看法規細評', 'compliance'), link('風水評估', 'feng'), link('略過，去施工圖', 'drawings')))),
+  profile: profilePage,
   compliance: () => {
     const changed = draft.checkedLayout !== layoutKey();
     const findings = complianceFindings();
@@ -560,8 +676,7 @@ const pages = {
         el('label', {}, '你家在第幾樓？', el('input', {type:'number',min:'1',max:'200',step:'1',required:'',
           value:draft.floorInput,oninput:event => {draft.floorInput = event.target.value;}})),
         el('button', {type:'submit'}, '儲存樓層並重查')),
-        actions(el('a', {href:href('layout'),class:'button',onclick:() => {draft.step = 1;}}, '回精修格局'),
-          link('看風水', 'feng', true))));
+        actions(backToLayout(), link('看風水', 'feng', true))));
   },
   feng: () => grid(plan(), card(...heading('風水評估', '傳統習俗參考 · 12 項示意'),
     rows([['客廳動線','建議調整'],['主臥床頭','建議調整'],['大門方位','待補']]),
@@ -636,15 +751,25 @@ function updateNavigation(page) {
   document.querySelector('.site-header > .phase-nav')?.remove();
   if (page !== 'homes') rail.before(phaseNav(page, work));
 }
+const projectProgress = {
+  camera:'進行中', scanning:'解析中', read:'待補', conditions:'待補', brief:'進行中', style:'進行中',
+  result:'初步報價', layout:'精修中', profile:'精修中', compliance:'法規細評',
+  feng:'精修中', drawings:'施工圖', team:'團隊對接',
+};
 function render(focus = true) {
   scene?.dispose();
   scene = undefined;
   const [route, query] = location.hash.slice(1).split('?');
   const id = new URLSearchParams(query).get('project');
   if (projects.has(id)) projectId = id;
-  draft = projects.get(projectId).draft;
+  const project = projects.get(projectId);
+  draft = project.draft;
   const requested = Object.hasOwn(pages, route) ? route : 'entry';
   const page = premium.includes(requested) && !draft.unlocked ? 'unlock' : requested;
+  if (Object.hasOwn(projectProgress, page)) {
+    project.state = projectProgress[page];
+    if (project.resumable) project.page = page;
+  }
   updateNavigation(page);
   const layout = pages[page]();
   const workGrid = layout.matches('.grid') ? layout : layout.querySelector('.grid');
