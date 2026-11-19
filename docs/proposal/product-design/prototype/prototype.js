@@ -25,7 +25,7 @@ const DIMS = [
   { name: '裝飾', lo: '極簡', hi: '豐富' },
   { name: '光線', lo: '沉穩', hi: '明亮' },
 ];
-const { JP, NO, RE, IN, MO, FR, LX, KR, MC, WB, LOOKS, LOOK_CAMS, FURN, SLOT_N, designX, lookX, MODELS, FLOORS, WALLS, SOFAS, RUGS, CURTAINS, LAMPS, PARTS, PART, CLASH, COST, STYLES } = window.HB_CATALOG;
+const { JP, NO, RE, IN, MO, FR, LX, KR, MC, WB, LOOKS, LOOK_CAMS, TAG_GROUPS, FURN, SLOT_N, AX_CURVE, AX_NATURE, designX, lookX, MODELS, FLOORS, WALLS, SOFAS, RUGS, CURTAINS, LAMPS, PARTS, PART, CLASH, COST, STYLES } = window.HB_CATALOG;
 const PERSONAS = {
   'solo-few-tidy-am': ['晨光窩居者', '週六七點，窗邊已有一杯咖啡', ['獨處角落', '窗邊座位']],
   'solo-few-tidy-pm': ['深夜極簡師', '半夜擦桌子是我的冥想', ['精簡收納', '分區調光']],
@@ -202,6 +202,31 @@ const R = window.HB_RECO;
 const SLOTS = ['table', 'chair', 'side', 'plant', 'accent', 'screen'];
 const furnOf = lk => ({ ...(STYLES[lk.style].furn || {}), ...(lk.furn || {}) });
 const itemsOf = lk => { const f = furnOf(lk); return [...PARTS.map(p => p.list[lk[p.k]]), ...SLOTS.map(k => f[k] && FURN[f[k]]).filter(Boolean)]; };
+// ---------- harmony: "I picked it because it looks right together", not because of the style ----------
+// A pick mixes two things: taste for a style and how well the room hangs together. Harmony is scored from the tag
+// database alone (no taste involved): one colour temperature (neutral goes with either), one era, some light/dark
+// contrast, no clashes. It is used three ways: rounds are drawn from rooms of similar harmony, a win by a much more
+// harmonious room teaches less about style, and the user can say "it just looks better" to take most of it back.
+const modalShare = (vals, wild) => { const n = vals.length || 1, c = {}; vals.forEach(v => { if (v !== wild) c[v] = (c[v] || 0) + 1; }); const m = Math.max(0, ...Object.values(c)); return (m + vals.filter(v => v === wild).length) / n; };
+const harmonyCache = new Map();
+function harmony(lk) {
+  const key = JSON.stringify(lk); if (harmonyCache.has(key)) return harmonyCache.get(key);
+  const its = itemsOf(lk), g = grp => its.map(it => it.tags.find(t => TAG_GROUPS[grp].includes(t)));
+  const depth = g('深淺'), contrast = new Set(depth).size > 1 ? 1 : .5;
+  const h = clamp(.45 * modalShare(g('色溫'), '中性') + .35 * modalShare(g('年代')) + .2 * contrast - .3 * clashes(lk).length, 0, 1);
+  harmonyCache.set(key, h); return h;
+}
+const harmonyOf = o => harmony(candLook(o.i, o.mod));
+// Learning weight for "winner over loser": full when the loser was at least as harmonious, down to about a third
+// when the winner was much more harmonious.
+const harmonyDiscount = (win, lose) => Math.exp(-4 * Math.max(0, harmonyOf(win) - harmonyOf(lose)));
+const FB_HARMONY = /整體(比較|更)?(協調|好看|漂亮|順眼|舒服)|比較協調|比較順眼|比較搭|只是(好看|漂亮|順眼)|不是(因為)?喜歡(這個|這種)?風格|搭配(比較)?好/;
+// Weight of tag-posterior variance next to the three-dimension variance when choosing what to show
+// (the offline simulation found .25 helps; see sim/reco-sim.cjs).
+const TAG_INFO_W = .25;
+// Tag profile of an unmodified curated look; cached because the pool never changes.
+const lookFeatCache = [];
+const lookFeat = i => lookFeatCache[i] || (lookFeatCache[i] = R.feat(itemsOf(LOOKS[i])));
 const tagPost = () => S.tagPost || (S.tagPost = R.fresh());
 // w > 0 is evidence for the pieces, w < 0 against them; |w| is how much the reaction should count (at most 1).
 function learnTags(items, w) { if (w) R.single(tagPost(), items, w > 0 ? 1 : 0, Math.min(1, Math.abs(w))); }
@@ -217,7 +242,7 @@ function tagDiff(win, lose) {
   const a = count(win), b = count(lose), d = [...new Set([...Object.keys(a), ...Object.keys(b)])].map(t => [t, (a[t] || 0) - (b[t] || 0)]).filter(([, x]) => x);
   return { more: d.filter(([, x]) => x > 0).sort((p, q) => q[1] - p[1]).slice(0, 3).map(([t]) => t), less: d.filter(([, x]) => x < 0).sort((p, q) => p[1] - q[1]).slice(0, 2).map(([t]) => t) };
 }
-const pieceName = (k, it) => !it ? '' : FURN[it.k] === it ? it.n : { sofa: it.n.endsWith('沙發') ? it.n : it.n + '沙發', lamp: it.n, rug: it.n + '地毯', curtain: it.n + '窗簾', floor: it.n, wall: it.n + '牆' }[k];
+const pieceName = (k, it) => !it ? '' : FURN[it.k] === it ? it.n : { sofa: /(沙發|床|凳)$/.test(it.n) ? it.n : it.n + '沙發', lamp: it.n, rug: it.n + '地毯', curtain: it.n + '窗簾', floor: it.n, wall: it.n + '牆' }[k];
 const slotName = k => PART[k] ? PART[k].n : SLOT_N[k];
 
 // ---------- recommender agent: one swap per round ----------
@@ -228,27 +253,34 @@ const slotName = k => PART[k] ? PART[k].n : SLOT_N[k];
 // base = swaps already made to this room, so a room kept across rounds is refined one piece at a time.
 // Pieces swapped in the last two rounds are skipped, so it is not always the sofa.
 const INFO_BONUS = 0;
-function tuneOne(i, base = null, only = null) {
-  if (S.eng.n < 1 && !only) return null;
-  const P = tagPost(), lk = candLook(i, base), recent = only ? [] : (S.tunedHist || []).slice(-2), f = furnOf(lk);
+// `pref` ({tag: +1 | -1}) comes from what the user said: a swap that adds wanted tags or drops unwanted ones is
+// required and ranked first, so "too dark" changes a dark piece rather than whatever the sample favours.
+// `bigOnly` limits the swap to the finishes and the sofa (what a thumbnail shows), for the sibling room.
+// It is exploratory, so it takes the best big swap even without a positive sampled gain, and `avoid` keeps it off
+// the slot the champion just changed.
+function tuneOne(i, base = null, only = null, pref = null, bigOnly = false, avoid = null) {
+  if (S.eng.n < 1 && !only && !pref) return null;
+  const P = tagPost(), lk = candLook(i, base), recent = only || pref ? [] : (S.tunedHist || []).slice(-2), f = furnOf(lk);
   const W = R.sample(P, rng(7919 + S.eng.n * 131 + i * 17)); let best = null;
+  const said = (cur, it) => pref ? it.tags.reduce((a, t) => a + (pref[t] || 0), 0) - cur.tags.reduce((a, t) => a + (pref[t] || 0), 0) : 0;
   const consider = (k, cur, alts) => alts.forEach(([v, it]) => {
     const gain = R.sampledOf(W, it) - R.sampledOf(W, cur) + .5 * (dot(S.eng.mu, optionX(it)) - dot(S.eng.mu, optionX(cur)));
-    const info = R.infoOf(P, cur, it), score = gain + INFO_BONUS * info;
-    if ((only || gain > 0) && (!best || score > best.score)) best = { k, v, gain, info, score, meanGain: itemScore(it) - itemScore(cur) };
+    const info = R.infoOf(P, cur, it), fit = said(cur, it), score = 2 * fit + gain + INFO_BONUS * info;
+    const ok = pref ? fit > 0 : only || bigOnly || gain > 0;
+    if (ok && (!best || score > best.score)) best = { k, v, gain, info, score, meanGain: itemScore(it) - itemScore(cur) };
   });
   for (const k of ['sofa', 'lamp', 'rug', 'curtain', 'wall', 'floor']) {
-    if (recent.includes(k) || (only && only !== k)) continue;
+    if (k === avoid || recent.includes(k) || (only && only !== k)) continue;
     consider(k, PART[k].list[lk[k]], PART[k].list.map((o, v) => [v, o]).filter(([v, o]) => v !== lk[k] && o.s.includes(lk.style) && !clashes({ ...lk, [k]: v }).length));
   }
   for (const k of SLOTS) {
-    if (recent.includes(k) || !f[k] || (only && only !== k)) continue;
+    if (bigOnly || recent.includes(k) || !f[k] || (only && only !== k)) continue;
     consider(k, FURN[f[k]], Object.values(FURN).filter(it => it.slot === k && it.k !== f[k] && it.s.includes(lk.style)).map(it => [it.k, it]));
   }
   if (!best) return null;
   S.tunedHist = [...(S.tunedHist || []), best.k].slice(-6);
   const focus = R.groupUncertainty(P)[0];
-  S.agent = { round: S.eng.n, look: i, k: best.k, v: best.v, mode: only ? 'asked' : best.meanGain <= 0 ? 'probe' : 'exploit', focus: focus.g };
+  S.agent = { round: S.eng.n, look: i, k: best.k, v: best.v, mode: only || pref ? 'asked' : best.meanGain <= 0 ? 'probe' : 'exploit', focus: focus.g };
   return { [best.k]: best.v };
 }
 function candLook(i, mod) {
@@ -268,6 +300,58 @@ function tunedLine(i, mod) {
   const why = sure ? `你偏好「${sure[0]}」` : probe ? `想確認你對「${probe[0]}」的感覺` : '';
   return `${slotName(k)}換成${pieceName(k, to)}（原本是${pieceName(k, from)}${why ? `；${why}` : ''}）`;
 }
+// ---------- free feedback: what the user says about the room they picked ----------
+// A sentence becomes three kinds of signal, clause by clause:
+//   an exact swap ("燈換黃銅", via the 3D screen's parseCommand) → applied as is;
+//   a piece named as wrong ("茶几不喜歡") → that piece goes, the agent picks its replacement;
+//   a quality ("太暗", "想要多一點木頭", "太空了") → signed tag preferences that update the tag posterior and steer
+//   which piece the agent swaps next round.
+// Rule-based so it runs offline; in the product an LLM would emit the same structure (see the A/B tech notes).
+const FB_SLOTS = [[/沙發/, 'sofa'], [/吊燈|燈具|燈/, 'lamp'], [/地毯/, 'rug'], [/窗簾/, 'curtain'], [/地板|地面/, 'floor'], [/牆/, 'wall'],
+  [/茶几|桌/, 'table'], [/單椅|椅/, 'chair'], [/邊櫃|櫃|書架|層架/, 'side'], [/植栽|盆栽|綠植/, 'plant'], [/擺飾|雕像|擺設/, 'accent'], [/屏風/, 'screen']];
+const FB_TAGS = [[/雕花|華麗|繁複/, '雕花'], [/條紋/, '條紋'], [/幾何/, '幾何'], [/花紋|花俏|花/, '花紋'], [/素面|單色/, '素面'], [/圓弧|圓潤|圓/, '圓弧'],
+  [/直線|俐落|方正/, '直線'], [/大理石|石材|石頭/, '石材'], [/水泥|清水模/, '水泥'], [/黃銅|金色/, '黃銅'], [/黑鐵|鐵件|鐵/, '黑鐵'], [/玻璃/, '玻璃'],
+  [/皮革|皮/, '皮革'], [/絨/, '絨布'], [/編織|藤/, '編織'], [/木頭|木質|木/, '木'], [/植物|綠意/, '植物'], [/陶/, '陶瓷'], [/暖/, '暖調'], [/冷/, '冷調'],
+  [/暗|深|沉重|黑/, '深色'], [/亮|淺|白/, '淺色'], [/現代|新潮/, '現代'], [/復古|懷舊|老派/, '復古'], [/古典|歐式/, '古典'], [/自然|樸實/, '自然'], [/工業/, '工業']];
+const FB_OPP = { 深色: '淺色', 淺色: '深色', 暖調: '冷調', 冷調: '暖調' };
+const FB_DIM = { 暖調: [0, 1], 冷調: [0, -1], 淺色: [2, 1], 深色: [2, -1] };
+const FB_NEG = /不要|不喜歡|不愛|討厭|太|過於|少一點|少點|拿掉|去掉|醜|怪|俗|不搭|不對|換掉/;
+const FB_POS = /想要|喜歡|多一點|多點|一點|更|要|偏|來點|加/;
+function parseFeedback(text, lk) {
+  const fb = { mods: {}, fix: [], keep: [], pref: {}, dims: [], labels: [] };
+  const want = (t, s) => { fb.pref[t] = s; if (FB_OPP[t] && !(FB_OPP[t] in fb.pref)) fb.pref[FB_OPP[t]] = -s; if (FB_DIM[t]) fb.dims.push([FB_DIM[t][0], FB_DIM[t][1] * s]); };
+  for (let s of text.split(/[，,。、；;！!？?]|然後|還有|而且|但是|可是/).map(x => x.trim()).filter(Boolean)) {
+    // 1. An exact swap the 3D screen already understands.
+    const cmd = parseCommand(s).find(c => PART[c.kind] && c.v != null);
+    if (cmd) {
+      if (!clashes({ ...lk, ...fb.mods, [cmd.kind]: cmd.v }).length) { fb.mods[cmd.kind] = cmd.v; fb.labels.push(cmd.label); }
+      else { fb.fix.push(cmd.kind); fb.labels.push(`${slotName(cmd.kind)}要換（${PART[cmd.kind].list[cmd.v].n}和這間不搭，改挑相近的）`); cmd.v != null && PART[cmd.kind].list[cmd.v].tags.forEach(t => { if (!(t in fb.pref)) fb.pref[t] = 1; }); }
+      continue;
+    }
+    const neg = FB_NEG.test(s), pos = !neg && FB_POS.test(s);
+    // 2. Fullness: "too empty" and "too busy" are about ornament, whatever the polarity words say.
+    const more = /太空|空蕩|冷清|單調|太素|不夠豐富/.test(s) || (/豐富|熱鬧/.test(s) && !neg), less = /太滿|太亂|雜亂|太多東西|太擠/.test(s) || (/清爽|簡約|極簡/.test(s) && !neg);
+    if (more || less) {
+      const sg = more ? 1 : -1; fb.dims.push([1, sg]); fb.pref['花紋'] = sg; fb.pref['素面'] = -sg; if (less) fb.pref['雕花'] = -1;
+      fb.labels.push(more ? '想要豐富一點' : '想要清爽一點'); s = s.replace(/太空|空蕩|冷清|單調|太素|不夠豐富|豐富|熱鬧|太滿|太亂|雜亂|太多東西|太擠|清爽|簡約|極簡/g, '');
+    }
+    // 3. A piece, then qualities. Matched words are consumed so "雕花" is not also read as "花".
+    const slot = FB_SLOTS.find(([re]) => re.test(s)); if (slot) s = s.replace(slot[0], '');
+    const tags = []; for (const [re, t] of FB_TAGS) if (re.test(s)) { tags.push(t); s = s.replace(re, ''); }
+    const sign = neg ? -1 : 1;
+    tags.forEach(t => want(t, sign));
+    if (tags.length) fb.labels.push(`${slot ? slotName(slot[1]) : '整體'}${sign > 0 ? '想要' : '不要'}${tags.join('、')}`);
+    if (slot) {
+      const k = slot[1], has = PART[k] || furnOf(lk)[k];
+      if (!has) fb.labels.push(`這間沒有${slotName(k)}，先記下偏好`);
+      else if (pos && !tags.length) { fb.keep.push(k); fb.labels.push(`${slotName(k)}留著`); }
+      else { if (!fb.fix.includes(k)) fb.fix.push(k); if (!tags.length) fb.labels.push(`${slotName(k)}要換`); }
+    }
+  }
+  return fb;
+}
+// Example sentences under the mic, rotated each round; every one parses to something.
+const SAY_AB = ['整體比較協調而已', '沙發太暗', '想要多一點木頭', '地毯太花', '只是比較順眼', '太空了', '燈換黃銅', '牆太冷', '整體比較好看，不是喜歡這個風格', '想要更復古', '茶几不喜歡', '整體亮一點', '太亂了，想要清爽一點', '窗簾換白紗', '想要圓一點的'];
 // ---------- viewing rounds: four rooms, and the one you picked comes back refined ----------
 // Round 1 shows four rooms of four styles. After a pick you can say which piece is still wrong; the next round brings
 // the picked room back (the "champion") with that piece swapped (or, if nothing was named, one piece the agent picks),
@@ -290,7 +374,9 @@ function pickInformative(n, fixed) {
         const d = sub(xOf(o), xOf(c)), fd = fOf(o).map((x, j) => x - fOf(c)[j]), p = sig(dot(S.eng.mu, d) + dot(T.mu, fd));
         info += p * (1 - p) * (d.reduce((a, di, k) => a + S.eng.v[k] * di * di, 0) + TAG_INFO_W * fd.reduce((a, x, j) => a + T.v[j] * x * x, 0));
       }
-      const score = (info + .02 * r()) * .3 ** shown(poolStyle(i));
+      // Rooms of similar harmony, so the pick says more about style than about which room is better put together.
+      const hGap = chosen.length ? Math.abs(harmonyOf(o) - chosen.reduce((a, c) => a + harmonyOf(c), 0) / chosen.length) : 0;
+      const score = (info + .02 * r()) * .3 ** shown(poolStyle(i)) * Math.exp(-4 * hGap);
       if (!best || score > best.score) best = { o, score };
     }
     if (!best) break;
@@ -301,8 +387,19 @@ function pickInformative(n, fixed) {
 function nextRound() {
   const C = S.champ, fixed = [];
   if (C) {
-    const add = tuneOne(C.i, C.mod, C.fix || null);
-    fixed.push({ i: C.i, mod: add ? { ...(C.mod || {}), ...add } : C.mod, champ: true, prev: C.mod, fixed: C.fix || null });
+    // A direct swap the user spelled out is already in C.mod; otherwise the agent mutates one piece, steered by
+    // whatever was said (a named piece and/or wanted qualities), and falls back to its own pick if nothing fits.
+    let add = C.direct && !C.fix && !C.pref ? null : tuneOne(C.i, C.mod, C.fix || null, C.pref || null);
+    // A quality with no piece named ("太暗") may fall back to the agent's own pick; a named piece with a quality
+    // ("沙發想要圓一點") must not be swapped for something that ignores what was asked.
+    if (!add && C.pref && !C.fix) add = tuneOne(C.i, C.mod);
+    const mod = add ? { ...(C.mod || {}), ...add } : C.mod;
+    fixed.push({ i: C.i, mod, champ: true, prev: C.prev !== undefined ? C.prev : C.mod, fixed: C.fix || null, said: C.said || null });
+    // A sibling: the same room mutated a second way, so one round compares two edits of the room you liked.
+    // It swaps a big piece (sofa, floor, wall, rug, curtain or lamp) so it reads as a different room at thumbnail size.
+    const agent = S.agent, hist = S.tunedHist, done = add ? Object.keys(add)[0] : C.fix;
+    const alt = tuneOne(C.i, C.mod, null, C.pref || null, true, done) || tuneOne(C.i, C.mod, null, null, true, done); S.agent = agent; S.tunedHist = hist;
+    if (alt && AB_N > 2) { const am = { ...(C.mod || {}), ...alt }; if (JSON.stringify(am) !== JSON.stringify(mod)) fixed.push({ i: C.i, mod: am, sibling: true, prev: C.mod }); }
   }
   const opts = pickInformative(AB_N, fixed), r = rng(77 + S.abCount * 13);
   for (let k = opts.length - 1; k > 0; k--) { const j = Math.floor(r() * (k + 1)); [opts[k], opts[j]] = [opts[j], opts[k]]; }
@@ -312,9 +409,13 @@ function nextRound() {
 // What changed on the champion this round, for the guess strip.
 function champLine() {
   const c = S.ab && S.ab.opts.find(o => o.champ); if (!c) return '';
-  const added = Object.keys(c.mod || {}).find(k => !c.prev || c.prev[k] !== c.mod[k]);
-  if (!added) return c.fixed ? `${LOOKS[c.i].style}沒有其他${slotName(c.fixed)}可換，先保留你選的那間` : '你上一輪選的那間還在，這次沒有更好的單品可換';
-  return `你上一輪選的那間：${tunedLine(c.i, { [added]: c.mod[added] }).replace(/（原本是[^；）]*；?/, '（').replace('（）', '')}`;
+  const added = Object.keys(c.mod || {}).filter(k => !c.prev || c.prev[k] !== c.mod[k]);
+  const sib = S.ab.opts.some(o => o.sibling) ? '；另一間是同一間的另一種改法' : '';
+  const lead = c.said ? `照你說的「${c.said}」` : '你上一輪選的那間';
+  if (!added.length) return (c.fixed ? `${LOOKS[c.i].style}裡沒有${c.said ? `更符合「${c.said}」的` : '其他'}${slotName(c.fixed)}，先保留你選的那間` : `${lead}還在，這次沒有更好的單品可換`) + sib;
+  if (added.length > 1) { const lk = candLook(c.i, c.mod); return `${lead}：${added.map(k => `${slotName(k)}換成${pieceName(k, PART[k] ? PART[k].list[lk[k]] : FURN[c.mod[k]])}`).join('、')}${sib}`; }
+  const line = tunedLine(c.i, { [added[0]]: c.mod[added[0]] });
+  return `${lead}：${c.said ? line.replace(/（.*）$/, '') : line.replace(/（原本是[^；）]*；?/, '（').replace('（）', '')}${sib}`;
 }
 function uncertainCards(n) {
   const avail = TRAIN.filter(i => !S.used.includes(i));
@@ -337,6 +438,45 @@ function rankStyles(mu = S.eng.mu) {
   const own = mu === S.eng.mu && S.tagPost && S.tagPost.n > 0;
   return Object.entries(STYLES).map(([n, s]) => ({ n, score: dot(mu, s.x) - .15 * s.x.reduce((a, x, i) => a + (x - clamp(mu[i], -1, 1)) ** 2, 0) + (own ? TAG_FIT_W * tagFit(n) : 0) }))
     .sort((a, b) => b.score - a.score);
+}
+// Two more axes for the taste profile, derived from the tag posterior rather than learned as engine dimensions:
+// the offline simulation (sim/reco-sim.cjs --axes) found that adding them to the engine did not lower regret,
+// because the tag model already learns 圓弧/直線 and the natural materials directly. Reading them off the tags
+// shows them to the user without double-counting. An axis is (mean weight of its + tags) − (mean of its − tags);
+// dragging it shifts those tag weights by the same amount, so the reading and the model stay in step.
+const TAG_AXES = [
+  { name: '線條', lo: '直線俐落', hi: '圓弧柔和', w: AX_CURVE, why: '人普遍偏好曲線，但程度因人而異' },
+  { name: '自然感', lo: '人造俐落', hi: '自然材質', w: AX_NATURE, why: '木、植物、編織、陶 vs 鐵、水泥、玻璃' },
+];
+const axisSides = ax => { const ts = Object.keys(ax.w).filter(t => t in R.IDX); return [ts.filter(t => ax.w[t] > 0), ts.filter(t => ax.w[t] < 0)]; };
+function axisRead(ax) {
+  const P = tagPost(), [pos, neg] = axisSides(ax), m = ts => ts.reduce((a, t) => a + P.mu[R.IDX[t]], 0) / ts.length;
+  const vv = ts => ts.reduce((a, t) => a + P.v[R.IDX[t]], 0) / ts.length ** 2;
+  const top = [...pos, ...neg].map(t => [t, P.mu[R.IDX[t]]]).filter(([, x]) => Math.abs(x) > .1).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 3);
+  const sd0 = Math.sqrt(1 / pos.length + 1 / neg.length); // prior: every tag variance 1 (reco.js V0)
+  return { mu: m(pos) - m(neg), sd: Math.sqrt(vv(pos) + vv(neg)), sd0, top };
+}
+function axisShift(ax, delta) {
+  const P = tagPost(), [pos, neg] = axisSides(ax);
+  pos.forEach(t => { const i = R.IDX[t]; P.mu[i] += delta / 2; P.v[i] = Math.min(P.v[i], .3); });
+  neg.forEach(t => { const i = R.IDX[t]; P.mu[i] -= delta / 2; P.v[i] = Math.min(P.v[i], .3); });
+}
+// Confidence in three steps: how far the posterior sd has shrunk from its prior.
+const confidence = (sd, sd0) => sd / sd0 < .45 ? 3 : sd / sd0 < .7 ? 2 : 1;
+// Probability that each style is the user's favourite: draw plausible tastes from the posterior (three dimensions
+// and every tag weight), score all fourteen styles the way rankStyles does, count how often each comes first.
+// Unlike a softmax over the top three, it covers every style and spreads out while the model is unsure.
+function styleOdds(N = 300) {
+  const E = S.eng, P = tagPost(), r = rng(4242 + E.n * 7 + P.n), names = Object.keys(STYLES), win = names.map(() => 0);
+  const gauss = () => Math.sqrt(-2 * Math.log(Math.max(1e-9, r()))) * Math.cos(2 * Math.PI * r());
+  const feats = names.map(styleFeat), useTags = P.n > 0;
+  for (let s = 0; s < N; s++) {
+    const mu = E.mu.map((m, i) => m + Math.sqrt(E.v[i]) * gauss()), W = useTags ? R.sample(P, r) : null;
+    let best = -1, bs = -Infinity;
+    names.forEach((n, k) => { const x = STYLES[n].x, sc = dot(mu, x) - .15 * x.reduce((a, xi, i) => a + (xi - clamp(mu[i], -1, 1)) ** 2, 0) + (W ? TAG_FIT_W * dot(W, feats[k]) / 12 : 0); if (sc > bs) { bs = sc; best = k; } });
+    win[best]++;
+  }
+  return names.map((n, k) => ({ n, p: win[k] / N })).sort((a, b) => b.p - a.p);
 }
 function tagsFor(mu, v) {
   const out = [];
@@ -538,7 +678,10 @@ function guessStrip() {
   const line = S.eng.n === 0 ? '還沒有線索，先選一間' : g.sure ? `目前猜：${g.top}` : `還在「${g.top}」和「${g.second}」之間`;
   const r = S.eng.n ? recoLine() : '';
   const said = S._inlineReact ? S._inlineReact.split(/[，。]/)[0] : '';
-  return `<div class="guess-strip${said ? ' fresh' : ''}">${S.eng.n ? stylePlate(g.top, true) : ''}<p><small>${said ? esc(said) : '你的家目前像'}</small><b>${line}</b>${r ? `<span class="reco">${r}</span>` : ''}</p></div>`;
+  // Two lines: the guess, then what this round changed (or, failing that, the reaction to the last answer).
+  // The bubble above already speaks the reaction, so it is not repeated when there is a recommendation line.
+  const second = r || (said ? esc(said) : ''), full = (r || said || '').replace(/<[^>]+>/g, '');
+  return `<div class="guess-strip${said ? ' fresh' : ''}"${full ? ` title="${esc(full)}"` : ''}>${S.eng.n ? stylePlate(g.top, true) : ''}<p><b>${line}</b>${second ? `<span class="reco"${full ? ` aria-label="${esc(full)}"` : ''}>${second}</span>` : ''}</p></div>`;
 }
 const INLINE_REACT = ['ab', 'swipe'];
 // Live recommendation after every answer: what this round tuned, else the best-fitting pieces for the top guess.
@@ -673,20 +816,23 @@ def('ab', {
   label: '第 1 關・看屋', stage: 's1', fit: true,
   step: () => `${Math.min(S.abCount + 1, AB_TOTAL())} / ${AB_TOTAL()}`,
   guide: '憑直覺選，沒有對錯。',
-  note: '每輪四間不同風格的樣板房，選一間後可以說哪裡還要改。下一輪會把你選的那間帶回來、換掉那一件（沒說就由推薦代理挑一件），另外三間由引擎挑「最能減少不確定性」的組合。',
-  tech: [['ok', '首版圖庫 60–100 張、預先標註屬性；不即時生成'], ['ok', '期望資訊量出題：本頁就是縮小版（3 維、56 組精選搭配）'], ['ok', '標籤資料庫：每件家具與材質有色溫、深淺、材質、造型、花樣、年代六個標籤；每個標籤一個貝氏權重（平均與不確定度），四選一＝三次成對比較'], ['ok', '推薦代理：從後驗抽一組權重（Thompson sampling）決定下一輪換哪一件；使用者點名的部位一定換'], ['ok', '模擬（sim/reco-sim.cjs，300 位）：四選一＋冠軍＋微調比舊的二選一，最終遺憾降 20–40%、風格猜中率高 6–15 個百分點；效果主要來自四選一與冠軍迴圈，貝氏模型本身與資訊獎勵沒有可量測的差異'], ['mid', '真人是否願意每輪多點一下微調：要做使用者測試'], ['mid', 'VLM：可自動替新素材標籤、把使用者上傳的參考圖轉成同一套標籤，並寫出推導；需要付費 API，尚未接'], ['ok', 'AI 版：作答時顯示目前猜測與改變的原因；前兩名分數差 < 0.15 時誠實顯示「還在兩者之間」'], ['mid', '自適應停題未採用：模擬 400 位使用者，固定 6 題已接近上限，「猜測穩定就停」與「先猜再驗」都沒有更準'], ['mid', '圖庫來源：要授權、台灣常見房型、攝影品質一致；成本與時程未估'], ['mid', 'JEV 是否勝過這種基準模型，需留出資料評測']],
+  note: '每輪四間樣板房，選一間後用說的講哪裡不對（「沙發太暗」「想要多一點木頭」「整體比較協調而已」），不用自己挑部位。下一輪把你選的那間照你說的突變一處，再放一間同一間的另一種改法；沒說就由推薦代理自己挑。另外兩三間由引擎挑「最能減少不確定性」且協調度相近的組合。',
+  tech: [['ok', '首版圖庫 60–100 張、預先標註屬性；不即時生成'], ['ok', '期望資訊量出題：本頁就是縮小版（3 維、56 組精選搭配）'], ['ok', '標籤資料庫：每件家具與材質有色溫、深淺、材質、造型、花樣、年代六個標籤；每個標籤一個貝氏權重（平均與不確定度），四選一＝三次成對比較'], ['ok', '推薦代理：從後驗抽一組權重（Thompson sampling）決定下一輪換哪一件；使用者點名的部位一定換'], ['ok', '模擬（sim/reco-sim.cjs，300 位）：四選一＋冠軍＋微調比舊的二選一，最終遺憾降 20–40%、風格猜中率高 6–15 個百分點；效果主要來自四選一與冠軍迴圈，貝氏模型本身與資訊獎勵沒有可量測的差異'], ['ok', '口語回饋 → 突變：一句話拆成「指定換成什麼」「哪件不要」「想要／不要的標籤」，更新標籤後驗，再讓代理挑最符合的一件換掉；目前用規則解析，正式版由 LLM 輸出同樣的結構'], ['ok', '協調度：從標籤算（色溫、年代一致、深淺有層次、不撞色）。同輪挑協調度相近的房間；選的那間協調度明顯較高時風格證據打折；說「整體比較協調而已」退回這輪七成風格證據'], ['mid', '協調度是規則估計，不是美感模型；正式版可用多人資料學每間房的「好看程度」截距（Bradley–Terry 的 item effect），或用 VLM 評分'], ['mid', '真人是否願意每輪多說一句：要做使用者測試'], ['mid', 'VLM：可自動替新素材標籤、把使用者上傳的參考圖轉成同一套標籤，並寫出推導；需要付費 API，尚未接'], ['ok', 'AI 版：作答時顯示目前猜測與改變的原因；前兩名分數差 < 0.15 時誠實顯示「還在兩者之間」'], ['mid', '自適應停題未採用：模擬 400 位使用者，固定 6 題已接近上限，「猜測穩定就停」與「先猜再驗」都沒有更準'], ['mid', '圖庫來源：要授權、台灣常見房型、攝影品質一致；成本與時程未估'], ['mid', 'JEV 是否勝過這種基準模型，需留出資料評測']],
+  mount(el) { micCtl = null; const b = $('#ab-mic', el); if (b) micCtl = bindMic(b, t => SCREENS.ab.on.said(t), '例如：沙發太暗、想要多一點木頭'); },
   html: () => {
     if (!S.ab || !S.ab.opts) nextRound();
     const { opts, picked } = S.ab, done = picked != null, L = 'ABCD';
-    const w = done ? opts[picked] : null, wl = w && candLook(w.i, w.mod), f = wl && furnOf(wl);
-    const parts = w ? [...PARTS.map(p => p.k), ...['table', 'chair', 'side'].filter(k => f[k])] : [];
+    const say = SAY_AB.map((_, k) => SAY_AB[(k + S.abCount * 3) % SAY_AB.length]).slice(0, 3);
     return `<div class="progress"><i style="transform:scaleX(${(S.abCount + (done ? .5 : 0)) / AB_TOTAL()})"></i></div>
       <h1 class="title">${done ? '這間還想改哪裡？' : '最想住哪一間？'}</h1>
       ${guessStrip()}
-      <div class="ab four${done ? ' done' : ''}">${opts.map((o, k) => `<button class="pick${done ? (k === picked ? ' chosen' : ' dim') : ''}" data-act="pick" data-arg="${k}" ${done ? 'disabled' : ''} aria-label="選 ${L[k]}${o.champ ? '（你上一輪選的，已微調）' : ''}：${describe(candX(o.i, o.mod))}"><b>${L[k]}</b>${o.champ ? '<span class="champ">上一輪選的</span>' : ''}${roomShot(o.i, `選項 ${L[k]}：`, o.mod, true)}</button>`).join('')}</div>
+      <div class="ab four${done ? ' done' : ''}">${opts.map((o, k) => `<button class="pick${done ? (k === picked ? ' chosen' : ' dim') : ''}" data-act="pick" data-arg="${k}" ${done ? 'disabled' : ''} aria-label="選 ${L[k]}${o.champ ? '（你上一輪選的，已微調）' : o.sibling ? '（上一輪那間的另一種改法）' : ''}：${describe(candX(o.i, o.mod))}"><b>${L[k]}</b>${o.champ ? '<span class="champ">上一輪選的</span>' : o.sibling ? '<span class="champ alt">另一種改法</span>' : ''}${roomShot(o.i, `選項 ${L[k]}：`, o.mod, true)}</button>`).join('')}</div>
       ${done
-        ? `<div class="tune" role="group" aria-label="想換掉的東西"><div class="chips">${parts.map(k => `<button class="chip" data-act="fix" data-arg="${k}">${slotName(k)}</button>`).join('')}</div></div>
-           ${cta('<button class="btn" data-act="good">都很好，下一輪</button>', kbdHint('Enter 下一輪'))}`
+        ? `<div class="tune" role="group" aria-label="說說哪裡不對">
+             <div class="mic-row"><button class="mic" id="ab-mic" aria-label="${SR ? '按住說哪裡不對' : '打字說哪裡不對'}">${icon('microphone')}</button>
+               <div class="mic-copy"><p class="transcript" id="transcript">${S.ab.heard ? '「' + esc(S.ab.heard) + '」' : '哪裡不對？用說的就好'}</p><p class="mic-label">${SR ? (finePointer ? '按住說話，或按住空白鍵' : '按住說話') : '點一下打字'}</p></div></div>
+             <div class="chips">${say.map(t => `<button class="chip" data-act="said" data-arg="${esc(t)}">${esc(t)}</button>`).join('')}${SR ? '<button class="chip" data-act="typeSay">用打字</button>' : ''}</div></div>
+           ${cta('<button class="btn" data-act="good">交給推薦，下一輪</button>', kbdHint('Enter 下一輪'))}`
         : cta(`<div class="row2"><button class="btn text" data-act="none">都不喜歡</button>${canSkipLook() ? '<button class="btn text" data-act="skipLook">先看結果</button>' : '<span></span>'}</div>`, kbdHint('1–4 或 A–D 選擇'))}`;
   },
   on: {
@@ -696,25 +842,52 @@ def('ab', {
       const { opts } = S.ab, w = opts[j], wx = candX(w.i, w.mod), wi = itemsOf(candLook(w.i, w.mod));
       const before = S.eng.n ? guessState().top : null, losers = opts.filter((_, k) => k !== j);
       el.classList.add('chosen'); buzz();
-      // One pick among four = three comparisons, each counted at 0.6 so a round is worth about two A/B answers.
-      losers.forEach(o => { observe(sub(wx, candX(o.i, o.mod)), 1, .6); learnPair(wi, itemsOf(candLook(o.i, o.mod)), .6); });
+      // One pick among four = three comparisons, each counted at 0.6 so a round is worth about two A/B answers,
+      // discounted when the winner was simply the better-put-together room. The state before is kept so
+      // "it just looks better" can take most of this round back.
+      S.ab.pre = JSON.stringify({ eng: S.eng, tagPost: tagPost() });
+      const disc = losers.map(o => harmonyDiscount(w, o));
+      losers.forEach((o, k) => { const wt = .6 * disc[k]; observe(sub(wx, candX(o.i, o.mod)), 1, wt); learnPair(wi, itemsOf(candLook(o.i, o.mod)), wt); });
+      const avgDisc = disc.reduce((a, x) => a + x, 0) / disc.length;
+      if (avgDisc < .8) learn(`選的那間協調度明顯較高（${harmonyOf(w).toFixed(2)}）：風格證據只算 ${Math.round(avgDisc * 100)}%`);
       const li = losers.flatMap(o => itemsOf(candLook(o.i, o.mod))), td = tagDiff(wi, li.filter((_, k) => k % 3 === 0));
       if (td.more.length) learn(`標籤推導：選的那間多了${td.more.join('、')}${td.less.length ? `，少了${td.less.join('、')}` : ''}`);
       if (w.champ) learn(`又選了上一輪那間（微調後）${w.prev !== w.mod ? '：微調有效' : ''}`);
+      else if (w.sibling) learn('選了上一輪那間的另一種改法');
       else if (opts.some(o => o.champ)) learn('這次沒選上一輪那間：換一個方向');
       S.used.push(...opts.filter(o => !S.used.includes(o.i)).map(o => o.i)); learn(`偏好${LOOKS[w.i].style}・${LOOKS[w.i].name}`);
       const lx = losers.map(o => candX(o.i, o.mod)).reduce((a, x) => a.map((v, k) => v + x[k] / losers.length), [0, 0, 0]);
       S._react = S.mode === 'ai' ? explainPick(before, wx, lx) : `記下了：${describe(wx).replace('的客廳', '')}。`;
       S.ab.picked = j; save(); render(false);
     },
-    // The feedback loop: name the piece that is still wrong; the next round brings this room back with it swapped.
-    fix(k) {
-      checkpoint();
-      const w = S.ab.opts[S.ab.picked], lk = candLook(w.i, w.mod), it = PART[k] ? PART[k].list[lk[k]] : FURN[furnOf(lk)[k]];
-      learnTags([it], -.7); if (PART[k]) observe(optionX(it), 0, .4);
-      S.champ = { i: w.i, mod: w.mod, fix: k }; learn(`微調：不要${pieceName(k, it)}`); S._react = `好，下一輪把${slotName(k)}換掉。`; advanceAB();
+    good() { checkpoint(); const w = S.ab.opts[S.ab.picked]; S.champ = { i: w.i, mod: w.mod, fix: null }; S._react = '好，下一輪由推薦代理改兩種版本給你比。'; advanceAB(); },
+    // Free feedback (spoken, typed or an example sentence) → tag evidence + a steered mutation of this room.
+    said(text) {
+      if (!text || !text.trim() || S.ab.picked == null) return;
+      const w = S.ab.opts[S.ab.picked], lk = candLook(w.i, w.mod), harmonyOnly = FB_HARMONY.test(text);
+      const fb = parseFeedback(harmonyOnly ? text.replace(FB_HARMONY, '') : text, lk);
+      S.ab.heard = text;
+      // "It just looks better together": keep 30% of this round's style evidence, keep the room as the champion.
+      if (harmonyOnly && S.ab.pre) {
+        checkpoint();
+        const pre = JSON.parse(S.ab.pre), mix = (a, b) => a.map((x, k) => b[k] + .3 * (x - b[k]));
+        S.eng.mu = mix(S.eng.mu, pre.eng.mu); S.eng.v = mix(S.eng.v, pre.eng.v);
+        const T = tagPost(); T.mu = mix(T.mu, pre.tagPost.mu); T.v = mix(T.v, pre.tagPost.v);
+        fb.labels.unshift('是因為整體協調，不一定是風格'); learn('使用者說這次選它是因為整體協調：這輪風格證據退回七成');
+      }
+      if (!fb.labels.length) { S._react = '這句我還聽不懂。可以說「沙發太暗」「想要多一點木頭」，或直接按下一輪。'; save(); render(false); return; }
+      if (!harmonyOnly) checkpoint();
+      const prefT = Object.keys(fb.pref);
+      prefT.forEach(t => learnTags([{ tags: [t] }], fb.pref[t] * .6));
+      fb.fix.forEach(k => { const it = PART[k] ? PART[k].list[lk[k]] : FURN[furnOf(lk)[k]]; if (it) { learnTags([it], -.7); if (PART[k]) observe(optionX(it), 0, .4); } });
+      fb.keep.forEach(k => { const it = PART[k] ? PART[k].list[lk[k]] : FURN[furnOf(lk)[k]]; if (it) learnTags([it], .6); });
+      fb.dims.forEach(([d, sg]) => observe([0, 1, 2].map(j => j === d ? 1 : 0), sg > 0 ? 1 : 0, .5));
+      const direct = Object.keys(fb.mods).length > 0;
+      S.champ = { i: w.i, mod: direct ? { ...(w.mod || {}), ...fb.mods } : w.mod, prev: w.mod, fix: fb.fix[0] || null, pref: prefT.length ? fb.pref : null, said: text, direct };
+      learn(`口語回饋「${text}」→ ${fb.labels.join('、')}`);
+      S._react = `聽到了：${fb.labels.join('、')}。下一輪照這樣改。`; buzz(); advanceAB();
     },
-    good() { checkpoint(); const w = S.ab.opts[S.ab.picked]; S.champ = { i: w.i, mod: w.mod, fix: null }; S._react = '好，下一輪留著這間，再微調一處給你比。'; advanceAB(); },
+    typeSay() { openTyped(t => SCREENS.ab.on.said(t), '例如：沙發太暗、想要多一點木頭'); },
     skipLook() { skipLook(); },
     none() {
       checkpoint();
@@ -785,32 +958,59 @@ def('swipe', {
   },
 });
 function flyCard(dir) { const c = $('#card'); if (c) { c.classList.remove('rejected'); c.style.transform = `translateX(${dir * 420}px) rotate(${dir * 20}deg)`; } const w = $('.why'); if (w) w.remove(); }
-const SWIPE_N = () => longRoute() ? 6 : 4;
-function advanceSwipe() { S.swipe.i++; if (S.swipe.i >= SWIPE_N()) { next(true); return; } busy = false; save(); render(false); }
+const SWIPE_N = () => longRoute() ? 10 : 6;
+// The deck is re-drawn after every answer: the remaining cards are the most uncertain rooms under what the last
+// swipe just taught, so a longer deck keeps asking useful questions instead of a list fixed at the start.
+function advanceSwipe() {
+  S.swipe.i++; if (S.swipe.i >= SWIPE_N()) { next(true); return; }
+  const done = S.swipe.cards.slice(0, S.swipe.i), fresh = uncertainCards(SWIPE_N() - S.swipe.i).filter(i => !done.includes(i));
+  if (fresh.length) S.swipe.cards = [...done, ...fresh];
+  busy = false; save(); render(false);
+}
 
 def('taste', {
   label: '第 1 關・口味圖譜', stage: 's1',
   guide: '猜錯的地方，點標籤或拖滑桿就能改。',
-  note: '口味來自前面的選擇。點標籤可以翻轉，滑桿顯示目前的猜測和不確定程度。',
-  tech: [['ok', '修正直接覆寫後驗平均並縮小不確定性'], ['ok', '設計建議：用「還不確定」引導下一步，而不是假裝很準']],
+  note: '口味有五個軸：溫度、裝飾、光線是從你的選擇直接學的；線條（圓弧／直線）和自然感是從家具標籤推算的（環境心理學常見的維度）。每條軸顯示目前猜測、不確定範圍（色帶越窄越確定）和依據；猜錯直接拖或點字翻轉。最上面是最像的風格。',
+  tech: [['ok', '修正直接覆寫後驗平均並縮小不確定性；推算軸的修正會等量移動對應標籤的權重'], ['ok', '色帶＝平均 ± 1 個標準差；信心三格＝標準差比先驗縮小多少'], ['ok', '維度來源：色彩溫度（Palmer & Schloss 2010）、複雜度（Berlyne 1971；Kaplan 1989）、明暗、曲線偏好（Bar & Neta 2006；Vartanian 等 2013）、自然感（親自然設計）'], ['mid', '模擬：把線條、自然感加進引擎沒有降低遺憾（標籤模型已涵蓋），所以只做為推算顯示；真人是否看得懂五軸要測'], ['ok', '設計建議：用「還不確定」引導下一步，而不是假裝很準']],
   html: () => {
-    const { mu, v } = S.eng;
-    // Each dimension reads as a word; a confident reading can be flipped by tapping it.
-    const read = i => { const d = DIMS[i], m = mu[i], sure = Math.abs(m) > .25 && v[i] < .9; return { sure, word: sure ? `偏${m > 0 ? d.hi : d.lo}` : '還不確定' }; };
+    const { mu, v } = S.eng, pos = x => (clamp(x, -2, 2) + 2) / 4 * 100;
+    const dots = c => `<span class="conf" aria-label="信心 ${c}／3">${[1, 2, 3].map(k => `<i class="${k <= c ? 'on' : ''}"></i>`).join('')}</span>`;
+    // One row: label, a word reading (tap to flip when it is confident), slider over an uncertainty band, evidence.
+    const row = ({ id, name, lo, hi, m, sd, sd0, flip, src }) => {
+      // Confident and near zero is a finding too ("in the middle"), not "unsure".
+      const c = confidence(sd, sd0), sure = Math.abs(m) > .25 && c >= 2, mid = !sure && c >= 2 && Math.abs(m) <= .25;
+      const word = sure ? `偏${m > 0 ? hi : lo}` : mid ? '偏中間' : '還不確定';
+      return `<div class="taste-row"><div class="taste-read"><b>${name}${dots(c)}</b>${sure ? `<button class="taste-word" data-act="flip" data-arg="${id}" aria-label="${name}${word}，點一下改成相反">${word}</button>` : `<span class="taste-word unsure">${word}</span>`}</div>
+        <div class="taste-track"><span class="taste-band" style="left:${pos(m - sd)}%;width:${Math.max(2, pos(m + sd) - pos(m - sd))}%" aria-hidden="true"></span><span class="taste-mid" aria-hidden="true"></span>
+        <input type="range" min="-2" max="2" step=".1" value="${clamp(m, -2, 2).toFixed(1)}" data-dim="${id}" aria-label="${name}：${lo}到${hi}" aria-valuetext="${word}"></div>
+        <div class="taste-ends" aria-hidden="true"><span>${lo}</span><span>${hi}</span></div><p class="taste-src">${src}</p></div>`;
+    };
+    const learned = DIMS.map((d, i) => row({ id: i, name: d.name, lo: d.lo, hi: d.hi, m: mu[i], sd: Math.sqrt(v[i]), sd0: Math.sqrt(1.5), src: S.eng.n ? `依據 ${S.eng.n} 筆比較` : '還沒有選擇' }));
+    const derived = TAG_AXES.map((ax, j) => { const a = axisRead(ax);
+      return row({ id: 'ax' + j, name: ax.name, lo: ax.lo, hi: ax.hi, m: a.mu, sd: a.sd, sd0: a.sd0, src: a.top.length ? a.top.map(([t, x]) => `${t} ${x > 0 ? '+' : '−'}${Math.abs(x).toFixed(1)}`).join('・') : '標籤還沒有資料' }); });
+    // Closest styles: posterior probability of being the favourite, over all fourteen; the rest folds into 其他.
+    const odds = styleOdds(), top = odds.slice(0, 3), rest = 1 - top.reduce((a, s) => a + s.p, 0);
+    const bar = (n, p, other) => `<div class="match${other ? ' other' : ''}" role="listitem"><span>${esc(n)}</span><i><b style="width:${Math.round(p * 100)}%"></b></i><em>${Math.round(p * 100)}%</em></div>`;
     return `<h1 class="title">你的居家口味</h1><p class="sub">猜錯的地方直接拖，背景的客廳會跟著改。</p>
-      <div class="taste">${DIMS.map((d, i) => { const r = read(i);
-        return `<div class="taste-row"><div class="taste-read"><b>${d.name}</b>${r.sure ? `<button class="taste-word" data-act="flip" data-arg="${i}" aria-label="${d.name}${r.word}，點一下改成相反">${r.word}</button>` : `<span class="taste-word unsure">${r.word}</span>`}</div>
-        <input id="dim-${i}" type="range" min="-2" max="2" step=".1" value="${clamp(mu[i], -2, 2).toFixed(1)}" data-dim="${i}" aria-label="${d.name}：${d.lo}到${d.hi}">
-        <div class="taste-ends" aria-hidden="true"><span>${d.lo}</span><span>${d.hi}</span></div></div>`; }).join('')}</div>
+      <div class="taste-match" role="list" aria-label="最可能是你最愛的風格"><p class="match-cap">最可能是你最愛的風格<small>14 種風格合計 100%・答越多越集中</small></p>${top.map(s => bar(s.n, s.p)).join('')}${rest > .005 ? bar(`其他 ${odds.filter(s => s.p > 0).length - 3 > 0 ? odds.filter(s => s.p > 0).length - 3 + ' 種' : ''}`, rest, true) : ''}</div>
+      <div class="taste"><p class="taste-group">從你的選擇學到的</p>${learned.join('')}<p class="taste-group">從家具標籤推算的</p>${derived.join('')}</div>
       <div class="feel" role="group" aria-label="想要的感覺"><p>還想要什麼感覺？可以多選</p><div class="chips">${FEEL.map(([w], j) => { const on = (S.feel || []).includes(w);
         return `<button class="chip${on ? ' on' : ''}" data-act="feel" data-arg="${j}" aria-pressed="${on}">${w}</button>`; }).join('')}</div></div>
       ${cta('<button class="btn" data-act="ok">對，就是這樣</button>')}`;
   },
   mount(el) {
-    el.querySelectorAll('input[type=range]').forEach(r => r.addEventListener('change', () => {
-      checkpoint(); const i = +r.dataset.dim; S.eng.mu[i] = +r.value; S.eng.v[i] = Math.min(S.eng.v[i], .3);
-      learn(`手動修正「${DIMS[i].name}」為 ${(+r.value).toFixed(1)}`); S._react = `已改好「${DIMS[i].name}」。`; save(); render(false);
-    }));
+    el.querySelectorAll('input[type=range]').forEach(r => {
+      // Move the band with the thumb while dragging; commit on release.
+      const band = r.parentElement.querySelector('.taste-band');
+      r.addEventListener('input', () => { if (band) { const w = parseFloat(band.style.width); band.style.left = `${clamp((+r.value + 2) / 4 * 100 - w / 2, 0, 100 - w)}%`; } });
+      r.addEventListener('change', () => {
+        checkpoint(); const id = r.dataset.dim;
+        if (id.startsWith('ax')) { const ax = TAG_AXES[+id.slice(2)]; axisShift(ax, +r.value - axisRead(ax).mu); learn(`手動修正「${ax.name}」為 ${(+r.value).toFixed(1)}（移動對應標籤權重）`); S._react = `已改好「${ax.name}」。`; }
+        else { const i = +id; S.eng.mu[i] = +r.value; S.eng.v[i] = Math.min(S.eng.v[i], .3); learn(`手動修正「${DIMS[i].name}」為 ${(+r.value).toFixed(1)}`); S._react = `已改好「${DIMS[i].name}」。`; }
+        save(); render(false);
+      });
+    });
   },
   on: {
     feel(j) {
@@ -819,7 +1019,9 @@ def('taste', {
       else { list.push(w); observe(d, 1, .5); learnTags([{ tags: FEEL_TAGS[w] }], .4 * FEEL_TAGS[w].length / 3); learn(`想要的感覺：${w}（標籤：${FEEL_TAGS[w].join('、')}）`); S._react = `記下了：要${w}。`; }
       save(); render(false);
     },
-    flip(i) { checkpoint(); i = +i; S.eng.mu[i] = -S.eng.mu[i]; S.eng.v[i] = Math.min(S.eng.v[i], .3); learn(`猜錯了：翻轉「${DIMS[i].name}」`); S._react = `已翻轉「${DIMS[i].name}」。`; save(); render(false); },
+    flip(i) {
+      if (String(i).startsWith('ax')) { checkpoint(); const ax = TAG_AXES[+i.slice(2)]; axisShift(ax, -2 * axisRead(ax).mu); learn(`猜錯了：翻轉「${ax.name}」`); S._react = `已翻轉「${ax.name}」。`; save(); render(false); return; }
+      checkpoint(); i = +i; S.eng.mu[i] = -S.eng.mu[i]; S.eng.v[i] = Math.min(S.eng.v[i], .3); learn(`猜錯了：翻轉「${DIMS[i].name}」`); S._react = `已翻轉「${DIMS[i].name}」。`; save(); render(false); },
     ok() { learn(`確認口味：${tagsFor(S.eng.mu, S.eng.v).map(t => t.label).join(' ') || '中性'}`); next(); },
   },
 });
@@ -1371,7 +1573,7 @@ function parseCommand(text) {
     if (/窗簾/.test(s)) { const j = pickColor(s, CURTAINS, [[/遮光|深|暗/, '遮光絨布'], [/百葉|木/, '木百葉'], [/紗|白|透/, '白紗'], [/黃/, '芥末黃'], [/淺|亞麻|米/, '亞麻']]); if (j >= 0) out.push({ kind: 'curtain', v: j, label: `窗簾換${CURTAINS[j].n}` }); continue; }
     if (/地毯/.test(s)) { const j = pickColor(s, RUGS, [[/條紋/, '靛藍條紋'], [/編織/, '焦糖編織'], [/紅|花|波斯/, '磚紅波斯'], [/深|黑|炭/, '炭灰短毛'], [/灰/, '淺灰素面'], [/白|長毛/, '白色長毛'], [/淺|米|燕麥/, '燕麥圈絨']]); if (j >= 0) out.push({ kind: 'rug', v: j, label: `地毯換${RUGS[j].n}` }); continue; }
     if (/吊燈|燈具|燈款|水晶燈|提燈/.test(s)) { const j = pickColor(s, LAMPS, [[/黃銅|金/, '黃銅吊燈'], [/黑|鐵|工業/, '黑鐵吊燈'], [/水晶/, '水晶燈'], [/提燈|復古/, '復古提燈'], [/紙|和/, '和紙吊燈'], [/白|簡/, '白色極簡']]); if (j >= 0) out.push({ kind: 'lamp', v: j, label: `燈具換${LAMPS[j].n}` }); continue; }
-    if (/沙發/.test(s)) { const j = pickColor(s, SOFAS, [[/靛藍|深藍/, '靛藍布'], [/木框/, '木框布墊'], [/毛圈|奶油/, '奶油毛圈'], [/香檳/, '香檳絨'], [/切斯特|拉扣/, '切斯特皮'], [/雕花|古典/, '雕花布面'], [/雕花皮|皮革雕花/, '雕花皮革'], [/淺灰|灰/, '淺灰布'], [/淺|白|米/, '米色布'], [/深|黑/, '深灰布'], [/綠/, '墨綠絨'], [/皮|棕|咖啡/, '焦糖皮']]); if (j >= 0) out.push({ kind: 'sofa', v: j, label: `沙發換${SOFAS[j].n}` }); continue; }
+    if (/沙發/.test(s)) { const j = pickColor(s, SOFAS, [[/錦緞|維多利亞/, '雕花錦緞'], [/羅漢|中式/, '羅漢床'], [/躺床|躺椅/, '花布躺床'], [/長凳|板凳/, '木長凳'], [/方塊|低矮|低沙發|模組/, '方塊低沙發'], [/雲朵|圓胖|膨/, '雲朵沙發'], [/靛藍|深藍/, '靛藍布'], [/木框/, '木框布墊'], [/毛圈|奶油/, '奶油毛圈'], [/香檳/, '香檳絨'], [/切斯特|拉扣/, '切斯特皮'], [/雕花|古典/, '雕花布面'], [/雕花皮|皮革雕花/, '雕花皮革'], [/淺灰|灰/, '淺灰布'], [/淺|白|米/, '米色布'], [/深|黑/, '深灰布'], [/綠/, '墨綠絨'], [/皮|棕|咖啡/, '焦糖皮']]); if (j >= 0) out.push({ kind: 'sofa', v: j, label: `沙發換${SOFAS[j].n}` }); continue; }
     if (/牆/.test(s)) { const j = pickColor(s, WALLS, [[/靛|深藍/, '靛藍'], [/炭黑|黑/, '炭黑'], [/清水模|水泥/, '清水模'], [/灰泥|藝術/, '藝術灰泥'], [/橄欖/, '橄欖綠'], [/香檳/, '香檳灰'], [/奶油/, '奶油白'], [/綠/, '灰綠'], [/藍/, '霧藍'], [/灰/, '淺灰'], [/陶|橘|紅/, '陶土'], [/奶茶|米/, '奶茶'], [/白|淺/, '暖白']]); if (j >= 0) out.push({ kind: 'wall', v: j, label: `牆面換${WALLS[j].n}` }); continue; }
     if (/地板|地面/.test(s)) { const j = pickColor(s, FLOORS, [[/大理石/, '大理石'], [/柚木|拼花/, '柚木拼花'], [/水泥|粉光/, '水泥粉光'], [/原木/, '原木地板'], [/深|胡桃/, '胡桃木'], [/灰/, '灰色超耐磨'], [/人字/, '白橡人字拼'], [/淺|白|橡/, '淺橡木'], [/磨石/, '水磨石']]); if (j >= 0) out.push({ kind: 'floor', v: j, label: `地板換${FLOORS[j].n}` }); continue; }
     if (/燈|暗|亮|傍晚|晚上|白天/.test(s)) { const dusk = /暗|傍晚|晚上|黃/.test(s); out.push({ kind: 'dusk', v: dusk, label: dusk ? '切到傍晚燈光' : '切到白天光線' }); continue; }
@@ -1491,7 +1693,7 @@ def('f3d', {
     const qb = $('.quote-box', el); if (qb) qb.addEventListener('toggle', () => { S.v3d.openQuote = qb.open; save(); });
     micCtl = null;
     const mic = $('#mic', el); if (!mic) return cleanup;
-    if (!SR) { mic.addEventListener('click', openTyped); return cleanup; }
+    if (!SR) { mic.addEventListener('click', () => openTyped()); return cleanup; }
     let rec = null, finalText = '';
     const start = e => {
       if (e) e.preventDefault(); if (rec) return; finalText = '';
@@ -1544,9 +1746,26 @@ def('f3d', {
     },
   },
 });
-function openTyped() {
-  openSheet(`<h3>用打字修改</h3><label class="field-label" for="typed">想改什麼？一次可以說好幾件事</label><input id="typed" placeholder="例如：沙發換淺色，牆換灰綠色" autocomplete="off"><div class="row2"><button class="btn ghost" id="typed-cancel">取消</button><button class="btn" id="typed-go">送出</button></div>`,
-    sh => { const go = () => { const t = $('#typed', sh).value; closeSheet(); heard(t); }; $('#typed-go', sh).onclick = go; $('#typed-cancel', sh).onclick = closeSheet; $('#typed', sh).addEventListener('keydown', e => { if (e.key === 'Enter') go(); }); $('#typed', sh).focus(); });
+function openTyped(onText = heard, hint = '例如：沙發換淺色，牆換灰綠色') {
+  openSheet(`<h3>用打字說</h3><label class="field-label" for="typed">想改什麼？一次可以說好幾件事</label><input id="typed" placeholder="${esc(hint)}" autocomplete="off"><div class="row2"><button class="btn ghost" id="typed-cancel">取消</button><button class="btn" id="typed-go">送出</button></div>`,
+    sh => { const go = () => { const t = $('#typed', sh).value; closeSheet(); onText(t); }; $('#typed-go', sh).onclick = go; $('#typed-cancel', sh).onclick = closeSheet; $('#typed', sh).addEventListener('keydown', e => { if (e.key === 'Enter') go(); }); $('#typed', sh).focus(); });
+}
+// Hold-to-talk on any mic button; without Web Speech the button opens the typed sheet instead.
+function bindMic(mic, onText, hint) {
+  if (!SR) { mic.addEventListener('click', () => openTyped(onText, hint)); return null; }
+  let rec = null, finalText = '';
+  const start = e => {
+    if (e) e.preventDefault(); if (rec) return; finalText = '';
+    try { rec = new SR(); } catch (err) { toast('語音無法啟動，請改用下方的句子'); return; }
+    rec.lang = 'zh-TW'; rec.interimResults = true;
+    rec.onresult = ev => { finalText = [...ev.results].map(r => r[0].transcript).join(''); const t = $('#transcript'); if (t) t.textContent = '「' + finalText + '」'; };
+    rec.onerror = ev => { toast(ev.error === 'not-allowed' ? '沒有麥克風權限。可以改點下方的句子。' : `語音辨識失敗（${ev.error}），請再試一次。`); mascot('idle'); };
+    rec.onend = () => { mic.classList.remove('on'); rec = null; if (finalText) onText(finalText); else mascot('idle'); };
+    rec.start(); mic.classList.add('on'); mascot('listen'); bubble('我在聽…');
+  };
+  const stop = () => { if (rec) { rec.stop(); mascot('think'); } };
+  mic.addEventListener('pointerdown', start); mic.addEventListener('pointerup', stop); mic.addEventListener('pointerleave', stop);
+  return { start, stop };
 }
 function heard(text) {
   if (!text || !text.trim()) return;
@@ -1555,11 +1774,11 @@ function heard(text) {
   S.v3d.pending = cmds; S._react = `我聽到 ${cmds.length} 件事，確認後再改。`; save(); render(false);
 }
 document.addEventListener('keydown', e => {
-  if (e.code !== 'Space' || e.repeat || S.cur !== 'f3d' || !micCtl) return;
-  if (e.target.closest('input,select,textarea,button:not(#mic)')) return;
+  if (e.code !== 'Space' || e.repeat || (S.cur !== 'f3d' && S.cur !== 'ab') || !micCtl) return;
+  if (e.target.closest('input,select,textarea,button:not(#mic):not(#ab-mic)')) return;
   micCtl.start(e);
 });
-document.addEventListener('keyup', e => { if (e.code === 'Space' && S.cur === 'f3d' && micCtl) micCtl.stop(); });
+document.addEventListener('keyup', e => { if (e.code === 'Space' && (S.cur === 'f3d' || S.cur === 'ab') && micCtl) micCtl.stop(); });
 
 // ---------- rendering ----------
 const screenEl = $('#screen');

@@ -60,6 +60,10 @@ All from [Poly Haven](https://polyhaven.com/textures), CC0.
 | File | Source asset | Author |
 |---|---|---|
 | `wood-sofa.glb` | Painted Wooden Sofa | Kirill Sannikov |
+| `sofa-03.glb` | [Sofa 03](https://polyhaven.com/a/sofa_03) | Fran Calvente |
+| `chinese-sofa.glb` | [Chinese Sofa](https://polyhaven.com/a/chinese_sofa) | Kirill Sannikov |
+| `day-bed.glb` | [Vintage Day Bed](https://polyhaven.com/a/vintage_day_bed) | Aron Łyczek |
+| `wooden-bench.glb` | [Painted Wooden Bench](https://polyhaven.com/a/painted_wooden_bench) | Kirill Sannikov |
 | `display-shelves.glb` | Wooden Display Shelves 01 | James Ray Cock |
 | `light-shelves.glb` | Painted Wooden Shelves | Kirill Sannikov |
 | `vintage-drawer.glb` | Vintage Wooden Drawer 01 | James Ray Cock |
@@ -81,3 +85,5 @@ All from [Poly Haven](https://polyhaven.com/textures), CC0.
 | `planter-box.glb` | [Planter Box 01](https://polyhaven.com/a/planter_box_01) (also with `--simplify`) | James Ray Cock |
 | `marble-bust.glb` | [Marble Bust 01](https://polyhaven.com/a/marble_bust_01) | Rico Cilliers |
 | `wooden-elephant.glb` | [Carved Wooden Elephant](https://polyhaven.com/a/carved_wooden_elephant) | Greg Zaal |
+
+The block sofa (方塊低沙發) and cloud sofa (雲朵沙發) are not files: `room3d.js` builds them from rounded boxes at runtime (`procSofa`).

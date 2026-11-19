@@ -4,9 +4,35 @@
  * lamp, table, plant, wall_tv), the same names a voice tool call would target in the real product. */
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const ROOM = { w: 5, d: 4.2, h: 2.7 };
+
+// Sofas built from rounded boxes, for silhouettes no free model covers: a low block sofa on thin legs (modern,
+// Nordic) and a deep rounded "cloud" sofa (Korean cream). Upholstery is named 'fabric' so it tints like the GLB sofa.
+// Metres, front facing +z, back toward −z, like the other sofa models.
+function procSofa(kind) {
+  const g = new THREE.Group();
+  const fabric = new THREE.MeshStandardMaterial({ name: 'fabric', color: 0xd8d2c8, roughness: .95 });
+  const legMat = new THREE.MeshStandardMaterial({ name: 'leg', color: 0x2b2723, roughness: .45, metalness: .4 });
+  const box = (w, h, d, r, x, y, z) => { const m = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 4, r), fabric); m.position.set(x, y, z); g.add(m); };
+  if (kind === 'cloud') {
+    box(2.2, .34, 1, .15, 0, .17, 0);                                   // plinth on the floor
+    [-.54, .54].forEach(x => box(1.08, .2, .78, .1, x, .43, .09));       // seat cushions
+    box(2.2, .5, .3, .15, 0, .6, -.35);                                  // back
+    [-1, 1].forEach(s => box(.32, .44, 1, .16, s * .94, .4, 0));         // arms
+  } else {
+    [[-1, -1], [-1, 1], [1, -1], [1, 1]].forEach(([sx, sz]) => { const l = new THREE.Mesh(new THREE.CylinderGeometry(.018, .012, .16, 10), legMat); l.position.set(sx * .98, .08, sz * .38); g.add(l); });
+    box(2.1, .16, .9, .03, 0, .24, 0);                                   // frame
+    [-.52, .52].forEach(x => box(1.02, .14, .72, .05, x, .39, .07));     // seat cushions
+    box(2.1, .34, .16, .05, 0, .49, -.37);                               // low back
+    [-1, 1].forEach(s => box(.14, .24, .9, .03, s * 1.0, .4, 0));        // slim arms
+  }
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  return g;
+}
 const EYE = 1.55;
 const VIEWS = {
   // yaw 0 faces the sofa wall (-z); positive yaw turns left.
@@ -261,8 +287,9 @@ export async function createRoom({ onProgress, models = './models/', textures = 
   const MODELS = (window.HB_CATALOG && window.HB_CATALOG.MODELS) || {};
   const manager = new THREE.LoadingManager();
   manager.onProgress = (_, loaded, total) => onProgress && onProgress(loaded / total);
-  const loader = new GLTFLoader(manager), raw = {};
-  const load = file => raw[file] || (raw[file] = loader.loadAsync(models + file).then(g => { g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); return g.scene; }));
+  // Several Poly Haven models ship meshopt-compressed (EXT_meshopt_compression).
+  const loader = new GLTFLoader(manager).setMeshoptDecoder(MeshoptDecoder), raw = {};
+  const load = file => raw[file] || (raw[file] = file.startsWith('proc:') ? Promise.resolve(procSofa(file.slice(5))) : loader.loadAsync(models + file).then(g => { g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); return g.scene; }));
   const slots = { sofa: null, table: null, lamp: null, plant: null, chair: null, side: null, screen: null, accent: null }, slotKey = {}, fitted = {}, fitWaiters = {};
   const bx = new THREE.Box3(), sz = new THREE.Vector3(), ctr = new THREE.Vector3();
   function fit(key, model) {

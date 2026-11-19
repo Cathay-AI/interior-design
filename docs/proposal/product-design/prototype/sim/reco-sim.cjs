@@ -7,7 +7,7 @@ console.assert = () => {};
 require('../catalog.js');
 require('../reco.js');
 const C = window.HB_CATALOG, R = window.HB_RECO;
-const { LOOKS, PARTS, PART, FURN, STYLES, CLASH, lookX } = C;
+const { LOOKS, PARTS, PART, FURN, STYLES, CLASH, lookX, axesOf } = C;
 const USERS = +process.argv[2] || 200;
 
 // ---------- helpers mirrored from prototype.js ----------
@@ -25,7 +25,7 @@ const optionX = o => { const xs = o.s.map(n => STYLES[n].x); return [0, 1, 2].ma
 const clashes = lk => CLASH.filter(([a, an, b, bn]) => PART[a].list[lk[a]].n === an && PART[b].list[lk[b]].n === bn);
 function observe(E, d, y, w = 1) {
   const p = sig(dot(E.mu, d)), k = p * (1 - p), s = d.reduce((a, di, i) => a + E.v[i] * di * di, 0);
-  for (let i = 0; i < 3; i++) { E.mu[i] += w * E.v[i] * d[i] * (y - p) / (1 + k * s); E.v[i] = Math.max(.06, E.v[i] - w * E.v[i] * E.v[i] * d[i] * d[i] * k / (1 + k * s)); }
+  for (let i = 0; i < d.length; i++) { E.mu[i] += w * E.v[i] * d[i] * (y - p) / (1 + k * s); E.v[i] = Math.max(.06, E.v[i] - w * E.v[i] * E.v[i] * d[i] * d[i] * k / (1 + k * s)); }
   E.n++;
 }
 const style = i => LOOKS[i].style;
@@ -39,13 +39,18 @@ LOOKS.forEach((lk, i) => {
   const f = furnOf(lk);
   for (const k of SLOTS) if (f[k]) Object.values(FURN).forEach(it => { if (it.slot === k && it.k !== f[k] && it.s.includes(lk.style)) CANDS.push({ i, mod: { [k]: it.k } }); });
 });
-CANDS.forEach(c => { const lk = candLook(c.i, c.mod); c.x = lookX(lk); c.f = R.feat(itemsOf(lk)); });
+// x5: the three engine dimensions plus curvature and naturalness read from tags (catalog.js axesOf).
+const x5 = lk => [...lookX(lk), ...axesOf(itemsOf(lk))];
+const POOL5 = LOOKS.map(x5);
+CANDS.forEach(c => { const lk = candLook(c.i, c.mod); c.x = x5(lk); c.f = R.feat(itemsOf(lk)); });
 
 // ---------- simulated people ----------
 // True utility: three taste dimensions plus a hidden weight on every tag. Choices are softmax with temperature `temp`.
 // Feedback: names the piece of the chosen room it likes least, if that piece is clearly disliked.
-function makeUser(seed, temp) {
+// `extra` scales a hidden taste for curvature and naturalness (0 = none, as in the first version of this sim).
+function makeUser(seed, temp, extra = 0) {
   const r = rng(seed), u = [0, 1, 2].map(() => gauss(r) * .8), w = R.TAGS.map(() => gauss(r));
+  u.push(gauss(r) * extra, gauss(r) * extra);
   const util = (x, f) => dot(u, x) + dot(w, f) / 2;
   const choose = utils => { const m = Math.max(...utils), e = utils.map(x => Math.exp((x - m) / temp)), s = e.reduce((a, b) => a + b, 0); let t = r() * s; for (let k = 0; k < e.length; k++) { t -= e[k]; if (t <= 0) return k; } return e.length - 1; };
   const pieceU = it => it.tags.reduce((a, t) => a + w[R.IDX[t]], 0) / 2 + gauss(r) * temp * .5;
@@ -56,17 +61,18 @@ function makeUser(seed, temp) {
 // OLD (commit 02931fd): pairs, dimension-only pair selection, additive clamped tag weights, greedy single swap.
 // NEW (commit 81facfb): four rooms per round, champion + feedback, Bayesian tags, Thompson + information bonus.
 function run(cfg, user, seed) {
-  const E = { mu: [0, 0, 0], v: [1.5, 1.5, 1.5], n: 0 }, P = R.fresh(), tagW = {}, used = [], hist = [];
+  const D = cfg.axes ? 5 : 3, E = { mu: Array(D).fill(0), v: Array(D).fill(1.5), n: 0 }, P = R.fresh(), tagW = {}, used = [], hist = [];
+  const ex = x => x.slice(0, D), oX = it => cfg.axes ? [...optionX(it), ...axesOf([it])] : optionX(it);
   const r = rng(seed * 7 + 3);
   const Wvec = () => cfg.bayes ? P.mu : R.TAGS.map(t => tagW[t] || 0);
   const learnOld = (items, wt) => { const per = wt * 1.5 / items.length; items.forEach(it => it.tags.forEach(t => { tagW[t] = clamp((tagW[t] || 0) + per, -3, 3); })); };
-  const pieceScore = it => (cfg.bayes ? R.meanOf(P, it) : it.tags.reduce((a, t) => a + (tagW[t] || 0), 0)) + .5 * dot(E.mu, optionX(it));
+  const pieceScore = it => (cfg.bayes ? R.meanOf(P, it) : it.tags.reduce((a, t) => a + (tagW[t] || 0), 0)) + .5 * dot(E.mu, oX(it));
   function tune(i, base, only) {
     if (E.n < 1 && !only) return null;
     const lk = candLook(i, base), f = furnOf(lk), recent = only ? [] : hist.slice(-2);
     const W = cfg.thompson ? R.sample(P, rng(7919 + E.n * 131 + i * 17 + seed)) : null; let best = null;
     const consider = (k, cur, alts) => alts.forEach(([v, it]) => {
-      const gain = W ? R.sampledOf(W, it) - R.sampledOf(W, cur) + .5 * (dot(E.mu, optionX(it)) - dot(E.mu, optionX(cur))) : pieceScore(it) - pieceScore(cur);
+      const gain = W ? R.sampledOf(W, it) - R.sampledOf(W, cur) + .5 * (dot(E.mu, oX(it)) - dot(E.mu, oX(cur))) : pieceScore(it) - pieceScore(cur);
       const info = cfg.bayes ? R.infoOf(P, cur, it) : 0, score = gain + cfg.infoBonus * info;
       if ((only || gain > (cfg.bayes ? 0 : .15)) && (!best || score > best.score)) best = { k, v, score };
     });
@@ -74,7 +80,7 @@ function run(cfg, user, seed) {
     for (const k of SLOTS) { if (recent.includes(k) || !f[k] || (only && only !== k)) continue; consider(k, FURN[f[k]], Object.values(FURN).filter(it => it.slot === k && it.k !== f[k] && it.s.includes(lk.style)).map(it => [it.k, it])); }
     if (!best) return null; hist.push(best.k); return { [best.k]: best.v };
   }
-  const xOf = o => lookX(candLook(o.i, o.mod)), fOf = o => o.mod ? R.feat(itemsOf(candLook(o.i, o.mod))) : LFEAT[o.i];
+  const xOf = o => ex(x5(candLook(o.i, o.mod))), fOf = o => o.mod ? R.feat(itemsOf(candLook(o.i, o.mod))) : LFEAT[o.i];
   const shown = st => used.filter(u => style(u) === st).length;
   function pick(n, fixed) {
     const chosen = [...fixed], avail = LOOKS.map((_, i) => i).filter(i => !used.includes(i) && !fixed.some(o => o.i === i));
@@ -82,7 +88,7 @@ function run(cfg, user, seed) {
       let best = null;
       for (const i of avail) {
         if (chosen.some(o => style(o.i) === style(i))) continue;
-        const o = { i, mod: null }; let info = chosen.length ? 0 : POOL[i].reduce((a, x, k) => a + E.v[k] * x * x, 0);
+        const o = { i, mod: null }; let info = chosen.length ? 0 : ex(POOL5[i]).reduce((a, x, k) => a + E.v[k] * x * x, 0);
         for (const c of chosen) {
           const d = sub(xOf(o), xOf(c)), fd = sub(fOf(o), fOf(c)), p = sig(dot(E.mu, d) + (cfg.tagInfo ? dot(P.mu, fd) : 0));
           info += p * (1 - p) * (d.reduce((a, di, k) => a + E.v[k] * di * di, 0) + cfg.tagInfo * fd.reduce((a, x, j) => a + P.v[j] * x * x, 0));
@@ -98,28 +104,28 @@ function run(cfg, user, seed) {
   for (let round = 0; round < cfg.rounds; round++) {
     let opts;
     if (cfg.n === 2 && !cfg.champion) { // old pairs: one option tuned toward the guess
-      opts = pick(2, []); const side = dot(E.mu, POOL[opts[0].i]) >= dot(E.mu, POOL[opts[1].i]) ? 0 : 1; opts[side].mod = tune(opts[side].i, null, null);
+      opts = pick(2, []); const side = dot(E.mu, ex(POOL5[opts[0].i])) >= dot(E.mu, ex(POOL5[opts[1].i])) ? 0 : 1; opts[side].mod = tune(opts[side].i, null, null);
     } else {
       const fixed = champ ? [(() => { const add = tune(champ.i, champ.mod, champ.fix); return { i: champ.i, mod: add ? { ...(champ.mod || {}), ...add } : champ.mod }; })()] : [];
       opts = pick(cfg.n, fixed);
     }
-    const lks = opts.map(o => candLook(o.i, o.mod)), xs = lks.map(lookX), fs = lks.map(lk => R.feat(itemsOf(lk)));
+    const lks = opts.map(o => candLook(o.i, o.mod)), xs = lks.map(x5), fs = lks.map(lk => R.feat(itemsOf(lk)));
     const j = user.choose(xs.map((x, k) => user.util(x, fs[k]))); taps++;
     const wItems = itemsOf(lks[j]), wt = cfg.n === 2 ? 1 : .6;
-    opts.forEach((o, k) => { if (k === j) return; observe(E, sub(xs[j], xs[k]), 1, wt);
+    opts.forEach((o, k) => { if (k === j) return; observe(E, ex(sub(xs[j], xs[k])), 1, wt);
       if (cfg.bayes) R.pair(P, wItems, itemsOf(lks[k]), wt); else { learnOld(wItems, wt); learnOld(itemsOf(lks[k]), -wt); } });
     used.push(...opts.map(o => o.i).filter(i => !used.includes(i)));
     if (cfg.champion) {
       const f = furnOf(lks[j]), keys = [...PARTS.map(p => p.k), ...['table', 'chair', 'side'].filter(k => f[k])];
       const pieces = keys.map(k => [k, PART[k] ? PART[k].list[lks[j][k]] : FURN[f[k]]]), worst = pieces.map(([k, it]) => [k, it, user.pieceU(it)]).sort((a, b) => a[2] - b[2])[0];
       const fix = cfg.feedback && worst[2] < -.5 ? worst[0] : null; taps++;
-      if (fix) { if (cfg.bayes) R.single(P, [worst[1]], 0, .7); else learnOld([worst[1]], -.7); if (PART[fix]) observe(E, optionX(worst[1]), 0, .4); }
+      if (fix) { if (cfg.bayes) R.single(P, [worst[1]], 0, .7); else learnOld([worst[1]], -.7); if (PART[fix]) observe(E, oX(worst[1]), 0, .4); }
       champ = { i: opts[j].i, mod: opts[j].mod, fix };
     }
   }
   // Evaluation: predicted score = dims + tag weights over the room's tag profile.
-  const W = Wvec(), pred = c => dot(E.mu, c.x) + dot(W, c.f) / 2;
-  const lookPred = LOOKS.map((_, i) => pred({ x: POOL[i], f: LFEAT[i] })), lookTrue = LOOKS.map((_, i) => user.util(POOL[i], LFEAT[i]));
+  const W = Wvec(), pred = c => dot(E.mu, ex(c.x)) + dot(W, c.f) / 2;
+  const lookPred = LOOKS.map((_, i) => pred({ x: POOL5[i], f: LFEAT[i] })), lookTrue = LOOKS.map((_, i) => user.util(POOL5[i], LFEAT[i]));
   const best = CANDS.reduce((b, c) => { const p = pred(c); return p > b.p ? { c, p } : b; }, { p: -Infinity }).c;
   const trues = CANDS.map(c => user.util(c.x, c.f)), mx = Math.max(...trues), mean = trues.reduce((a, b) => a + b, 0) / trues.length, sd = Math.sqrt(trues.reduce((a, t) => a + (t - mean) ** 2, 0) / trues.length);
   return { rho: spearman(lookPred, lookTrue), regret: (mx - user.util(best.x, best.f)) / sd, taps, styleTop: topStyle(lookPred) === topStyle(lookTrue) };
@@ -141,7 +147,7 @@ const CELLS = {
 };
 const mean = a => a.reduce((x, y) => x + y, 0) / a.length, se = a => Math.sqrt(a.reduce((s, x) => s + (x - mean(a)) ** 2, 0) / (a.length - 1) / a.length);
 const t0 = Date.now();
-for (const temp of [.5, 1, 2]) {
+for (const temp of process.argv.includes('--only') ? [] : [.5, 1, 2]) {
   console.log(`\n## 作答雜訊 temp=${temp}（${USERS} 位模擬使用者）`);
   console.log('| 做法 | 排名相關 ρ | 最終遺憾（標準差單位，越低越好） | 風格第一名猜中 |');
   console.log('|---|---|---|---|');
@@ -149,6 +155,17 @@ for (const temp of [.5, 1, 2]) {
     const res = []; for (let u = 0; u < USERS; u++) res.push(run(cfg, makeUser(1000 + u, temp), u));
     const rho = res.map(x => x.rho), reg = res.map(x => x.regret), st = res.map(x => x.styleTop ? 1 : 0);
     console.log(`| ${name} | ${mean(rho).toFixed(3)} ± ${se(rho).toFixed(3)} | ${mean(reg).toFixed(2)} ± ${se(reg).toFixed(2)} | ${(mean(st) * 100).toFixed(0)}% |`);
+  }
+}
+if (process.argv.includes('--axes')) {
+  // Does an explicit curvature + naturalness pair in the engine help, for people with and without that taste?
+  console.log('\n## 五軸（＋曲線、自然感）vs 三軸，temp=1');
+  console.log('| 使用者的曲線／自然偏好 | 引擎 | 最終遺憾 | 風格猜中 | ρ |');
+  console.log('|---|---|---|---|---|');
+  for (const extra of [0, .8]) for (const [nm, cfg] of [['三軸', NEW], ['五軸', { ...NEW, axes: true }]]) {
+    const res = []; for (let u = 0; u < USERS; u++) res.push(run(cfg, makeUser(9000 + u, 1, extra), u));
+    const reg = res.map(x => x.regret), rho = res.map(x => x.rho);
+    console.log(`| ${extra ? '有（sd 0.8）' : '無'} | ${nm} | ${mean(reg).toFixed(3)} ± ${se(reg).toFixed(3)} | ${(mean(res.map(x => x.styleTop ? 1 : 0)) * 100).toFixed(0)}% | ${mean(rho).toFixed(3)} |`);
   }
 }
 if (process.argv.includes('--grid')) {

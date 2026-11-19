@@ -40,11 +40,18 @@ const SOFAS = [
   { n: '燕麥色', c: '#d8c6a8', p: 2, m: 'glam', fab: 'rough_linen', s: [JP, FR, NO, WB] },
   { n: '奶油毛圈', c: '#efe6d6', p: 2, m: 'glam', fab: 'wool_boucle', s: [KR, WB, NO] },
   { n: '香檳絨', c: '#d9c3a0', p: 3, m: 'glam', fab: 'velour_velvet', s: [LX, KR, HT] },
-  { n: '切斯特皮', c: '#2e3a33', p: 3, m: 'sofa02', s: [IN, RE] },
+  { n: '切斯特皮', c: '#2e3a33', p: 3, m: 'sofa02', s: [IN, RE, MC, HT, LX] },
   { n: '雕花布面', c: '#d8d0c4', p: 3, m: 'sofa01', s: [FR] },
-  { n: '雕花皮革', c: '#5a3a28', p: 3, m: 'sheenSofa', s: [FR, RE] },
+  { n: '雕花皮革', c: '#5a3a28', p: 3, m: 'sheenSofa', s: [FR, RE, MC, HT, IN] },
   { n: '靛藍布', c: '#4a6587', p: 2, m: 'glam', fab: 'rough_linen', s: [MD, HT] },
-  { n: '木框布墊', c: '#cfc0a8', p: 2, m: 'woodSofa', s: [WB, JP, TW, BO] },
+  { n: '木框布墊', c: '#cfc0a8', p: 2, m: 'woodSofa', s: [WB, JP, TW, BO, MD] },
+  // Four more silhouettes (Poly Haven, CC0), so a sofa swap changes the shape, not only the fabric colour.
+  { n: '雕花錦緞', c: '#7a5636', p: 3, m: 'sofa03', s: [FR, RE, LX] },
+  { n: '羅漢床', c: '#5a2e1e', p: 3, m: 'chineseSofa', s: [TW, WB, RE] },
+  { n: '花布躺床', c: '#e6ded2', p: 2, m: 'dayBed', s: [BO, RE, MD, KR] },
+  { n: '木長凳', c: '#6e2f22', p: 1, m: 'woodBench', s: [WB, TW, BO, JP] },
+  { n: '方塊低沙發', c: '#bfbcb5', p: 1, m: 'blockSofa', fab: 'rough_linen', s: [MO, NO, IN, JP] },
+  { n: '雲朵沙發', c: '#efe7da', p: 2, m: 'cloudSofa', fab: 'wool_boucle', s: [KR, NO, MO, LX] },
 ];
 const RUGS = [
   { n: '燕麥圈絨', c: '#e8dcc8', p: 2, s: [JP, NO, KR, WB, MD] }, { n: '白色長毛', c: '#eef0ee', p: 2, round: 1, s: [NO, MO, FR, KR, LX] },
@@ -99,6 +106,13 @@ const MODELS = {
   potPlant: { file: 'potted-plant-02.glb', slot: 'plant' },
   sheenChair: { file: 'sheen-chair.glb', slot: 'chair' },
   woodSofa: { file: 'wood-sofa.glb', slot: 'sofa' },
+  sofa03: { file: 'sofa-03.glb', slot: 'sofa' },
+  // Built in code (room3d.js procSofa), tinted like the GLB sofa.
+  blockSofa: { file: 'proc:block', slot: 'sofa', tint: 'fabric' },
+  cloudSofa: { file: 'proc:cloud', slot: 'sofa', tint: 'fabric' },
+  chineseSofa: { file: 'chinese-sofa.glb', slot: 'sofa' },
+  dayBed: { file: 'day-bed.glb', slot: 'sofa' },
+  woodBench: { file: 'wooden-bench.glb', slot: 'sofa' },
   ottoman: { file: 'ottoman.glb', slot: 'chair' },
   dispShelf: { file: 'display-shelves.glb', slot: 'side', rotY: 90 },
   lightShelf: { file: 'light-shelves.glb', slot: 'side' },
@@ -158,7 +172,9 @@ const PART_TAGS = {
     '中性 淺色 漆面 直線 素面 古典', '冷調 深色 漆面 直線 素面 古典', '冷調 深色 漆面 直線 素面 現代'],
   sofa: ['暖調 淺色 布 圓弧 素面 現代', '冷調 淺色 布 圓弧 素面 現代', '暖調 中間色 皮革 圓弧 素面 復古', '冷調 深色 絨布 圓弧 素面 復古', '冷調 深色 布 圓弧 素面 現代',
     '暖調 淺色 布 圓弧 素面 自然', '暖調 淺色 毛圈 圓弧 素面 現代', '中性 淺色 絨布 圓弧 素面 古典', '冷調 深色 皮革 雕花 素面 古典', '中性 淺色 布 雕花 花紋 古典',
-    '暖調 深色 皮革 雕花 素面 古典', '冷調 深色 布 圓弧 素面 現代', '暖調 中間色 木 直線 素面 自然'],
+    '暖調 深色 皮革 雕花 素面 古典', '冷調 深色 布 圓弧 素面 現代', '暖調 中間色 木 直線 素面 自然',
+    '暖調 深色 皮革 雕花 花紋 古典', '暖調 深色 木 直線 素面 復古', '暖調 淺色 布 直線 花紋 復古', '暖調 深色 木 直線 素面 自然',
+    '冷調 淺色 布 直線 素面 現代', '暖調 淺色 毛圈 圓弧 素面 現代'],
   rug: ['暖調 淺色 毛圈 直線 素面 自然', '中性 淺色 布 圓弧 素面 現代', '暖調 深色 布 直線 花紋 古典', '冷調 深色 布 直線 素面 工業', '冷調 淺色 布 直線 素面 現代',
     '暖調 中間色 布 直線 花紋 古典', '暖調 中間色 布 直線 幾何 復古', '冷調 中間色 布 直線 條紋 自然', '暖調 中間色 編織 直線 素面 自然'],
   curtain: ['暖調 淺色 布 直線 素面 自然', '冷調 深色 絨布 直線 素面 現代', '暖調 中間色 木 直線 條紋 自然', '中性 淺色 布 直線 素面 現代', '暖調 中間色 布 直線 素面 復古'],
@@ -221,54 +237,54 @@ const LOOKS = [
   [JP, '灰綠和紙', 0, 1, 12, 0, 0, 0, 'day'],
   [JP, '深木夜讀', 1, 4, 5, 5, 2, 0, 'dusk'],
   [NO, '經典北歐', 4, 3, 1, 1, 3, 3, 'day'],
-  [NO, '霧藍窗光', 0, 5, 0, 4, 3, 3, 'day'],
+  [NO, '霧藍窗光', 0, 5, 17, 4, 3, 3, 'day'],
   [NO, '灰綠木質', 2, 1, 5, 0, 0, 0, 'golden'],
-  [NO, '燕麥圓毯', 4, 0, 6, 1, 0, 0, 'day'],
+  [NO, '燕麥圓毯', 4, 0, 18, 1, 0, 0, 'day'],
   [RE, '經典復古', 1, 2, 8, 2, 2, 5, 'golden'],
   [RE, '綠絨黃銅', 7, 1, 3, 5, 4, 1, 'dusk'],
   [RE, '奶茶皮革', 4, 4, 2, 5, 2, 1, 'golden'],
   [RE, '磨石雕花', 3, 2, 10, 2, 2, 5, 'dusk'],
   [IN, '經典工業', 5, 6, 4, 3, 1, 2, 'dusk'],
   [IN, '胡桃炭黑', 1, 12, 8, 3, 1, 2, 'dusk'],
-  [IN, '灰泥冷調', 2, 8, 4, 4, 1, 2, 'day'],
+  [IN, '灰泥冷調', 2, 8, 10, 4, 1, 2, 'day'],
   [IN, '鐵件暖光', 3, 6, 2, 3, 1, 2, 'golden'],
   [MO, '經典簡約', 2, 3, 1, 4, 3, 3, 'day'],
-  [MO, '水泥靜白', 5, 0, 4, 4, 1, 2, 'day'],
+  [MO, '水泥靜白', 5, 0, 17, 4, 1, 2, 'day'],
   [MO, '大理石冷冽', 6, 3, 1, 1, 3, 3, 'day'],
   [MO, '霧藍點綴', 0, 5, 1, 4, 3, 3, 'golden'],
   [FR, '經典法式', 4, 5, 9, 1, 3, 4, 'golden'],
-  [FR, '香檳雕花', 6, 10, 10, 5, 3, 4, 'golden'],
+  [FR, '香檳雕花', 6, 10, 13, 5, 3, 4, 'golden'],
   [FR, '灰綠古典', 4, 1, 3, 5, 0, 1, 'day'],
   [FR, '暖白大理石', 6, 0, 0, 1, 3, 4, 'day'],
   [LX, '經典輕奢', 6, 10, 7, 1, 3, 1, 'golden'],
   [LX, '墨綠金屬', 3, 3, 3, 4, 1, 4, 'dusk'],
   [LX, '奶油大理石', 6, 7, 7, 1, 3, 4, 'day'],
-  [LX, '絲絨夜色', 4, 10, 3, 1, 1, 1, 'dusk'],
+  [LX, '絲絨夜色', 4, 10, 13, 1, 1, 1, 'dusk'],
   [KR, '經典奶油', 0, 7, 6, 0, 3, 0, 'day'],
-  [KR, '磨石圓弧', 3, 7, 7, 1, 3, 3, 'day'],
+  [KR, '磨石圓弧', 3, 7, 18, 1, 3, 3, 'day'],
   [KR, '奶茶毛圈', 8, 4, 6, 0, 0, 0, 'golden'],
   [KR, '燕麥窗光', 0, 0, 6, 1, 3, 3, 'day'],
   [MC, '經典中古', 7, 9, 2, 6, 2, 2, 'golden'],
   [MC, '柚木幾何', 7, 2, 2, 6, 4, 5, 'golden'],
-  [MC, '橄欖沉穩', 1, 9, 2, 5, 2, 2, 'dusk'],
+  [MC, '橄欖沉穩', 1, 9, 10, 5, 2, 2, 'dusk'],
   [MC, '波斯織光', 8, 2, 2, 2, 2, 5, 'dusk'],
   [WB, '經典侘寂', 8, 8, 12, 0, 0, 0, 'dusk'],
-  [WB, '灰泥茶席', 5, 8, 12, 8, 2, 5, 'dusk'],
+  [WB, '灰泥茶席', 5, 8, 16, 8, 2, 5, 'dusk'],
   [WB, '燕麥禪意', 2, 4, 0, 0, 0, 0, 'golden'],
   [WB, '墨色編織', 8, 6, 6, 8, 2, 0, 'dusk'],
   [TW, '經典台味', 3, 4, 12, 8, 2, 5, 'golden'],
-  [TW, '老宅午後', 8, 4, 12, 8, 0, 5, 'day'],
+  [TW, '老宅午後', 8, 4, 14, 8, 0, 5, 'day'],
   [TW, '灰綠鐵窗', 8, 1, 12, 8, 2, 5, 'dusk'],
-  [TW, '磨石涼蔭', 3, 4, 12, 8, 0, 5, 'day'],
+  [TW, '磨石涼蔭', 3, 4, 16, 8, 0, 5, 'day'],
   [BO, '經典波希', 8, 2, 2, 2, 2, 5, 'golden'],
   [BO, '奶茶藤影', 8, 4, 12, 8, 2, 5, 'golden'],
   [BO, '陶土織品', 1, 2, 2, 8, 2, 5, 'dusk'],
-  [BO, '木框花毯', 8, 4, 12, 2, 2, 5, 'day'],
+  [BO, '木框花毯', 8, 4, 15, 2, 2, 5, 'day'],
   [MD, '經典地中海', 8, 0, 11, 7, 3, 3, 'day'],
   [MD, '靛藍暮色', 8, 11, 11, 0, 0, 3, 'golden'],
-  [MD, '磨石海風', 3, 0, 11, 7, 3, 3, 'golden'],
-  [MD, '燕麥陽台', 8, 0, 11, 0, 0, 3, 'day'],
-  [HT, '經典酒店', 6, 12, 7, 3, 1, 1, 'dusk'],
+  [MD, '磨石海風', 3, 0, 12, 7, 3, 3, 'golden'],
+  [MD, '燕麥陽台', 8, 0, 15, 0, 0, 3, 'day'],
+  [HT, '經典酒店', 6, 12, 8, 3, 1, 1, 'dusk'],
   [HT, '墨綠大理石', 6, 12, 3, 3, 1, 1, 'dusk'],
   [HT, '靛藍套房', 1, 11, 11, 3, 0, 1, 'dusk'],
   [HT, '香檳晨光', 1, 12, 7, 3, 1, 1, 'golden'],
@@ -287,7 +303,17 @@ const LOOK_CAMS = [{ pos: [1.95, 1.45, 1.6], look: [-0.75, 0.7, -1.2], fov: 58 }
 // A look's vector also carries the light it is shown in.
 const LOOK_LIGHT = { day: .25, golden: 0, dusk: -.3 };
 const lookX = lk => { const x = designX(lk); x[2] = Math.max(-1, Math.min(1, x[2] + LOOK_LIGHT[lk.light])); return x; };
+// Two more taste axes the literature treats as distinct from colour and ornament, read off the tag database:
+// curvature (Bar & Neta 2006; Vartanian et al. 2013: people tend to prefer curved forms) and naturalness
+// (Kaplan & Kaplan 1989; biophilic design: wood, plants, woven and clay against iron, concrete and glass).
+// Both are shares of a room's pieces, scaled so the curated looks span about −1…1.
+const AX_CURVE = { 圓弧: 1, 直線: -1 };
+const AX_NATURE = { 木: 1, 植物: 1, 編織: 1, 陶瓷: 1, 自然: 1, 黑鐵: -1, 水泥: -1, 玻璃: -1, 工業: -1 };
+const axesRaw = items => { const n = Math.max(1, items.length), s = m => items.reduce((a, it) => a + it.tags.reduce((b, t) => b + (m[t] || 0), 0), 0) / n; return [s(AX_CURVE), s(AX_NATURE)]; };
+const lookItems = lk => { const f = { ...(STYLES[lk.style].furn || {}), ...(lk.furn || {}) }; return [...PARTS.map(p => p.list[lk[p.k]]), ...Object.values(f).filter(k => k && FURN[k]).map(k => FURN[k])]; };
+const AX_SCALE = (() => { const r = LOOKS.map(lk => axesRaw(lookItems(lk))); return [0, 1].map(j => 1 / Math.max(1e-6, ...r.map(x => Math.abs(x[j])))); })();
+const axesOf = items => axesRaw(items).map((v, j) => Math.max(-1, Math.min(1, v * AX_SCALE[j])));
 // Every style's default room must use options that list the style as compatible.
 for (const [name, st] of Object.entries(STYLES)) for (const p of PARTS) console.assert(p.list[st[p.k]].s.includes(name), `${name}: default ${p.k} not compatible`);
-window.HB_CATALOG = { JP, NO, RE, IN, MO, FR, LX, KR, MC, WB, TW, BO, MD, HT, LOOKS, LOOK_CAMS, TAG_GROUPS, FURN, SLOT_N, designX, lookX, FLOORS, WALLS, SOFAS, RUGS, CURTAINS, LAMPS, PARTS, PART, CLASH, COST, MODELS, STYLES };
+window.HB_CATALOG = { JP, NO, RE, IN, MO, FR, LX, KR, MC, WB, TW, BO, MD, HT, LOOKS, LOOK_CAMS, TAG_GROUPS, FURN, SLOT_N, designX, lookX, axesOf, lookItems, AX_CURVE, AX_NATURE, FLOORS, WALLS, SOFAS, RUGS, CURTAINS, LAMPS, PARTS, PART, CLASH, COST, MODELS, STYLES };
 })();
