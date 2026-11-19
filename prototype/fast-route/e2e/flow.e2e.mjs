@@ -61,6 +61,7 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   assert.deepEqual(await page.locator('#steps .t').allTextContents(), ['需求', '3D 提案', '預算']);
   assert.deepEqual(await page.locator('#where button:not(:disabled)').allTextContents(), ['客廳', '臥室', '餐廳', '廚房', '衛浴', '書房'], 'every space can be picked; nothing is held back');
   if (name === 'desktop') await onStage('1', '#upload');
+  else assert.ok(await page.locator('#where').evaluate((rooms) => rooms.getBoundingClientRect().bottom <= innerHeight), 'phone shows all room choices on the first screen');
   await snap('1-intro'); await noOverflow('1');
   await page.getByRole('button', { name: '沒有平面圖，先規劃整戶' }).click();
   await page.getByRole('heading', { name: '你家有這些房間，對嗎？' }).waitFor();
@@ -515,7 +516,11 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
     const source = await response.text();
     await route.fulfill({ response, body: source + `
       window.rejectAssets = [];
-      loadAssets = () => new Promise((resolve, reject) => window.rejectAssets.push(reject));
+      loadAssets = () => {
+        // Ignore the background warmup. Only the mounted renderers should have pending assets.
+        if (!document.querySelector('#scene canvas')) return Promise.resolve({});
+        return new Promise((resolve, reject) => window.rejectAssets.push(reject));
+      };
     ` });
   });
   await page.goto(base);
