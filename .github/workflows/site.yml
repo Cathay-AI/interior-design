@@ -7,10 +7,10 @@ name: site
 #   deploy     Vercel's Git integration builds main (production) and every pull request (preview); see vercel.json
 on:
   pull_request:
-    paths: ["prototype/**", "scripts/build-site.sh", "scripts/bundle-room.mjs", "package*.json", "vercel.json", ".github/workflows/site.yml"]
+    paths: ["prototype/**", "docs/proposal/product-design/**", "scripts/build-site.sh", "scripts/bundle-room.mjs", "package*.json", "vercel.json", ".github/workflows/site.yml"]
   push:
     branches: [main]
-    paths: ["prototype/**", "scripts/build-site.sh", "scripts/bundle-room.mjs", "package*.json", "vercel.json", ".github/workflows/site.yml"]
+    paths: ["prototype/**", "docs/proposal/product-design/**", "scripts/build-site.sh", "scripts/bundle-room.mjs", "package*.json", "vercel.json", ".github/workflows/site.yml"]
   workflow_dispatch:
 
 permissions:
@@ -36,7 +36,8 @@ jobs:
           npx playwright install --with-deps chromium
           python3 -m http.server 5173 --bind 127.0.0.1 --directory dist &
           sleep 1
-          node prototype/fast-route/e2e/flow.e2e.mjs http://127.0.0.1:5173/
+          node prototype/fast-route/e2e/flow.e2e.mjs http://127.0.0.1:5173/fast-route/
+          node prototype/wireframe/flow.e2e.mjs http://127.0.0.1:5173/
 
   automerge:
     # Only branches in this repository named claude/* (never forks), and only after the tests above pass.
