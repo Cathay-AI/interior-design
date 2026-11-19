@@ -11,7 +11,17 @@ const menu = document.querySelector('.project-menu');
 const catalogue = window.HB_CATALOG;
 const rooms = ['客廳', '餐廳', '廚房', '客衛', '主臥', '主衛', '次臥 1', '次臥 2'];
 const areas = [9, 4.5, 3, 1.5, 5.5, 1.5, 3.5, 4];
-const prices = [[26,48],[18,30],[28,46],[14,23],[24,39],[15,25],[20,33],[23,36]];
+// Original Quiet Oak demo allowances, in 萬, keyed by estimate item for each room.
+const baseRoomCosts = [
+  {floor:[4,7],wall:[2,4],cabinet:[5,10],light:[4,7],curtain:[2,3],furniture:[9,17]},
+  {floor:[2,3],wall:[1,2],cabinet:[6,10],light:[2,4],curtain:[2,3],furniture:[5,8]},
+  {floor:[3,5],wall:[3,5],cabinet:[14,23],water:[3,5],light:[5,8]},
+  {floor:[1,2],wall:[2,3],cabinet:[1,2],fixture:[5,8],water:[4,6],light:[1,2]},
+  {floor:[2,4],wall:[2,2],cabinet:[7,12],light:[3,5],curtain:[2,3],furniture:[8,13]},
+  {floor:[1,2],wall:[2,3],cabinet:[2,3],fixture:[4,7],water:[4,7],light:[2,3]},
+  {floor:[1,2],wall:[1,1],cabinet:[6,10],light:[3,5],curtain:[2,3],furniture:[7,12]},
+  {floor:[2,3],wall:[1,2],cabinet:[7,11],light:[3,4],curtain:[2,3],furniture:[8,13]},
+];
 const looks = ['靜謐橡木', '暖調復古', '日光北歐'];
 const livingFurniture = [
   {key:'chair', label:'單椅', names:['磚紅休閒椅', '苔綠休閒椅'], colors:['#a64c42','#515936'], extra:[1,1]},
@@ -97,13 +107,6 @@ const roomArea = (i = draft.room) => {
   return size ? Math.round(size.w * size.d / 3.3058 * 10) / 10 : areas[i];
 };
 const roomKind = (i = draft.room) => ['客廳','餐廳','廚房','衛浴','臥室','衛浴','臥室','臥室'][i];
-const roomPrice = (i = draft.room) => {
-  const areaChange = roomArea(i) - areas[i];
-  return prices[i].map((value, j) =>
-    Math.round(value + areaChange * [1, 2][j]) + draft.style * (j + 2) + (draft.changedRooms.has(i) ? livingFurniture[1].extra[j] : 0)
-    + (i === 0 && draft.chairChanged ? livingFurniture[0].extra[j] : 0)
-    + (i === 2 && draft.appliedLayout ? 2 : 0) + draft.appliedFeng.filter(n => [0,4][n] === i).length);
-};
 const setRoom = i => {
   if (i !== draft.room) draft.zoomIndex = 1;
   draft.room = i;
@@ -187,33 +190,58 @@ function modelControls(container) {
   const controls = el('div', {class:'model-controls'}, el('div', {class:'model-meta'}, notice, dimensions), zoomOut, zoomIn, retry);
   return {controls, restart};
 }
-function costDetails(label, indexes) {
-  const grouped = new Map();
-  for (const index of indexes) {
-    const cond = {space:roomKind(index), ping:roomArea(index), age:'新成屋'};
-    const items = designEstimate(cond, roomLook()).items;
-    const totalWeight = items.reduce((sum, item) => sum + item.high, 0);
-    const [low, high] = roomPrice(index);
-    let weight = 0;
-    for (const item of items) {
-      const before = weight;
-      weight += item.high;
-      const allocate = value => Math.round(value * weight / totalWeight) - Math.round(value * before / totalWeight);
-      const minimum = allocate(low);
-      const values = [minimum, minimum + allocate(high - low)];
-      const group = grouped.get(item.name) ?? {values:[0,0], basis:item.basis};
-      group.values = group.values.map((value, i) => value + values[i]);
-      grouped.set(item.name, group);
-    }
+const addPrices = ([low, high], [extraLow, extraHigh]) => [low + extraLow, high + extraHigh];
+const sumCosts = items => items.reduce((total, item) => addPrices(total, item.values), [0,0]);
+
+function roomCostItems(index = draft.room) {
+  const space = roomKind(index);
+  const baseline = baseRoomCosts[index];
+  const cond = {space, ping:roomArea(index), age:'新成屋'};
+  const look = roomLook();
+  const defaultTerms = designEstimate({...cond, ping:areas[index]}, look).items;
+  const adjustments = new Map();
+  const add = (key, values) => adjustments.set(key, addPrices(adjustments.get(key) ?? [0,0], values));
+
+  // Keep each demo surcharge on the work that changed.
+  if (draft.style === 1) add(baseline.furniture ? 'furniture' : 'wall', [2,3]);
+  if (draft.style === 2) add('cabinet', [4,6]);
+  if (draft.changedRooms.has(index)) {
+    const materialExtra = index === 0 ? livingFurniture[1].extra : [1,2];
+    add(baseline.furniture ? 'furniture' : 'cabinet', materialExtra);
   }
-  const entries = [...grouped].map(([name, {values, basis}]) => el('li', {},
-    el('span', {}, name, indexes.length === 1 && el('small', {}, basis)),
+  if (index === 0 && draft.chairChanged) add('furniture', livingFurniture[0].extra);
+  if (index === 2 && draft.appliedLayout) add('cabinet', [2,2]);
+  if ((index === 0 && draft.appliedFeng.includes(0)) || (index === 4 && draft.appliedFeng.includes(1))) {
+    add('furniture', [1,1]);
+  }
+
+  return designEstimate(cond, look).items.map(({key, name, basis, low, high}, i) => {
+    const terms = defaultTerms[i];
+    const areaDelta = [Math.round(low - terms.low), Math.round(high - terms.high)];
+    const [min, max] = addPrices(baseline[key], areaDelta);
+    // Small rooms can narrow a range after rounding size-dependent costs.
+    const sized = [Math.max(0, min), Math.max(0, min, max)];
+    return {name, basis, values:addPrices(sized, adjustments.get(key) ?? [0,0])};
+  });
+}
+
+function groupCosts(items) {
+  const groups = new Map();
+  for (const {name, values} of items) {
+    groups.set(name, addPrices(groups.get(name) ?? [0,0], values));
+  }
+  return Array.from(groups, ([name, values]) => ({name, values}));
+}
+
+function costDetails(label, items) {
+  const entries = items.map(({name, values, basis}) => el('li', {},
+    el('span', {}, name, basis && el('small', {}, basis)),
     el('strong', {}, price(values))));
   return el('details', {class:'cost-details'}, el('summary', {}, label),
-    el('p', {class:'muted'}, '依各工項分攤示意區間，實際單價與工法在現場丈量後確認。'),
+    el('p', {class:'muted'}, '依工項列出示意區間，實際單價與工法在現場丈量後確認。'),
     el('ul', {class:'rows'}, entries));
 }
-const estimate = () => price(roomPrice());
+const estimate = () => price(sumCosts(roomCostItems()));
 const itemChanged = key => key === 'chair' ? draft.chairChanged : draft.changedRooms.has(0);
 function selectItem(key, changed) {
   if (key === 'chair') draft.chairChanged = changed;
@@ -429,27 +457,34 @@ const pages = {
         el('button', {type:'button','aria-pressed':draft.style === i,onclick:refresh(() => {draft.style = i;})},
           el('img', {src:image(i),alt:'',loading:'lazy'}), 'ABC'[i] + ' · ' + name))),
       actions(link('上一步', 'brief'), link('確認方向，看成品', 'result', true)))),
-  result: () => grid(preview(), el('section', {class:'card stack result-quote'},
-    ...heading('實景＋初步報價', rooms[draft.room] + ' · 免費'),
-    el('strong', {class:'price'}, estimate()), draft.room === 0 && resultFurniture(),
-    costDetails('看單室費用明細', [draft.room]),
-    actions(link('毛胚到完成', 'compare'), link('整戶', 'whole'), link('家具與材質', 'materials'), link('這個家', 'project')),
-    card(el('h2', {}, '法規初檢 · 示意'),
-      rows([['消防', '2 項要注意'], ['建築', '1 項待補資料']]),
-      el('small', {}, '範例初檢，實際適用情況須經專業人員複核。'),
-      link(draft.unlocked ? '看法規細評' : '解鎖看逐條', draft.unlocked ? 'compliance' : 'unlock')),
-    el('div', {class:'result-next'}, link('解鎖精修與施工', 'unlock', true))), 'result-grid'),
+  result: () => {
+    const costs = roomCostItems();
+    return grid(preview(), el('section', {class:'card stack result-quote'},
+      ...heading('實景＋初步報價', rooms[draft.room] + ' · 免費'),
+      el('strong', {class:'price'}, price(sumCosts(costs))), draft.room === 0 && resultFurniture(),
+      costDetails('看單室費用明細', costs),
+      actions(link('毛胚到完成', 'compare'), link('整戶', 'whole'), link('家具與材質', 'materials'), link('這個家', 'project')),
+      card(el('h2', {}, '法規初檢 · 示意'),
+        rows([['消防', '2 項要注意'], ['建築', '1 項待補資料']]),
+        el('small', {}, '範例初檢，實際適用情況須經專業人員複核。'),
+        link(draft.unlocked ? '看法規細評' : '解鎖看逐條', draft.unlocked ? 'compliance' : 'unlock')),
+      el('div', {class:'result-next'}, link('解鎖精修與施工', 'unlock', true))), 'result-grid');
+  },
   project: () => stack(...heading('這個家', projects.get(projectId).name + ' · 我的家'), actions(link('空間條件', 'read'),
     link('3D 與報價', 'result'), link('施工圖與團隊', draft.unlocked ? 'drawings' : 'unlock')),
     roomButtons(), grid(preview(), card(el('h2', {}, '這間的初步報價'), el('strong',{class:'price'},estimate()), link('看整戶', 'whole')))),
-  whole: () => stack(...heading('整戶：一間一間看'), roomButtons(),
-    grid(preview(), card(el('h2', {}, rooms[draft.room] + '初步報價'),
-      el('strong', {class:'price'}, estimate()), el('h2', {}, '整戶初步報價'),
-      el('strong', {class:'price'}, price(prices.reduce(([low, high], _, i) => {
-        const [a,b] = roomPrice(i); return [low + a, high + b];
-      }, [0,0]))), costDetails('看單室費用明細', [draft.room]),
-      costDetails('看整戶費用明細', rooms.map((_, i) => i)),
-      rows(rooms.map((name, i) => [name, price(roomPrice(i))])), actions(link('返回成品', 'result'), link('毛胚到完成', 'compare'))))),
+  whole: () => {
+    const costsByRoom = rooms.map((_, index) => roomCostItems(index));
+    const currentRoom = costsByRoom[draft.room];
+    const wholeHome = groupCosts(costsByRoom.flat());
+    return stack(...heading('整戶：一間一間看'), roomButtons(),
+      grid(preview(), card(el('h2', {}, rooms[draft.room] + '初步報價'),
+        el('strong', {class:'price'}, price(sumCosts(currentRoom))), el('h2', {}, '整戶初步報價'),
+        el('strong', {class:'price'}, price(sumCosts(wholeHome))),
+        costDetails('看單室費用明細', currentRoom), costDetails('看整戶費用明細', wholeHome),
+        rows(rooms.map((name, i) => [name, price(sumCosts(costsByRoom[i]))])),
+        actions(link('返回成品', 'result'), link('毛胚到完成', 'compare')))));
+  },
   materials: () => grid(preview(), card(...heading('家具與材質', '示意型錄 · 換款反映在清單與初步報價'),
     rows([[featuredItem(), '1 件'], [catalogue.FLOORS[0].n, '地板'], [catalogue.WALLS[0].n, '牆面']]),
     actions(button('確認換款', refresh(() => {

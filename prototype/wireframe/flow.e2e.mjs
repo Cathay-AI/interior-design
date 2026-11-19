@@ -127,35 +127,76 @@ try {
       assert.equal(await livingPhoto.getAttribute('src'), './imagery/' + asset + '.webp');
       await livingPhoto.evaluate(img => img.decode());
     };
+    const parsePrice = value => value.match(/\d+/g).map(Number);
+    const addPrices = ([a,b], [x,y]) => [a + x, b + y];
+    const assertCost = async (name, low, high, evidence) => {
+      const details = page.locator('details').filter({has:page.getByText(name, {exact:true})});
+      await details.getByText(name, {exact:true}).click();
+      const entries = await details.locator('li').evaluateAll(rows => rows.map(row => [
+        row.querySelector('span').firstChild.textContent, row.querySelector('strong').textContent,
+      ]));
+      const costs = Object.fromEntries(entries.map(([label, value]) => [label, parsePrice(value)]));
+      assert(entries.length > 3);
+      for (const [min, max] of Object.values(costs)) assert(min <= max);
+      assert.deepEqual(Object.values(costs).reduce(addPrices, [0,0]), [low,high]);
+      if (evidence) await capture(evidence);
+      await details.getByText(name, {exact:true}).click();
+      return costs;
+    };
+    const singleDetails = '看單室費用明細';
+    const wholeDetails = '看整戶費用明細';
+    const assertFurnitureDelta = (before, after, delta) => {
+      assert.deepEqual(after, {
+        ...before, 家具軟裝:addPrices(before.家具軟裝, delta),
+      }, '家具換款只調整家具軟裝，收納櫃、窗簾與其他工項維持原價');
+    };
+    const checkWhole = async (low, high, evidence) => {
+      await link('整戶');
+      const quote = page.locator('.card').filter({has:page.getByRole('heading', {name:'整戶初步報價',exact:true})});
+      await quote.waitFor();
+      const headings = await quote.locator(':scope > .price').allTextContents();
+      const rooms = await quote.locator(':scope > .rows .badge').allTextContents();
+      assert.equal(rooms.length, 8);
+      assert.deepEqual(parsePrice(headings[1]), [low,high]);
+      assert.deepEqual(rooms.map(parsePrice).reduce(addPrices, [0,0]), [low,high]);
+      assert.deepEqual(parsePrice(rooms[0]), parsePrice(headings[0]));
+      const costs = await assertCost(wholeDetails, low, high, evidence);
+      await press('餐廳');
+      await quote.getByRole('heading', {name:'餐廳初步報價',exact:true}).waitFor();
+      assert.deepEqual(await quote.locator(':scope > .price').allTextContents(), ['18–30 萬', headings[1]]);
+      await press('客廳');
+      await link('返回成品');
+      return {costs, rooms};
+    };
     await expectVariant('living-4', '26–48 萬');
+    const original = await assertCost(singleDetails, 26, 48, 'room-cost');
+    assert.deepEqual(original.收納櫃, [5,10]);
+    assert.deepEqual(original.窗簾, [2,3]);
     await chairSwap.click();
     await expectVariant('living-chair', '27–49 萬');
     await page.getByText('苔綠休閒椅', {exact:true}).waitFor();
+    assertFurnitureDelta(original, await assertCost(singleDetails, 27, 49, 'quote-chair'), [1,1]);
+    const chairWhole = await checkWhole(169, 281, 'whole-quote-chair');
+
     await sofaSwap.click();
     await expectVariant('living-sofa-chair', '28–51 萬');
     await page.getByText('淺灰模組沙發', {exact:true}).waitFor();
+    assertFurnitureDelta(original, await assertCost(singleDetails, 28, 51), [2,3]);
     await capture('furniture-variants');
     await page.getByRole('textbox', {name:'就地微調'}).fill('單椅換回磚紅');
     await press('套用微調');
     await expectVariant('living-sofa', '27–50 萬');
+    assertFurnitureDelta(original, await assertCost(singleDetails, 27, 50, 'quote-sofa'), [1,2]);
+    const sofaWhole = await checkWhole(169, 282, 'whole-quote-sofa');
     await page.getByRole('textbox', {name:'就地微調'}).fill('沙發換成米白');
     await press('套用微調');
     await expectVariant('living-4', '26–48 萬');
-    const assertCost = async (name, low, high) => {
-      const details = page.locator('details').filter({has:page.getByText(name, {exact:true})});
-      await details.getByText(name, {exact:true}).click();
-      const rows = await details.locator('li strong').allTextContents();
-      const totals = rows.reduce(([a,b], value) => {
-        const [x,y] = value.match(/\d+/g).map(Number);
-        assert(x <= y, value);
-        return [a + x, b + y];
-      }, [0,0]);
-      assert(rows.length > 3);
-      assert.deepEqual(totals, [low,high]);
-      await capture(name.includes('整戶') ? 'whole-cost' : 'room-cost');
-      await details.getByText(name, {exact:true}).click();
-    };
-    await assertCost('看單室費用明細', 26, 48);
+    assert.deepEqual(await assertCost(singleDetails, 26, 48), original);
+    const originalWhole = await checkWhole(168, 280, 'whole-cost');
+    assertFurnitureDelta(originalWhole.costs, chairWhole.costs, [1,1]);
+    assertFurnitureDelta(originalWhole.costs, sofaWhole.costs, [1,2]);
+    assert.deepEqual(chairWhole.rooms, ['27–49 萬', ...originalWhole.rooms.slice(1)]);
+    assert.deepEqual(sofaWhole.rooms, ['27–50 萬', ...originalWhole.rooms.slice(1)]);
     await press('等角');
     await page.getByText('3D 中斷，已顯示實景示意。', {exact:true}).waitFor();
     assert.equal(modelRequests.length, 1);
@@ -195,7 +236,7 @@ try {
       return anchor.contains(document.elementFromPoint(x + width / 2, y + height / 2));
     }), '整戶連結須可直接點選，不被解鎖按鈕覆蓋');
     await link('整戶');
-    await assertCost('看整戶費用明細', 168, 280);
+    await assertCost(wholeDetails, 168, 280);
     await press('餐廳');
     await page.getByText('縮放 1×', {exact:true}).waitFor();
     await press('客廳');
@@ -236,6 +277,7 @@ try {
     await press('廚房');
     await link('返回成品');
     await page.getByText('28–46 萬', {exact:true}).waitFor({timeout:2500});
+    const kitchenCost = await assertCost(singleDetails, 28, 46, 'quote-kitchen-closed');
     const kitchen = page.getByRole('img', {name:'廚房 · 完工示意'});
     const enclosedKitchen = await kitchen.getAttribute('src');
     assert.match(enclosedKitchen, /imagery\/kitchen-4\.webp$/);
@@ -271,6 +313,9 @@ try {
     const checkedParams = new URL(page.url()).hash.split('?')[1];
     await route('result', checkedParams);
     await page.getByText('30–48 萬', {exact:true}).waitFor();
+    assert.deepEqual(await assertCost(singleDetails, 30, 48, 'quote-kitchen-open'), {
+      ...kitchenCost, 廚具:addPrices(kitchenCost.廚具, [2,2]),
+    });
     assert.match(await kitchen.getAttribute('src'), /imagery\/open-kitchen-4\.webp$/);
     const openSheet = await kitchenSheet();
     assert.match(openSheet, /開放廚房示意開口/);
@@ -293,6 +338,7 @@ try {
     await permit.getByText('符合示例', {exact:true}).waitFor();
     await route('result', checkedParams);
     await page.getByText('28–46 萬', {exact:true}).waitFor({timeout:2500});
+    assert.deepEqual(await assertCost(singleDetails, 28, 46), kitchenCost);
     assert.equal(await kitchen.getAttribute('src'), enclosedKitchen);
     assert.equal(await kitchenSheet(), enclosedSheet, '撤回開放廚房應恢復 A-01');
     await route('compliance', checkedParams);
