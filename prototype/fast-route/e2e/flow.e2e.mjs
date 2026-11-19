@@ -177,7 +177,8 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   await page.getByRole('heading', { name: '估價與施工圖初稿' }).waitFor();
   assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'H1', 'budget navigation moves keyboard focus to the summary heading');
   await onStage('4', '#unlockmine');
-  assert.equal(await page.locator('#app').getByText('預算', { exact: true }).count(), 0, 'never asks for a budget');
+  const budgetPrompts = page.locator('#app :is(h1,h2,h3,label,legend,.agent p,button), #actions button');
+  assert.equal(await budgetPrompts.filter({ hasText: /預算/ }).count(), 0, 'content and actions never ask for a budget');
   assert.equal(await page.evaluate(() => document.querySelector('#scene canvas') === window.__canvas && document.querySelectorAll('canvas').length), 1, 'the stage canvas was created once and never remounted');
   assert.match(await page.locator('#ping').innerText(), /8 坪・5.6 × 4.7 公尺/);
   assert.match(await page.locator('#know').innerText(), /基本資料完整度 70%，區間已收窄 35%/);
@@ -280,6 +281,7 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   assert.match(await page.locator('#asking').innerText(), /讀圖功能還沒接上.*先給你三房兩廳的範本/, 'when the plan cannot be read it says why and falls back to the template');
   assert.equal(await page.locator('#rooms .tag').count(), 0);
   await page.getByRole('button', { name: /重新上傳平面圖/ }).click();
+  assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'H1', 'retry focuses the upload screen heading');
   await page.setInputFiles('#planFile', { name: '我家平面圖.png', mimeType: 'image/png', buffer: PNG });
   await page.getByRole('heading', { name: '你家有這些房間，對嗎？' }).waitFor();
   assert.equal(sent.media, 'image/jpeg', 'the image is re-encoded before it is sent');

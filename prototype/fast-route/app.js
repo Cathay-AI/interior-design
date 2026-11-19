@@ -367,7 +367,7 @@ function roomsScreen() {
     }
     return li;
   };
-  app.append(h('div', { class: 'shead' }, backBtn(1, S.planNote ? '重新上傳平面圖' : '換一張圖', () => { S.home = null; S.started = false; S.editing = null; S.planNote = ''; render(); }), h('h1', {}, '你家有這些房間，對嗎？')),
+  app.append(h('div', { class: 'shead' }, backBtn(1, S.planNote ? '重新上傳平面圖' : '換一張圖', () => { S.home = null; S.started = false; S.editing = null; S.planNote = ''; go(1); }), h('h1', {}, '你家有這些房間，對嗎？')),
     agent(S.home.read ? `我從平面圖讀到 ${rooms.length} 間。${rooms.some((r) => r.unsure) ? '標「請確認」的尺寸圖上沒直接寫，是我換算的，不對就點「改」。' : '尺寸照圖上的標註。'}`
       : `${S.planNote || '這份清單不是從圖上讀的。'}先給你三房兩廳的範本，點「改」換成你家的。`, { id: 'asking', role: S.planNote ? 'alert' : false }),
     h('ul', { class: 'rooms', id: 'rooms' }, ...rooms.map(row)),
@@ -608,7 +608,7 @@ function sizeScreen() {
     S.docError ? h('p', { class: 'err', role: 'alert' }, S.docError) : h('span', { hidden: true }),
     S.docs.length ? list : h('span', { hidden: true }));
   dock(cta(pct ? '下一步：挑風格' : '先跳過，挑風格', start, '', { id: 'generate' }));
-  app.append(...[h('div', { class: 'shead' }, backBtn(1, '上一步', () => { S.started = false; render(); }), h('h1', { 'data-question': q.key ?? 'ready' }, questionTitle[q.key] ?? '你家的需求已整理好')),
+  app.append(...[h('div', { class: 'shead' }, backBtn(1, '上一步', () => { S.started = false; go(1); }), h('h1', { 'data-question': q.key ?? 'ready' }, questionTitle[q.key] ?? '你家的需求已整理好')),
     agent(q.text, { id: 'asking' }), quick,
     h('div', { class: 'voice' }, mic, h('div', { class: 'voicebody' }, say, micLabel), send),
     h('div', { class: 'inline more' },
