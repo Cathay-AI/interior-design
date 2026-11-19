@@ -286,6 +286,11 @@ dialog.viewer{max-width:min(96vw,1100px);width:100%}dialog.viewer svg{width:100%
 /* Warm Modern workbench */
 .scene-status{position:absolute;z-index:2;top:12px;left:50%;transform:translateX(-50%);max-width:90%;background:var(--surface);padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;pointer-events:none}
 .scene-status:empty{opacity:0}
+.scene-retry{top:68px;left:50%;transform:translateX(-50%);min-height:44px;padding:0 14px;color:var(--ink)}
+.scenewrap:has(.swatches:not([hidden])) .scene-retry{top:126px}
+#zoom{left:auto;right:12px}
+#zoom button[aria-disabled=true],.scene-retry[aria-disabled=true]{opacity:.6}
+.cost-details summary{min-height:44px;align-content:center;cursor:pointer;font-weight:700}
 
 header{background:var(--surface)}
 #steps button{min-height:44px}
@@ -331,7 +336,7 @@ main h1:focus{outline:none}
   .scenewrap:has(.swatches:not([hidden])) .scene-status{top:68px}
   .hint{display:none}
   /* OrbitControls sets touch-action inline on the canvas. Leave vertical swipes to the page on mobile. */
-  .scene:not(.flat),.scene canvas{touch-action:pan-y!important}
+  .scene:not(.flat),.scene canvas{touch-action:pan-y pinch-zoom!important}
   .pricecard,.sizecard{bottom:10px}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -351,8 +356,10 @@ main h1:focus{outline:none}
       <div class="scene" id="scene" role="img" aria-label="3D 空間，可拖曳旋轉"><img class="photo" id="poster" src="assets/preview-living.jpg" alt="" hidden></div>
       <div class="plan" id="plan" hidden></div>
       <p class="scene-status" id="scene-status" role="status"></p>
+      <button class="float scene-retry" id="retry3d" hidden>重試 3D</button>
       <span class="float hint" id="hint">拖曳旋轉</span>
       <div class="float seg" id="views" role="group" aria-label="視角" hidden></div>
+      <div class="float seg" id="zoom" role="group" aria-label="3D 縮放" hidden><button id="zoomout">縮小</button><button id="zoomin">放大</button></div>
       <span class="float where" id="where2" hidden></span>
       <div class="minimap" id="minimap" hidden></div>
       <div class="sizecard" id="dims"></div>

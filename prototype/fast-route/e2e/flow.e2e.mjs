@@ -16,7 +16,7 @@ const pin = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="50"><rec
 async function open(context, label) {
   const page = await context.newPage();
   page.on('pageerror', (e) => errors.push(`${label}: ${e.message}`));
-  page.on('response', (r) => { if (r.status() >= 400) errors.push(`${label}: ${r.status()} ${r.url()}`); });
+  page.on('response', (r) => { if (r.status() >= 400 && !(label === 'home' && r.status() === 503 && new URL(r.url()).pathname === '/api/read-plan')) errors.push(`${label}: ${r.status()} ${r.url()}`); });
   await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) => route.fulfill({ contentType: 'text/css', body: '' }));
   await page.route('https://i.pinimg.com/**', (route) => route.fulfill({ contentType: 'image/svg+xml', body: pin }));
   return page;
@@ -177,6 +177,14 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   await page.getByRole('heading', { name: '估價與施工圖初稿' }).waitFor();
   assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'H1', 'budget navigation moves keyboard focus to the summary heading');
   await onStage('4', '#unlockmine');
+  const totalBeforeCollapse = await page.locator('#total').innerText();
+  const details = page.getByText('費用明細', { exact: true });
+  await details.focus();
+  await page.keyboard.press('Space');
+  assert.equal(await page.locator('#cost-details .items').isVisible(), false);
+  assert.equal(await page.locator('#total').innerText(), totalBeforeCollapse);
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('#cost-details .items').isVisible(), true);
   const budgetPrompts = page.locator('#app :is(h1,h2,h3,label,legend,.agent p,button), #actions button');
   assert.equal(await budgetPrompts.filter({ hasText: /預算/ }).count(), 0, 'content and actions never ask for a budget');
   assert.equal(await page.evaluate(() => document.querySelector('#scene canvas') === window.__canvas && document.querySelectorAll('canvas').length), 1, 'the stage canvas was created once and never remounted');
@@ -272,7 +280,7 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   await page.route('**/api/read-plan', async (route) => {
     sent = route.request().postDataJSON(); calls += 1;
     await new Promise((r) => setTimeout(r, 400));
-    if (calls === 1) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ error: 'nokey' }) });
+    if (calls <= 2) return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'nokey' }) });
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ rooms: READ.map(([name, len, wid, unsure]) => ({ name, len, wid, ...(unsure ? { unsure: true } : {}) })) }) });
   });
   await page.setInputFiles('#planFile', { name: '我家平面圖.png', mimeType: 'image/png', buffer: PNG });
@@ -280,10 +288,23 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   await page.getByRole('heading', { name: '你家有這些房間，對嗎？' }).waitFor();
   assert.match(await page.locator('#asking').innerText(), /讀圖功能還沒接上.*先給你三房兩廳的範本/, 'when the plan cannot be read it says why and falls back to the template');
   assert.equal(await page.locator('#rooms .tag').count(), 0);
+  const firstRoom = page.locator('#rooms li').first();
+  await firstRoom.getByRole('button', { name: /改/ }).click();
+  await firstRoom.getByRole('textbox', { name: /房間名稱/ }).fill('合成修改');
+  await firstRoom.getByRole('button', { name: '完成' }).click();
+  await page.getByRole('button', { name: '中古屋' }).click();
+  await page.getByRole('button', { name: /重新上傳平面圖/ }).click();
+  await page.setInputFiles('#planFile', { name: '合成平面圖.png', mimeType: 'image/png', buffer: PNG });
+  await page.getByText(/保留你原先確認或修改的房間/).waitFor();
+  assert.match(await firstRoom.innerText(), /合成修改/);
+  assert.equal(await page.getByRole('button', { name: '中古屋' }).getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'H1', 'failed re-upload focuses the retained room list');
   await page.getByRole('button', { name: /重新上傳平面圖/ }).click();
   assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'H1', 'retry focuses the upload screen heading');
   await page.setInputFiles('#planFile', { name: '我家平面圖.png', mimeType: 'image/png', buffer: PNG });
   await page.getByRole('heading', { name: '你家有這些房間，對嗎？' }).waitFor();
+  assert.match(await firstRoom.innerText(), /客廳/, 'successful read replaces the retained room list');
+  assert.equal(calls, 3);
   assert.equal(sent.media, 'image/jpeg', 'the image is re-encoded before it is sent');
   assert.match(sent.data, /^[A-Za-z0-9+/]+=*$/);
   assert.match(await page.locator('#asking').innerText(), /我從平面圖讀到 8 間。標「請確認」的尺寸/);
@@ -380,8 +401,50 @@ for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['pho
   await page.getByRole('heading', { name: '客廳・溫暖木質' }).waitFor();
   assert.equal(await page.getByRole('button', { name: '視角 B' }).isVisible(), false, 'view buttons that do nothing are hidden');
   assert.equal(await page.locator('.scene > svg').count(), 1);
+  await page.getByRole('button', { name: '重試 3D' }).click();
+  await page.getByText('3D 無法顯示，目前使用 2D 示意圖。').waitFor();
+  assert.equal(await page.locator('.scene > svg').count(), 1, 'failed retry retains one fallback');
   await page.locator('#tocost').click();
   await page.getByRole('heading', { name: '估價與施工圖初稿' }).waitFor();
+  await context.close();
+}
+
+{ // A transient failure of the 3D entry module can recover without a reload.
+  const context = await browser.newContext({ viewport: { width: 320, height: 740 }, hasTouch: true, isMobile: true, ...quiet });
+  const page = await open(context, 'retry-3d');
+  await page.route('**/lib/room3d.js', route => route.abort(), { times: 1 });
+  await page.goto(base);
+  await page.getByText('3D 無法顯示，目前使用 2D 示意圖。').waitFor();
+  await page.locator('#where').getByRole('button', { name: '客廳' }).tap();
+  await page.locator('#say').fill('長五米六、寬四米七');
+  await page.locator('#say').press('Enter');
+  await page.locator('#generate').tap();
+  await page.locator('#skip').tap();
+  assert.match(await page.locator('#dims').innerText(), /5.6 × 4.7/);
+  if (shots) await page.screenshot({ path: `${shots}/3d-before-retry.png` });
+  await page.getByRole('button', { name: '重試 3D' }).click();
+  await ready(page);
+  assert.equal(await page.locator('.scene > svg').count(), 0);
+  assert.equal(await page.getByRole('button', { name: /視角 A/ }).getAttribute('aria-pressed'), 'true');
+  const zoomIn = page.getByRole('button', { name: '放大', exact: true });
+  const zoomOut = page.getByRole('button', { name: '縮小', exact: true });
+  await zoomIn.focus();
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Space');
+  assert.equal(await zoomIn.getAttribute('aria-disabled'), 'true');
+  await zoomOut.tap();
+  assert.equal(await zoomIn.getAttribute('aria-disabled'), 'false');
+  if (shots) await page.screenshot({ path: `${shots}/3d-after-retry.png` });
+
+  assert.match(await page.locator('#dims').innerText(), /5.6 × 4.7/);
+  const viewB = page.getByRole('button', { name: /視角 B/ });
+  await viewB.tap();
+  await page.locator('#scene canvas').evaluate(canvas => canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true })));
+  await page.getByText('3D 無法顯示，目前使用 2D 示意圖。').waitFor();
+  await page.getByRole('button', { name: '重試 3D' }).tap();
+  await ready(page);
+  assert.equal(await viewB.getAttribute('aria-pressed'), 'true', 'retry preserves the chosen view');
+  assert.match(await page.locator('#dims').innerText(), /5.6 × 4.7/);
   await context.close();
 }
 

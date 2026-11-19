@@ -18,7 +18,12 @@ import { KINDS, ACCEPT, MAX_FILES, MAX_MB, guessKind, rejectReason, summarize } 
 
 // The 3D module (Three.js) is loaded on demand so the first screen stays light.
 let room3d = null;
-const load3D = () => (room3d ??= import('./lib/room3d.js'));
+let moduleAttempt = 0;
+const load3D = () => (room3d ??= import(moduleAttempt ? `./lib/room3d.js?retry=${moduleAttempt}` : './lib/room3d.js').catch((error) => {
+  room3d = null;
+  moduleAttempt += 1;
+  throw error;
+}));
 let live = null; // the mounted 3D room, disposed whenever the screen changes
 
 /* ================= content ================= */
@@ -76,6 +81,7 @@ const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').match
    同一個 canvas 從開場到最後一步都不卸載；屋主做的事（選空間、滑卡、填尺寸、改設計）只更新它。
    右下角是常駐的預估金額，左下角是房間的尺寸線。 */
 const sceneEl = $('#scene');
+let stageLoading = false, costsOpen = true;
 let stageKey = '', stageFailed = false, shownPrice = null, rollTimer = 0;
 /* ---- 整戶：一串房間，一次看一間 ---- */
 const multi = () => Boolean(S.home);
@@ -99,7 +105,7 @@ const stageLook = () => (S.cond.style && S.versions.length ? look() : STYLES[S.s
 function syncStage() {
   const c = S.cond, cur = stageLook(), est = tighten(designEstimate(c, cur), knowledge().score), size = { ...roomSize(c, est.ping), space: c.space };
   // 整戶時，舞台在「看整個家」的畫面改放示意平面圖；3D 留在底下不卸載
-  const planMode = multi() && (S.step !== 3 || S.tab === 'all');
+  const planMode = S.started && multi() && (S.step !== 3 || S.tab === 'all');
   const plan = $('#plan'); plan.hidden = !planMode;
   const pickRoom = (e) => { const g = e.target.closest('[data-room]'); if (!g || (e.type === 'keydown' && e.key !== 'Enter')) return; if (S.step < 3 && !S.cond.style) return; enterRoom(g.dataset.room); go(3); };
   if (planMode) { plan.replaceChildren(fromHTML(planSVG(S.home.rooms, S.step === 3 && S.tab === 'room' ? S.room : null)), h('p', { class: 'note' }, '示意平面圖：只表示有哪些房間和大概的大小，不是你家的實際格局。')); plan.onclick = pickRoom; plan.onkeydown = pickRoom; }
@@ -123,7 +129,8 @@ function syncStage() {
   if (!S.started) sw.replaceChildren(...SWIPE_ORDER.map((k) => h('button', { class: 'swatch', 'aria-label': STYLES[k].name, title: STYLES[k].name, 'aria-pressed': String(STYLES[k] === cur),
     onclick: () => { S.tryStyle = k; syncStage(); } }, h('i', { style: `background:${STYLES[k].wall}` }), h('i', { style: `background:${STYLES[k].floor}` }))));
   // 視角：看單一房間的 3D 時才有用
-  const views = $('#views'); views.hidden = S.step !== 3 || planMode || stageFailed;
+  updateSceneControls();
+  const views = $('#views');
   views.replaceChildren(...Object.entries(VIEW_NAMES).map(([v, label]) => h('button', { 'aria-pressed': String(S.view === v), 'aria-label': `視角 ${v}：${label}`, 'data-view': v,
     onclick: () => { S.view = v; live?.setView(v); views.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === v))); save(); } }, label)));
   const key = JSON.stringify([cur, size]);
@@ -131,23 +138,67 @@ function syncStage() {
   const first = !stageKey; stageKey = key;
   if (stageFailed) return flatStage(cur);
   if (live) return live.update(cur, size);
-  if (!first) return;                                            // 3D 還在載：載好時會用當下的設計
-  $('#poster').hidden = !(cur === STYLES.warm && c.space === '客廳' && !c.len);   // 預設客廳先用一張圖墊著，3D 好了就換上
+  if (first) mountStage();
+}
+
+function updateSceneControls() {
+  const planMode = !$('#plan').hidden;
+  $('#views').hidden = $('#zoom').hidden = S.step !== 3 || planMode || !live;
+  $('#retry3d').hidden = planMode || !stageFailed;
+  $('#hint').hidden = planMode || (S.step === 3 && !!live);
+}
+
+function showStageFallback() {
+  live?.dispose();
+  live = window.__room = null;
+  delete sceneEl.dataset.ready;
+  stageFailed = true;
+  flatStage(stageLook());
+  $('#scene-status').textContent = '3D 無法顯示，目前使用 2D 示意圖。';
+  updateSceneControls();
+}
+
+async function mountStage() {
+  if (stageLoading || live) return;
+  stageLoading = true;
+  const retry = $('#retry3d');
+  retry.setAttribute('aria-disabled', 'true');
   const status = $('#scene-status');
   status.textContent = '正在載入 3D 預覽…';
   sceneEl.setAttribute('aria-busy', 'true');
-  load3D().then((m) => {
+  if (!stageFailed) $('#poster').hidden = !(stageLook() === STYLES.warm && S.cond.space === '客廳' && !S.cond.len);
+  try {
+    const m = await load3D();
     const now = stageNow();
-    live = m.mountRoom3D(sceneEl, now.look, S.view, now.size);
-    window.__room = live;
+    live = window.__room = m.mountRoom3D(sceneEl, now.look, S.view, now.size, showStageFallback);
+    sceneEl.querySelector(':scope > svg')?.remove();
+    sceneEl.classList.remove('flat');
+    sceneEl.setAttribute('aria-label', '3D 空間，可拖曳旋轉');
+    $('#hint').textContent = '拖曳旋轉';
+    stageFailed = false;
     status.textContent = '';
-  }).catch(() => {
-    stageFailed = true;
-    flatStage(stageLook());
-    $('#views').hidden = true;
-    status.textContent = '3D 無法顯示，目前使用 2D 示意圖。';
-  }).finally(() => sceneEl.removeAttribute('aria-busy'));
+    if (document.activeElement === retry) focusScreen();
+    updateSceneControls();
+    updateZoom();
+  } catch {
+    sceneEl.querySelector(':scope > canvas')?.remove();
+    showStageFallback();
+  } finally {
+    stageLoading = false;
+    retry.removeAttribute('aria-disabled');
+    sceneEl.removeAttribute('aria-busy');
+  }
 }
+
+function updateZoom(delta = 0) {
+  if (!live) return;
+  const { atMin, atMax } = live.zoomBy(delta);
+  $('#zoomout').setAttribute('aria-disabled', String(atMin));
+  $('#zoomin').setAttribute('aria-disabled', String(atMax));
+}
+$('#retry3d').addEventListener('click', mountStage);
+$('#zoomout').addEventListener('click', () => updateZoom(-1));
+$('#zoomin').addEventListener('click', () => updateZoom(1));
 const stageNow = () => { const cur = stageLook(), est = tighten(designEstimate(S.cond, cur), knowledge().score); return { look: cur, size: { ...roomSize(S.cond, est.ping), space: S.cond.space } }; };
 // 這台裝置或瀏覽器開不了 3D：同一個位置改放 2D 示意圖，收起沒有作用的視角與拖曳提示
 function flatStage(cur) {
@@ -212,6 +263,7 @@ function render() {
   const oldQuestion = app.querySelector('[data-question]')?.dataset.question;
   const at = Number(app.dataset.step) === S.step ? [...app.querySelectorAll(FOCUSABLE)].indexOf(document.activeElement) : -1, was = sig(document.activeElement);
   pending = false;
+  costsOpen = app.querySelector('#cost-details')?.open ?? costsOpen;
   app.replaceChildren(); $('#actions').replaceChildren();
   $('#shareslot').replaceChildren(...(S.step >= 3 && !multi() ? [shareBtn()] : []));
   app.dataset.step = S.step;
@@ -303,7 +355,7 @@ async function readPlan(file) {
     const res = await fetch('/api/read-plan', { method: 'POST', headers: { 'content-type': 'application/json' }, signal: AbortSignal.timeout(75000),
       body: JSON.stringify({ media: pdf ? 'application/pdf' : 'image/jpeg', data: await b64of(blob) }) });
     const body = await res.json();
-    const rooms = Array.isArray(body.rooms) ? roomsFromPlan({ is_floor_plan: true, rooms: body.rooms.map((r) => ({ name: r.name, length_m: Number(r.len), width_m: Number(r.wid), size_source: r.unsure ? 'scaled' : 'labeled' })) }) : null;
+    const rooms = res.ok && Array.isArray(body.rooms) ? roomsFromPlan({ is_floor_plan: true, rooms: body.rooms.map((r) => ({ name: r.name, length_m: Number(r.len), width_m: Number(r.wid), size_source: r.unsure ? 'scaled' : 'labeled' })) }) : null;
     return rooms ? { rooms } : { error: body.error ?? 'failed' };
   } catch { return { error: 'failed' }; }
 }
@@ -319,10 +371,16 @@ function intro() {
     S.docError = ''; S.reading = true; render();
     const got = await readPlan(f);
     S.reading = false;
-    S.docs.push({ name: f.name, kind: 'plan', pdf: f.type === 'application/pdf', url: f.type.startsWith('image/') ? URL.createObjectURL(f) : null });
-    S.home = got.rooms ? { rooms: got.rooms, style: null, read: true } : { rooms: templateRooms(), style: null };
+    const keptRooms = !got.rooms && S.home;
+    if (!keptRooms) {
+      S.docs.push({ name: f.name, kind: 'plan', pdf: f.type === 'application/pdf', url: f.type.startsWith('image/') ? URL.createObjectURL(f) : null });
+      S.home = got.rooms ? { rooms: got.rooms, style: null, read: true } : { rooms: templateRooms(), style: null };
+      S.room = S.home.rooms[0].id;
+      S.cond.space = kindOf(S.home.rooms[0].name);
+    }
+    S.planRetained = Boolean(keptRooms);
     S.planNote = got.rooms ? '' : PLAN_ERRORS[got.error] ?? PLAN_ERRORS.failed;
-    S.room = S.home.rooms[0].id; S.started = true; S.cond.space = kindOf(S.home.rooms[0].name);
+    S.started = true;
     render();
     focusScreen();
   };
@@ -341,7 +399,7 @@ function intro() {
     S.docError ? h('p', { class: 'err', role: 'alert' }, S.docError) : null,
     h('p', { class: 'or' }, '還沒有平面圖？先挑一個空間試試'),
     h('div', { class: 'chips', role: 'group', 'aria-label': '先挑一個空間', id: 'where', style: 'justify-content:center' },
-      ...['客廳', '臥室', '廚房', '衛浴', '書房'].map((name) => h('button', { class: 'chip', onclick: () => pick(name) }, name)))),
+      ...['客廳', '臥室', '廚房', '衛浴', '書房'].map((name) => h('button', { class: 'chip', disabled: S.reading, onclick: () => pick(name) }, name)))),
     h('div', { class: 'how' }, ...[['1', '丟平面圖', '確認有哪些房間'], ['2', '滑卡挑風格', '整個家一起套用'], ['3', '看設計與花費', '一間一間看，整戶加總']].map(([n, t, d]) => h('div', {}, h('i', {}, n), h('b', {}, t), h('span', {}, d)))));
 }
 
@@ -367,9 +425,9 @@ function roomsScreen() {
     }
     return li;
   };
-  app.append(h('div', { class: 'shead' }, backBtn(1, S.planNote ? '重新上傳平面圖' : '換一張圖', () => { S.home = null; S.started = false; S.editing = null; S.planNote = ''; go(1); }), h('h1', {}, '你家有這些房間，對嗎？')),
-    agent(S.home.read ? `我從平面圖讀到 ${rooms.length} 間。${rooms.some((r) => r.unsure) ? '標「請確認」的尺寸圖上沒直接寫，是我換算的，不對就點「改」。' : '尺寸照圖上的標註。'}`
-      : `${S.planNote || '這份清單不是從圖上讀的。'}先給你三房兩廳的範本，點「改」換成你家的。`, { id: 'asking', role: S.planNote ? 'alert' : false }),
+  app.append(h('div', { class: 'shead' }, backBtn(1, S.planNote ? '重新上傳平面圖' : '換一張圖', () => { S.started = false; S.editing = null; S.planNote = ''; go(1); }), h('h1', {}, '你家有這些房間，對嗎？')),
+    agent(S.home.read && !S.planNote ? `我從平面圖讀到 ${rooms.length} 間。${rooms.some((r) => r.unsure) ? '標「請確認」的尺寸圖上沒直接寫，是我換算的，不對就點「改」。' : '尺寸照圖上的標註。'}`
+      : `${S.planNote || '這份清單不是從圖上讀的。'}${S.planRetained ? '保留你原先確認或修改的房間。' : '先給你三房兩廳的範本，點「改」換成你家的。'}`, { id: 'asking', role: S.planNote ? 'alert' : false }),
     h('ul', { class: 'rooms', id: 'rooms' }, ...rooms.map(row)),
     h('div', { class: 'inline' },
       h('button', { class: 'soft', id: 'addroom', onclick: () => { const id = 'r' + (Math.max(0, ...rooms.map((x) => Number(x.id.slice(1)) || 0)) + 1); rooms.push({ id, name: '新房間', len: '3', wid: '3', on: true, edits: [] }); S.editing = id; render(); } }, '＋ 加一間'),
@@ -703,6 +761,8 @@ SCREENS[3] = () => {
 };
 
 /* ---- 4 估價與施工圖 ---- */
+const costDetails = (...content) => h('details', { class: 'cost-details', id: 'cost-details', open: costsOpen },
+  h('summary', {}, '費用明細'), ...content);
 SCREENS[4] = () => {
   const c = S.cond, current = look(), est = estimateNow(), k = knowledge();
   const max = Math.max(...est.items.map((i) => i.high));
@@ -723,8 +783,8 @@ SCREENS[4] = () => {
       ...AGES.map((a) => h('button', { class: 'chip', 'aria-pressed': String(c.age === a), onclick: () => { c.age = a; c.ageSet = true; render(); } }, a))),
     h('label', { class: 'check', id: 'withfurniture' }, h('input', { type: 'checkbox', checked: !c.noFurniture, onchange: (e) => { c.noFurniture = !e.target.checked; renderSoon(); } }),
       c.noFurniture ? '把家具軟裝算進來（目前不含：沿用舊家具或自己買）' : '把家具軟裝算進來（沿用舊家具或自己買，可以取消）'),
-    h('ul', { class: 'items' }, ...est.items.map((i) => h('li', {}, h('b', {}, i.name), h('span', { class: 'amt' }, `${i.low}–${i.high} 萬`),
-      h('small', {}, i.basis), h('span', { class: 'bar', 'aria-hidden': 'true' }, h('i', { style: `width:${(i.high / max) * 100}%` }))))),
+    costDetails(h('ul', { class: 'items' }, ...est.items.map((i) => h('li', {}, h('b', {}, i.name), h('span', { class: 'amt' }, `${i.low}–${i.high} 萬`),
+      h('small', {}, i.basis), h('span', { class: 'bar', 'aria-hidden': 'true' }, h('i', { style: `width:${(i.high / max) * 100}%` })))))),
     h('p', { class: 'note' }, '參考行情量級（尚未以實際單價表校正），中等建材、不動格局；不含家電與設計監工費。'));
 
   const sheets = drawingSet(c, current, est, new Date().toISOString().slice(0, 10));
@@ -798,8 +858,8 @@ SCREENS[4] = () => {
     app.append(h('div', { class: 'shead' }, backBtn(3, '回到設計'), h('p', { class: 'note' }, '整個家照這個設計做，大約要花'),
       h('div', { class: 'total' }, h('h1', { class: 'big', id: 'total' }, `${home.low}–${home.high}`, h('small', {}, '萬')), h('span', { class: 'badge', id: 'estkind' }, '範例估算，非正式報價')),
       h('p', { class: 'note', id: 'assume4' }, `${homeTitle(rooms)}・${c.age}${c.ageSet ? '' : '（預設）'}。`)),
-      h('div', { class: 'segm', role: 'group', 'aria-label': '怎麼看' }, ...[['room', '依房間'], ['item', '依工項']].map(([v, label]) => h('button', { 'aria-pressed': String(S.costTab === v), onclick: () => { S.costTab = v; render(); } }, label))),
-      S.costTab === 'item' ? byItem : byRoom,
+      costDetails(h('div', { class: 'segm', role: 'group', 'aria-label': '怎麼看' }, ...[['room', '依房間'], ['item', '依工項']].map(([v, label]) => h('button', { 'aria-pressed': String(S.costTab === v), onclick: () => { S.costTab = v; render(); } }, label))),
+      S.costTab === 'item' ? byItem : byRoom),
       h('p', { class: 'note' }, '取消勾選就先不做那一間，合計馬上更新。參考行情量級，不含家電與設計監工費。'),
       drawings, regs);
     return dock(h('p', { class: 'note' }, '整戶施工圖是 AI 初稿；專業團隊確認的流程還在確認中。'),
