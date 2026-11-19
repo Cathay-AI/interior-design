@@ -46,17 +46,17 @@ const questions = [
 ];
 const newDraft = () => ({
   room: 0, style: 0, shot: 0, step: 0, answers: [], roomSizes: new Map(), zoomIndex: 1, editRoomSize: false,
-  filter: '', view: '實景', layoutPreview: true, profileOriginal: false, changedRooms: new Set(), chairChanged: false, tuneMessage: '', photos: [], source: null,
+  filter: '', view: '實景', layoutPreview: true, profileOriginal: false, changedRooms: new Set(), chairChanged: false, tuneMessage: '', photos: [], source: null, pendingSource: null,
   appliedLayout: false, appliedFeng: [],
   unlocked: false, feng: new Set([0, 1]),
   drawing: 'A-01', comparisonStage: 4, floor: '', floorInput: '',
   checkedLayout: null, layoutVersion: 0, note: '', refs: '', tags: ['自然材質', '好整理'], team: '設計師＋工班', sent: false,
 });
 const projects = new Map([
-  ['oak', {name:'靜謐橡木', page:'project', state:'初步報價', draft:newDraft()}],
-  ['family', {name:'小家庭', page:'brief', state:'進行中', draft:newDraft()}],
-  ['floorplan', {name:'三房兩廳', page:'read', state:'待補', draft:newDraft()}],
-  ['upload', {name:'新家平面圖', page:'scanning', state:'解析中', draft:newDraft()}],
+  ['oak', {name:'靜謐橡木', page:'project', draft:newDraft()}],
+  ['family', {name:'小家庭', page:'brief', draft:newDraft()}],
+  ['floorplan', {name:'三房兩廳', page:'read', draft:newDraft()}],
+  ['upload', {name:'新家平面圖', page:'scanning', draft:newDraft()}],
 ]);
 let projectId = 'oak';
 let draft = projects.get(projectId).draft;
@@ -83,7 +83,7 @@ const href = (page, id = projectId) => '#' + page + '?project=' + id;
 const go = (page, id = projectId) => { location.hash = href(page, id); };
 function createProject(page) {
   const id = 'demo-' + ++projectCount;
-  projects.set(id, {name:'新家 ' + projectCount, page, state:'新建', draft:newDraft(), resumable:true});
+  projects.set(id, {name:'新家 ' + projectCount, page, draft:newDraft(), isNew:true});
   return id;
 }
 const startProject = page => go(page, createProject(page));
@@ -351,19 +351,24 @@ const preview = () => {
 function upload(event, isPlan = true, newProject = false) {
   const file = event.target.files[0];
   if (!file) return;
-  const id = newProject ? createProject('scanning') : projectId;
-  projects.get(id).draft.source = {label:isPlan ? '平面圖' : '機電圖', files:[file.name]};
+  const id = newProject ? createProject('entry') : projectId;
+  projects.get(id).draft.pendingSource = {label:isPlan ? '平面圖' : '機電圖', files:[file.name]};
   go('scanning', id);
 }
 function usePhotos() {
-  draft.source = {label:'現場照片', files:draft.photos.filter(Boolean)};
+  draft.pendingSource = {label:'現場照片', files:draft.photos.filter(Boolean)};
   draft.photos = [];
   draft.shot = 0;
 }
-const sourceDetails = () => draft.source && el('div', {class:'source-filename',role:'status'},
-  el('strong', {}, '目前來源：' + draft.source.label),
-  draft.source.files.length
-    ? el('ul', {}, draft.source.files.map(name => el('li', {}, name)))
+function confirmSource() {
+  if (!draft.pendingSource) return;
+  draft.source = draft.pendingSource;
+  draft.pendingSource = null;
+}
+const sourceDetails = (source = draft.source) => source && el('div', {class:'source-filename',role:'status'},
+  el('strong', {}, '目前來源：' + source.label),
+  source.files.length
+    ? el('ul', {}, source.files.map(name => el('li', {}, name)))
     : el('small', {}, '示意流程，尚未選擇照片。'));
 function roomSizeForm() {
   const index = draft.room;
@@ -417,12 +422,16 @@ const homeStart = (tag, attrs, icon, title, detail, ...controls) => el(tag, {cla
   el('span', {class:'home-start-icon','aria-hidden':'true'}, icon),
   el('strong', {}, title), el('small', {}, detail), controls);
 
+const resumePage = project => project.draft.pendingSource ? 'scanning' : project.page;
+
 function recentProject(id, project) {
   const state = project.draft;
-  const stage = project.state;
-  const isPlan = stage === '待補' || (stage === '解析中' && state.source?.label !== '現場照片' && state.source);
+  const page = resumePage(project);
+  const stage = projectProgress[page];
+  const source = page === 'scanning' ? state.pendingSource : state.source;
+  const isPlan = stage === '待補' || (stage === '解析中' && source && source.label !== '現場照片');
   const imageStage = stage === '解析中' ? 0 : stage === '進行中' ? 3 : stages.length - 1;
-  const sourceName = state.source?.files[0];
+  const sourceName = source?.files[0];
   const status = stage === '團隊對接' && state.sent ? '示意已送件' : stage;
   const detail = stage === '解析中' || stage === '待補' ? sourceName ?? '示意空間' :
     rooms[state.room] + ' · ' + looks[state.style];
@@ -433,13 +442,13 @@ function recentProject(id, project) {
     el('div', {class:'home-project-info'},
       el('div', {}, el('h3', {}, project.name), el('small', {}, detail)),
       el('span', {class:'badge'}, status),
-      el('a', {href:href(project.page, id),class:'home-project-link'}, '打開專案')));
+      el('a', {href:href(page, id),class:'home-project-link'}, '打開專案')));
 }
 
 function homesPage() {
   const entries = [...projects];
-  const newHomes = entries.filter(([, project]) => project.resumable).reverse();
-  const examples = entries.filter(([, project]) => !project.resumable);
+  const newHomes = entries.filter(([, project]) => project.isNew).reverse();
+  const examples = entries.filter(([, project]) => !project.isNew);
   const recent = [...newHomes, ...examples];
   return el('div', {class:'homes-dashboard stack'},
     el('header', {class:'homes-heading'},
@@ -468,19 +477,26 @@ const scanSteps = [
   ['整理成空間條件', '缺少的資料標為待補', '待處理'],
 ];
 function scanningPage() {
+  const cancelPage = draft.source || draft.roomSizes.size ? 'read' : 'entry';
+  const cancel = () => {
+    draft.pendingSource = null;
+    projects.get(projectId).page = cancelPage;
+  };
   return grid(el('div', {class:'plan-stage scan-plan'},
     el('h2', {class:'plan-note'}, '示意平面圖'),
     el('div', {class:'scan-drawing'}, planDiagram(draft, draft.appliedLayout))),
     card(...heading('正在讀懂你家'),
       el('p', {class:'panel-note'}, '示意解析，使用範例平面。讀不到的資料可在下一步補。'),
-      sourceDetails(),
+      sourceDetails(draft.pendingSource),
+      draft.pendingSource && el('small', {}, '本次來源在查看解析結果後確認。'),
       el('ol', {class:'scan-steps','aria-label':'解析步驟'},
         scanSteps.map(([title, detail, status], index) =>
           el('li', {class:'scan-step','data-state':status,...(index === 2 ? {'aria-current':'step'} : {})},
             el('span', {class:'scan-mark','aria-hidden':'true'}, index < 2 ? '✓' : ''),
             el('span', {}, el('strong', {}, title), el('small', {}, detail)),
             el('span', {class:'badge'}, status)))),
-      actions(link('取消', 'entry'), link('查看解析結果', 'read', true))), 'scan-grid');
+      actions(el('a', {href:href(cancelPage),class:'button',onclick:cancel}, '取消'),
+        el('a', {href:href('read'),class:'button primary',onclick:confirmSource}, '查看解析結果'))), 'scan-grid');
 }
 
 function profilePage() {
@@ -752,8 +768,8 @@ function updateNavigation(page) {
   if (page !== 'homes') rail.before(phaseNav(page, work));
 }
 const projectProgress = {
-  camera:'進行中', scanning:'解析中', read:'待補', conditions:'待補', brief:'進行中', style:'進行中',
-  result:'初步報價', layout:'精修中', profile:'精修中', compliance:'法規細評',
+  entry:'新建', camera:'進行中', scanning:'解析中', read:'待補', conditions:'待補', brief:'進行中', style:'進行中',
+  project:'初步報價', result:'初步報價', layout:'精修中', profile:'精修中', compliance:'法規細評',
   feng:'精修中', drawings:'施工圖', team:'團隊對接',
 };
 function render(focus = true) {
@@ -766,9 +782,12 @@ function render(focus = true) {
   draft = project.draft;
   const requested = Object.hasOwn(pages, route) ? route : 'entry';
   const page = premium.includes(requested) && !draft.unlocked ? 'unlock' : requested;
-  if (Object.hasOwn(projectProgress, page)) {
-    project.state = projectProgress[page];
-    if (project.resumable) project.page = page;
+  if (page === 'scanning' && resumePage(project) !== 'scanning') {
+    location.replace(href(project.page));
+    return;
+  }
+  if (page !== 'entry' && page !== 'scanning' && Object.hasOwn(projectProgress, page)) {
+    project.page = page;
   }
   updateNavigation(page);
   const layout = pages[page]();

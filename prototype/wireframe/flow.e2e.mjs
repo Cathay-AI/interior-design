@@ -3,6 +3,8 @@ import { chromium } from 'playwright';
 
 const base = process.argv[2] ?? 'http://127.0.0.1:5173/';
 const browser = await chromium.launch();
+const projectFailures = [];
+const projectOnly = process.argv[3] === '--project-only';
 try {
   for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
     const page = await browser.newPage({ viewport });
@@ -58,6 +60,101 @@ try {
       await page.evaluate(([view, parameters]) => {location.hash = view + '?' + parameters;}, [target, query]);
       await page.waitForURL(url => url.hash === '#' + target + '?' + query);
     };
+    const recentHome = name => page.getByRole('region', {name:'最近的家'}).getByRole('article')
+      .filter({has:page.getByRole('heading', {name,exact:true})});
+    const openHome = name => recentHome(name).getByRole('link', {name:'打開專案'});
+    const planFile = name => ({name, mimeType:'application/pdf', buffer:Buffer.from('%PDF-1.4')});
+    const expectResume = async (name, hash) => {
+      assert.equal(await openHome(name).getAttribute('href'), hash, name + ' 卡片的續作目的頁');
+      await openHome(name).click();
+      await page.waitForURL(url => url.hash === hash);
+    };
+    const checkResume = async () => {
+      const examples = page.getByRole('region', {name:'最近的家'}).getByRole('heading', {level:3});
+      assert.deepEqual(await examples.allTextContents(), ['靜謐橡木','小家庭','三房兩廳','新家平面圖']);
+      for (const [name,hash] of [['靜謐橡木','#project?project=oak'],['小家庭','#brief?project=family'],
+        ['三房兩廳','#read?project=floorplan'],['新家平面圖','#scanning?project=upload']]) {
+        assert.equal(await openHome(name).getAttribute('href'), hash);
+      }
+      await expectResume('小家庭', '#brief?project=family');
+      await page.getByLabel('想要什麼樣的家').fill('小家庭・偏好保留');
+      await link('選風格');
+      await press('B · 暖調復古');
+      await link('確認方向，看成品');
+      await page.locator('.result-quote > .price').filter({hasText:'28–51 萬'}).waitFor();
+      await link('我的家');
+      await recentHome('小家庭').getByText('初步報價', {exact:true}).waitFor();
+      await capture('resume-card');
+      await expectResume('小家庭', '#result?project=family');
+      await page.locator('.result-quote > .price').filter({hasText:'28–51 萬'}).waitFor();
+      await capture('resume-result');
+      await route('brief', 'project=family');
+      assert.equal(await page.getByLabel('想要什麼樣的家').inputValue(), '小家庭・偏好保留');
+      await route('brief', 'project=oak');
+      assert.equal(await page.getByLabel('想要什麼樣的家').inputValue(), '');
+    };
+    const checkCancellation = async () => {
+      const start = page.getByRole('region', {name:'從哪裡開始'});
+      const cancel = async () => {
+        await link('取消');
+        await link('我的家');
+        await page.getByRole('heading', {name:'我的家',exact:true}).waitFor();
+      };
+      const cancelledFile = '取消的首份.pdf';
+      await start.getByLabel('上傳平面圖', {exact:true}).setInputFiles(planFile(cancelledFile));
+      await page.getByText(cancelledFile, {exact:true}).waitFor();
+      await cancel();
+      const home = recentHome('新家 1');
+      const status = await home.locator('.badge').textContent();
+      const hasCancelledFile = await home.getByText(cancelledFile, {exact:true}).count();
+      await capture('cancel-first-card');
+      assert.deepEqual([status,hasCancelledFile], ['新建',0], '首次取消後恢復新建且移除未確認檔名');
+      await expectResume('新家 1', '#entry?project=demo-1');
+      const retry = page.getByLabel('上傳建商平面圖');
+      await retry.waitFor({state:'attached'});
+      await capture('cancel-first-reopen');
+      await retry.setInputFiles(planFile('已確認平面.pdf'));
+      await link('查看解析結果');
+      await page.getByText('已確認平面.pdf', {exact:true}).waitFor();
+      await press('客廳 9 坪');
+      await page.getByLabel('長度（公尺）').fill('7');
+      await page.getByLabel('寬度（公尺）').fill('3');
+      await press('儲存客廳尺寸');
+      await page.getByLabel('重選平面圖').setInputFiles(planFile('取消的替換.pdf'));
+      await page.getByText('取消的替換.pdf', {exact:true}).waitFor();
+      await cancel();
+      assert.equal(await home.getByText('取消的替換.pdf', {exact:true}).count(), 0);
+      await home.getByText('已確認平面.pdf', {exact:true}).waitFor();
+      await home.getByText('待補', {exact:true}).waitFor();
+      await capture('cancel-confirmed-card');
+      await expectResume('新家 1', '#read?project=demo-1');
+      await page.getByText('已確認平面.pdf', {exact:true}).waitFor();
+      assert.equal(await page.getByLabel('長度（公尺）').inputValue(), '7');
+      assert.equal(await page.getByLabel('寬度（公尺）').inputValue(), '3');
+      await capture('cancel-confirmed-reopen');
+      await page.evaluate(() => {location.hash = 'scanning?project=demo-1';});
+      await page.getByRole('heading', {name:'我讀懂的你家',exact:true}).waitFor();
+      await page.waitForURL(url => url.hash === '#read?project=demo-1');
+      assert.equal(await page.getByText('取消的替換.pdf', {exact:true}).count(), 0);
+    };
+    for (const [name,check] of [['近期卡片續作',checkResume],['取消解析',checkCancellation]]) {
+      await page.goto(base + '#homes');
+      await page.reload();
+      await page.getByRole('heading', {name:'我的家',exact:true}).waitFor();
+      try {
+        await check();
+        console.log(viewport.width + ' px：' + name + '通過');
+      } catch (error) {
+        projectFailures.push(error);
+        console.error(viewport.width + ' px：' + name + '失敗', error);
+      }
+    }
+    if (projectOnly) {
+      assert.deepEqual(errors, []);
+      await page.close();
+      continue;
+    }
+    await page.goto('about:blank');
     await page.goto(base + '#r=c2FtcGxl');
     await page.waitForURL('**/fast-route/**');
     await page.goto(base + '#drawings');
@@ -448,6 +545,8 @@ try {
     await page.getByText('待送件', {exact:true}).waitFor();
     await link('我的家');
     await savedProject.getByRole('link',{name:'打開專案'}).click();
+    await page.getByText('示意已送件', {exact:true}).waitFor();
+    await route('project', oldParameters);
     await page.getByRole('heading',{name:'這個家'}).waitFor();
     await page.getByText('28–46 萬', {exact:true}).waitFor();
     await route('brief', oldParameters);
@@ -547,6 +646,7 @@ try {
     console.log(viewport.width + ' px：#9／#13／#16、個別換款和微調、PDF 轉照片、503 重試與 WebGL 1.5×、A-01 7000×3000、廚房套用撤回及明細通過');
     await page.close();
   }
+  assert.equal(projectFailures.length, 0, '雙尺寸專案續作與取消解析');
 } finally {
   await browser.close();
 }
