@@ -53,7 +53,7 @@ export function roomSize(cond, ping) {
  * 餐廳／書房／廚房／衛浴 put their own pieces in `fixtures` (axis-aligned boxes: t = dtable, dchair, desk, counter, upper, fridge, vanity, toilet, shower),
  * name the main piece as `anchor`, and may set noCabinet / noCurtain; rug is null where a rug makes no sense.
  */
-export function roomLayout({ w, d, h, space = '客廳' }) {
+export function roomLayout({ w, d, h, space = '客廳', openKitchen = false }) {
   const L = -w / 2, R = w / 2, B = -d / 2, F = d / 2;
   const cabinet = { x0: L, x1: L + Math.min(1.75, w * 0.36), depth: 0.42 };
   const x1 = R - 0.45, x0 = Math.max(cabinet.x1 + 0.3, x1 - Math.min(8, 2.4 * Math.max(1, w / ROOM.w)));
@@ -89,8 +89,9 @@ export function roomLayout({ w, d, h, space = '客廳' }) {
     // 一字型：流理台沿左牆，上面是吊櫃，前端放冰箱。不放地毯和窗簾
     const fridge = d >= 2.6, cl = Math.max(1.2, d - 0.1 - (fridge ? 0.78 : 0)), cz = B + 0.05 + cl / 2;
     const anchor = box('counter', L + 0.31, cz, 0.62, cl);
+    const island = openKitchen && w >= 3 ? [box('island', R - 0.7, 0, 0.62, Math.min(d - 0.8, 1.5))] : [];
     return { room: { w, d, h }, window, cabinet, layout: { ...empty, sideboard: null, plant: null, rug: null, pendant: { x: Math.min(L + 1.5, R - 0.5), z: 0 }, anchor, noCabinet: true, noCurtain: true,
-      fixtures: [anchor, box('upper', L + 0.18, cz, 0.36, cl), ...(fridge ? [box('fridge', L + 0.36, F - 0.41, 0.72, 0.7)] : [])] } };
+      fixtures: [anchor, box('upper', L + 0.18, cz, 0.36, cl), ...island, ...(fridge ? [box('fridge', L + 0.36, F - 0.41, 0.72, 0.7)] : [])] } };
   }
   if (space === '衛浴') {
     // 乾濕分離：洗手台與馬桶沿左牆，淋浴間在右後角。不放地毯和窗簾

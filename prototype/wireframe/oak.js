@@ -1,4 +1,4 @@
-import { roomScene, stages } from './room-scenes.js';
+import { finishFilter, roomScene, saveComparison, stages } from './room-scenes.js';
 import { wireframeDrawingSet } from './fast-route/lib/drawings.js';
 import { designEstimate } from './fast-route/lib/estimate.js';
 import { STYLES } from './fast-route/lib/taste.js';
@@ -9,6 +9,12 @@ const rooms = ['客廳', '餐廳', '廚房', '客衛', '主臥', '主衛', '次�
 const areas = [9, 4.5, 3, 1.5, 5.5, 1.5, 3.5, 4];
 const prices = [[26,48],[18,30],[28,46],[14,23],[24,39],[15,25],[20,33],[23,36]];
 const looks = ['靜謐橡木', '暖調復古', '日光北歐'];
+const roomOptions = [
+  ['米色布沙發', '淺灰布沙發'], ['橡木圓餐桌', '胡桃木餐桌'],
+  ['淺橡木廚櫃', '暖白廚櫃'], ['橡木浴櫃', '暖白浴櫃'],
+  ['橡木床頭板', '亞麻床頭板'], ['懸浮橡木浴櫃', '石紋浴櫃'],
+  ['橡木書桌櫃', '淺灰書桌櫃'], ['橡木床架', '胡桃木床架'],
+];
 const shots = ['站在門口往裡拍', '有窗戶的那一面', '天花板與樑', '插座、開關、冷氣孔'];
 const fields = [
   ['三房兩廳兩衛', '讀到了'], ['各間尺寸與坪數', '讀到了'],
@@ -22,7 +28,7 @@ const questions = [
 ];
 const newDraft = () => ({
   room: 0, style: 0, shot: 0, step: 0, answers: [],
-  filter: '', view: '實景', layoutPreview: true, changed: false,
+  filter: '', view: '實景', layoutPreview: true, changedRooms: new Set(),
   appliedLayout: false, appliedFeng: [],
   unlocked: false, feng: new Set([0, 1]),
   drawing: 'A-01', comparisonStage: 4, floor: '', floorInput: '',
@@ -37,7 +43,7 @@ const projects = new Map([
 let projectId = 'oak';
 let draft = projects.get(projectId).draft;
 let projectCount = 0;
-const photo = './fast-route/assets/preview-living.jpg';
+const photo = roomScene(0);
 const studio = './style-studio/';
 const image = (n = draft.style) => [photo, studio + 'key-visuals/app/style-2.jpg', studio + 'key-visuals/app/style-1.jpg'][n];
 const premium = ['layout', 'profile', 'compliance', 'feng', 'drawings', 'team'];
@@ -78,13 +84,13 @@ const figure = (src, caption, alt = '室內設計參考示意', ...extra) => el(
 const picker = (label, attrs, fn) => el('label', {}, label, el('input', {type:'file',...attrs,onchange:fn}));
 const price = (values) => values.join('–') + ' 萬';
 const roomPrice = (i = draft.room) => prices[i].map((value, j) =>
-  value + draft.style * (j + 2) + (i === 0 && draft.changed ? j + 1 : 0)
+  value + draft.style * (j + 2) + (draft.changedRooms.has(i) ? j + 1 : 0)
   + (i === 2 && draft.appliedLayout ? 2 : 0) + draft.appliedFeng.filter(n => [0,4][n] === i).length);
 const roomKind = () => ['客廳','餐廳','廚房','衛浴','臥室','衛浴','臥室','臥室'][draft.room];
 const roomLook = () => ({
   ...STYLES[['muji','retro','nordic'][draft.style]],
   name: looks[draft.style],
-  sofa: catalogue.SOFAS[draft.changed ? 1 : 0].c,
+  sofa: catalogue.SOFAS[draft.changedRooms.has(0) ? 1 : 0].c,
 });
 let scene;
 async function showModel(container) {
@@ -93,23 +99,25 @@ async function showModel(container) {
     if (!container.isConnected) return;
     const width = Math.sqrt(areas[draft.room] * 3.3058);
     scene = mountRoom3D(container, roomLook(), 'A',
-      {w:width, d:width, h:2.7, space:roomKind()}, () => container.classList.add('model-failed'));
+      {w:width, d:width, h:2.7, space:roomKind(), openKitchen:draft.appliedLayout}, () => container.classList.add('model-failed'));
   } catch {
     if (container.isConnected) container.classList.add('model-failed');
   }
 }
 const estimate = () => price(roomPrice());
-const sofa = () => catalogue.SOFAS[draft.changed ? 1 : 0].n;
+const changedRoom = () => draft.changedRooms.has(draft.room);
+const featuredItem = () => roomOptions[draft.room][changedRoom() ? 1 : 0];
 const roomButtons = () => actions(...rooms.map((name, i) => button(name, refresh(() => {draft.room = i;}), draft.room === i)));
 const plan = () => el('div', {class:'plan','aria-label':'平面圖示意'}, rooms.map((name, i) =>
   button(name + ' ' + areas[i] + ' 坪', refresh(() => {draft.room = i;}), draft.room === i)));
 const preview = () => {
   const views = ['實景', '等角', '平面'];
-  let content = plan();
+  let content = stack(plan(), draft.appliedLayout && el('p', {class:'muted'}, '格局示意：已套用開放廚房與中島'));
   if (draft.view !== '平面') {
-    const caption = [rooms[draft.room], looks[draft.style], sofa(),
-      draft.appliedLayout ? '已套用格局示意' : '', draft.appliedFeng.length ? '已套用風水示意' : ''].filter(Boolean).join(' · ');
-    content = figure(roomScene(draft.room, draft.style), caption, rooms[draft.room] + ' · 完工示意', el('a', {class:'hotspot button',href:href('materials'),'aria-label':'查看家具與材質'}, '＋'));
+    const caption = [rooms[draft.room], looks[draft.style], featuredItem(),
+      draft.room === 2 && draft.appliedLayout ? '開放廚房與中島' : '', draft.appliedFeng.length ? '已套用風水示意' : ''].filter(Boolean).join(' · ');
+    content = figure(roomScene(draft.room, undefined, draft.appliedLayout), caption, rooms[draft.room] + ' · 完工示意', el('a', {class:'hotspot button',href:href('materials'),'aria-label':'查看家具與材質'}, '＋'));
+    content.querySelector('img').style.filter = finishFilter(draft.style);
     if (draft.view === '等角') {
       content.classList.add('model');
       content.append(el('small', {class:'model-label'}, '3D 不可用時顯示示意影像'));
@@ -131,7 +139,7 @@ function recheckLayout() {
   if (draft.checkedLayout !== key) draft.layoutVersion++;
   draft.checkedLayout = key;
   draft.checkedKitchen = draft.answers[1];
-  draft.appliedLayout = draft.answers.some(Boolean);
+  draft.appliedLayout = draft.checkedKitchen === '天天煮';
 }
 function complianceFindings() {
   const openKitchen = draft.checkedKitchen === '天天煮';
@@ -187,8 +195,9 @@ const pages = {
     el('div', {class:'tiles'}, looks.map((name, i) => card(figure(image(i)), button(
       'ABC'[i] + ' · ' + name, refresh(() => {draft.style = i;}), draft.style === i)))),
     actions(link('上一步', 'brief'), link('確認方向，看成品', 'result', true))),
-  result: () => grid(preview(), card(...heading('實景＋初步報價', rooms[draft.room] + ' · 免費'),
-    el('strong', {class:'price'}, estimate()), rows([['施工與材料', '示例'], [sofa(), '1 件・示例']]),
+  result: () => grid(preview(), el('section', {class:'card stack result-quote'},
+    ...heading('實景＋初步報價', rooms[draft.room] + ' · 免費'),
+    el('strong', {class:'price'}, estimate()), rows([['施工與材料', '示例'], [featuredItem(), '1 件・示例']]),
     card(el('h2', {}, '法規初檢 · 示意'),
       rows([['消防', '2 項要注意'], ['建築', '1 項待補資料']]),
       el('small', {}, '範例初檢，實際適用情況須經專業人員複核。'),
@@ -204,25 +213,38 @@ const pages = {
       el('strong', {class:'price'}, price(prices.reduce(([low, high], _, i) => {
         const [a,b] = roomPrice(i); return [low + a, high + b];
       }, [0,0]))), rows(rooms.map((name, i) => [name, price(roomPrice(i))])), actions(link('返回成品', 'result'), link('毛胚到完成', 'compare'))))),
-  materials: () => grid(preview(), card(...heading('家具與材質', '示意型錄 · 推薦風格分支'),
-    rows([[sofa(), '1 件'], [catalogue.FLOORS[0].n, '地板'], [catalogue.WALLS[0].n, '牆面']]),
-    actions(button('確認換款', refresh(() => {draft.changed = !draft.changed;}), draft.changed), link('看更新後報價', 'result')),
+  materials: () => grid(preview(), card(...heading('家具與材質', '示意型錄 · 換款反映在清單與初步報價'),
+    rows([[featuredItem(), '1 件'], [catalogue.FLOORS[0].n, '地板'], [catalogue.WALLS[0].n, '牆面']]),
+    actions(button('確認換款', refresh(() => {
+      if (changedRoom()) draft.changedRooms.delete(draft.room);
+      else draft.changedRooms.add(draft.room);
+    }), changedRoom()), link('看更新後報價', 'result')),
     el('a', {href:studio + 'prototype/',class:'button'}, '開啟 3D 風格實驗室'))),
   compare: () => {
     const room = rooms[draft.room];
     const stage = draft.comparisonStage;
-    const after = el('img', {src:roomScene(draft.room, draft.style, stage), alt:room + ' · ' + stages[stage] + '示意'});
+    const before = el('img', {src:roomScene(draft.room, 0, draft.appliedLayout), alt:room + ' · 毛胚示意'});
+    const after = el('img', {src:roomScene(draft.room, stage, draft.appliedLayout), alt:room + ' · ' + stages[stage] + '示意'});
+    const filter = finishFilter(draft.style, stage);
+    const notice = el('small', {role:'status'});
     const range = el('input', {type:'range',value:50,'aria-label':'毛胚與完成比較',oninput:event => {
       after.style.clipPath = 'inset(0 0 0 ' + event.target.value + '%)';
     }});
+    after.style.filter = filter;
     after.style.clipPath = 'inset(0 0 0 50%)';
     return stack(roomButtons(),
-      grid(el('div', {class:'media compare'},
-        el('img', {src:roomScene(draft.room, draft.style, 0), alt:room + ' · 毛胚示意'}), stage > 0 && after),
+      grid(el('div', {class:'media compare'}, before, stage > 0 && after,
+        el('div', {class:'comparison-labels'}, el('span', {}, '毛胚'), el('span', {}, stages[stage]))),
         card(...heading('毛胚到完成', room + ' · 同鏡位各階段示意'),
           el('strong', {class:'price'}, estimate()), range,
           actions(...stages.map((name, i) => button(name, refresh(() => {draft.comparisonStage = i;}), i === stage))),
-          el('a', {class:'button',href:after.src,download:'room-stage.svg'}, '儲存此階段示意圖'),
+          button('存成對比圖', async () => {
+            try {
+              await saveComparison(before, after, Number(range.value), filter);
+            } catch {
+              notice.textContent = '圖檔載入失敗，請再試一次。';
+            }
+          }), notice,
           actions(link('看初步報價', 'result'), link('看整戶', 'whole', true)))));
   },
   unlock: () => grid(figure(image(), '整戶一次解鎖'), card(...heading('喜歡了，再把它做出來。', '付費方案示意 · 價格待定'),
@@ -300,10 +322,10 @@ const pages = {
         el('ul', {class:'rows'}, current.map(sheet => el('li', {},
           button(label(sheet), refresh(() => {draft.drawing = sheet.no;}), sheet.no === selected.no),
           el('span', {class:'badge'}, sheet.status)))),
-        rows([[sofa(),'1 件'], ['初步報價',estimate()], ['現場丈量','待丈量']]),
+        rows([[featuredItem(),'1 件'], ['初步報價',estimate()], ['現場丈量','待丈量']]),
         actions(link('看法規細評', 'compliance'), button('列印／另存 PDF', () => window.print()), link('對接團隊', 'team', true))));
   },
-  team: () => grid(figure(roomScene(draft.room, draft.style), '這個家的示意交接包'), card(...heading('對接團隊', '示意團隊 · 不會發送資料'),
+  team: () => grid(figure(roomScene(draft.room, undefined, draft.appliedLayout), '這個家的示意交接包'), card(...heading('對接團隊', '示意團隊 · 不會發送資料'),
     actions(...['設計師＋工班','只找統包工班'].map(name =>
       button(name, refresh(() => {draft.team = name;}), draft.team === name))),
     rows([['3D、施工圖與報價清單','示例'],['空間條件與法規', draft.checkedLayout === layoutKey() ? '示意已檢核' : '待核對'],

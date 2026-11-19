@@ -38,6 +38,14 @@ try {
     await link('確認方向，看成品');
     await page.getByText('26–48 萬', {exact:true}).waitFor();
     await page.getByRole('heading', {name:'法規初檢 · 示意'}).waitFor({timeout:2500});
+    const title = page.getByRole('heading', {name:'實景＋初步報價',exact:true});
+    assert(await title.evaluate(heading => {
+      const text = heading.firstChild;
+      const range = document.createRange();
+      range.setStart(text, text.length - 2);
+      range.setEnd(text, text.length);
+      return range.getClientRects().length === 1;
+    }), '報價 should remain on the same line');
     const living = await page.getByRole('img', {name:'客廳 · 完工示意'}).getAttribute('src');
     await link('毛胚到完成');
     const bare = await page.getByRole('img', {name:'客廳 · 毛胚示意'}).getAttribute('src');
@@ -50,6 +58,9 @@ try {
       stageImages.add(await stageImage.getAttribute('src'));
     }
     assert.equal(stageImages.size, 5);
+    const download = page.waitForEvent('download');
+    await press('存成對比圖');
+    assert.equal((await download).suggestedFilename(), 'renovation-comparison.png');
     await fit();
     await link('看整戶');
     await press('餐廳');
@@ -65,9 +76,20 @@ try {
     await page.getByRole('img', {name:'餐廳 · 家具與軟裝示意'}).waitFor();
     await page.getByText('18–30 萬', {exact:true}).waitFor();
     await link('看整戶');
+    await press('廚房');
     await link('返回成品');
-    await page.getByText('18–30 萬', {exact:true}).waitFor();
+    await page.getByText('28–46 萬', {exact:true}).waitFor({timeout:2500});
+    const kitchen = page.getByRole('img', {name:'廚房 · 完工示意'});
+    const enclosedKitchen = await kitchen.getAttribute('src');
+    assert.match(enclosedKitchen, /imagery\/kitchen-4\.webp$/);
+    assert(await kitchen.evaluate(async img => {await img.decode(); return img.naturalWidth >= 390;}));
+    await fit();
+    if (process.env.WIREFRAME_SCREENSHOTS) {
+      await page.screenshot({path:process.env.WIREFRAME_SCREENSHOTS + '/kitchen-' + viewport.width + '.png', fullPage:true});
+    }
     await link('家具與材質');
+    await press('確認換款');
+    await page.getByText('暖白廚櫃', {exact:true}).waitFor();
     await press('確認換款');
     await link('看更新後報價');
     await link('解鎖下一步');
@@ -82,6 +104,11 @@ try {
     await page.getByText('格局變更已重查 · 版本 1').waitFor();
     const permit = page.getByRole('heading', {name:'室內裝修許可'}).locator('..');
     await permit.getByText('要辦理', {exact:true}).waitFor();
+    const checkedParams = new URL(page.url()).hash.split('?')[1];
+    await route('result', checkedParams);
+    await page.getByText('30–48 萬', {exact:true}).waitFor();
+    assert.match(await kitchen.getAttribute('src'), /imagery\/open-kitchen-4\.webp$/);
+    await route('compliance', checkedParams);
     await fit();
     await page.getByLabel('你家在第幾樓？').fill('12');
     await press('儲存樓層並重查');
@@ -95,11 +122,19 @@ try {
     await press('依新格局重查');
     await page.getByText('格局變更已重查 · 版本 2').waitFor();
     await permit.getByText('符合示例', {exact:true}).waitFor();
+    await route('result', checkedParams);
+    await page.getByText('28–46 萬', {exact:true}).waitFor({timeout:2500});
+    assert.equal(await kitchen.getAttribute('src'), enclosedKitchen);
+    await route('compliance', checkedParams);
     await link('看風水');
     await press('客廳動線 · 已選');
     await press('套用 1 項');
     await page.getByRole('heading', {name:'施工圖',exact:true}).waitFor();
-    await press('水電 2 張');
+    await page.getByRole('button', {name:'平面 3 張',exact:true}).waitFor({timeout:2500});
+    await page.getByRole('button', {name:'立面 4 張',exact:true}).waitFor();
+    await press('水電 3 張');
+    await press('M-03 天花板燈具配置圖');
+    await page.getByRole('img', {name:'M-03 天花板燈具配置圖 · 示意'}).waitFor();
     await press('M-02 給排水配置圖');
     await page.getByRole('img', {name:'M-02 給排水配置圖 · 示意'}).waitFor();
     await press('M-01 插座與弱電配置圖');
@@ -146,7 +181,7 @@ try {
     await link('我的家');
     await savedProject.getByRole('link',{name:'打開專案'}).click();
     await page.getByRole('heading',{name:'這個家'}).waitFor();
-    await page.getByText('18–30 萬', {exact:true}).waitFor();
+    await page.getByText('28–46 萬', {exact:true}).waitFor();
     await route('brief', oldParameters);
     assert.equal(await page.getByLabel('想要什麼樣的家').inputValue(),'橡木與自然光');
     await route('team', oldParameters);

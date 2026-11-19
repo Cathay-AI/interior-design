@@ -12,5 +12,6 @@ node scripts/bundle-room.mjs
 mkdir -p dist/fast-route dist/style-studio
 mv dist/index.html dist/app.js dist/lib dist/vendor dist/assets dist/fast-route/
 cp prototype/wireframe/index.html prototype/wireframe/oak.css prototype/wireframe/oak.js prototype/wireframe/room-scenes.js dist/
+cp -R prototype/wireframe/imagery dist/imagery
 cp -R docs/proposal/product-design/. dist/style-studio/
 echo "built dist/: $(find dist -type f | wc -l) files"

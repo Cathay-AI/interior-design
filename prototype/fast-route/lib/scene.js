@@ -432,6 +432,10 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
         put(g, new T.BoxGeometry(0.5, 0.012, 0.56), std({ color: '#141414', roughness: 0.15 }), [0, 0.922, f.sz / 2 - 0.55]);                                                    // 爐具
         for (let z = -f.sz / 2 + 0.6; z < f.sz / 2 - 0.05; z += 0.6) put(g, new T.BoxGeometry(0.006, 0.76, 0.006), std({ color: '#000', transparent: true, opacity: 0.35 }), [f.sx / 2 - 0.018, 0.49, z], { cast: false });
       } else if (f.t === 'upper') { put(g, new T.BoxGeometry(f.sx, 0.7, f.sz), cabinetMat, [0, 1.85, 0]); put(g, new T.BoxGeometry(f.sx - 0.06, 0.008, f.sz - 0.1), std({ color: '#000', emissive: '#ffe1b0', emissiveIntensity: 2.5 }), [0.02, 1.495, 0], { cast: false }); }
+      else if (f.t === 'island') {
+        put(g, new T.BoxGeometry(f.sx - 0.05, 0.86, f.sz - 0.05), cabinetMat, [0, 0.43, 0]);
+        put(g, soft(f.sx, 0.05, f.sz, 0.013), stone, [0, 0.885, 0]);
+      }
       else if (f.t === 'fridge') { put(g, soft(f.sx, 1.82, f.sz, 0.02), steel, [0, 0.91, 0]); put(g, new T.BoxGeometry(0.01, 0.5, 0.02), metal, [f.sx / 2 + 0.006, 1.2, f.sz / 2 - 0.08]); }
       else if (f.t === 'vanity') {
         put(g, new T.BoxGeometry(f.sx - 0.03, 0.5, f.sz), cabinetMat, [-0.015, 0.55, 0]); put(g, new T.BoxGeometry(f.sx, 0.03, f.sz), stone, [0, 0.815, 0]);
