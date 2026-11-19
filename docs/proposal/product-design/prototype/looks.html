@@ -56,7 +56,7 @@
   <header>
     <div>
       <h1>風格搭配圖譜</h1>
-      <p class="lede">看屋階段的每一張選擇圖，都是一組事先搭好的客廳：同一風格裡挑過地板、牆色、沙發、地毯、窗簾、燈具和光線，彼此相容、不撞色。每種風格四組，兩兩比較時永遠是不同風格。</p>
+      <p class="lede">看屋階段的每一張選擇圖，都是一組事先搭好的客廳：同一風格裡挑過地板、牆色、沙發、地毯、窗簾、燈具和光線，彼此相容、不撞色。每種風格四組，同一輪的選項永遠是不同風格。</p>
       <div class="count" id="count"></div>
     </div>
     <figure class="map"><svg id="map" viewBox="0 0 640 400" role="img" aria-labelledby="map-title"><title id="map-title">五十六組搭配在溫度與裝飾兩個維度上的分佈</title></svg>
@@ -72,7 +72,7 @@ const { STYLES, PARTS, LOOKS, LOOK_CAMS, MODELS, lookX } = window.HB_CATALOG;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const names = Object.keys(STYLES);
 // One colour per style, picked by hand so neighbours on the map stay distinguishable on white.
-const HUES = ['#b5633a', '#c49a1c', '#8c3b2e', '#4f555c', '#5f8ea3', '#9a5fb5', '#c27c2c', '#d0788f', '#3f7f5f', '#8a7a62', '#a8452d', '#d4569a', '#2f6fa5', '#3b3a6b'];
+const HUES = ['#b5633a', '#c49a1c', '#8c3b2e', '#4f555c', '#5f8ea3', '#9a5fb5', '#c27c2c', '#d0788f', '#3f7f5f', '#8a7a62', '#a8452d', '#d4569a', '#2f6fa5', '#3b3a6b', '#6b4a2b', '#7a2e2e', '#9c8a63', '#2f8a6b', '#1f3b5c', '#b88a3d'];
 const hue = n => HUES[names.indexOf(n)];
 const LIGHT = { day: '日光', golden: '黃昏', dusk: '夜燈' };
 
@@ -102,7 +102,8 @@ const room = await createRoom({ shadowSize: 1024 });
 room.canvas.style.cssText = 'position:fixed;left:-9999px;top:0;width:720px;height:540px';
 document.body.append(room.canvas);
 for (const [i, lk] of LOOKS.entries()) {
-  const parts = partsOf(lk), style = STYLES[lk.style];
+  // Each look carries its own pieces (catalog.js LOOK_FURN) on top of the style's defaults, as in the A/B rounds.
+  const parts = partsOf(lk), style = { ...STYLES[lk.style], furn: { ...(STYLES[lk.style].furn || {}), ...(lk.furn || {}) } };
   const need = [parts.sofa.m, parts.lamp.m, ...Object.values(style.furn || {})].filter(k => k && MODELS[k]);
   const spec = { parts, style, light: lk.light, ...LOOK_CAMS[i % 3], w: 960, h: 720 };
   // A model is fitted only once a snapshot has placed it, so shoot, wait for the stragglers, then shoot again.

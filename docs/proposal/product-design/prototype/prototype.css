@@ -801,3 +801,15 @@ button.chip:hover{background:var(--panel-2)}
 /* Skip link: off screen until a keyboard user focuses it. */
 .skip{position:absolute;left:16px;top:-48px;z-index:9;padding:8px 12px;border-radius:var(--r-small);background:var(--ink);color:var(--surface);font-size:14px;line-height:20px;font-weight:600;text-decoration:none;transition:top .3s var(--ease)}
 .skip:focus-visible{top:16px}
+/* Taste: the sheet steps aside so the room behind shows. While a slider is dragged only that row stays;
+   "看客廳" hides the sheet entirely except the button that brings it back. */
+.taste-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.taste-look{flex:none}
+.screen .sheet-body,.screen .sheet-body>*,.taste-row{transition:background-color .3s var(--ease),opacity .3s var(--ease)}
+.screen.peeking .sheet-body{background:transparent}
+.screen.peeking .sheet-body>*:not(.taste):not(.taste-head),.screen.peeking .taste-group,.screen.peeking .taste-row:not(.active),.screen.peeking .taste-head .title{opacity:0;pointer-events:none}
+.screen.peeking .taste-row.active{background:var(--surface);border-radius:var(--r-card);padding:12px 16px;margin:0 -16px;box-shadow:0 8px 24px rgba(31,27,23,.18) /* taste-skill-ignore: the dragged row floats over the room */}
+.screen.peek-all .taste{opacity:0;pointer-events:none}
+.screen.peek-all .taste-look{background:var(--surface);box-shadow:0 8px 24px rgba(31,27,23,.18) /* taste-skill-ignore: the button floats over the room */}
+.phone.peeking .bubble{opacity:0}
+@media (prefers-reduced-motion:reduce){.screen .sheet-body,.screen .sheet-body>*,.taste-row{transition:none}}

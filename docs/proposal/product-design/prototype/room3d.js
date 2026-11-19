@@ -413,7 +413,8 @@ export async function createRoom({ onProgress, models = './models/', textures = 
     Object.assign(curtainMat, { normalMap: tex('rough_linen', 'nor', 2, 6) }); curtainMat.needsUpdate = true;
     curtainMat.color.set(c.c); curtainMat.opacity = /紗/.test(c.n) ? .7 : /遮光/.test(c.n) ? 1 : .94;
     const fu = style.furn || {};
-    furnish({ sofa: s.m, lamp: l.m, table: fu.table, plant: style.furn ? (style.plant === false ? null : fu.plant) : undefined, chair: fu.chair,
+    // A look may add a plant to a style that has none by default, so the plant follows the furniture list alone.
+    furnish({ sofa: s.m, lamp: l.m, table: fu.table, plant: style.furn ? fu.plant || null : undefined, chair: fu.chair,
       side: style.furn ? (fu.side || null) : undefined, screen: style.furn ? (fu.screen || null) : undefined, accent: style.furn ? (fu.accent || null) : undefined }, strict);
     art.clear();
     const frameMat = std({ color: (style.deco || 0) >= 3 ? '#b8935a' : '#2f2a24', roughness: .5, metalness: (style.deco || 0) >= 3 ? .6 : 0 });

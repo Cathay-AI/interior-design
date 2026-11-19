@@ -60,7 +60,6 @@ All from [Poly Haven](https://polyhaven.com/textures), CC0.
 | File | Source asset | Author |
 |---|---|---|
 | `wood-sofa.glb` | Painted Wooden Sofa | Kirill Sannikov |
-| `sofa-03.glb` | [Sofa 03](https://polyhaven.com/a/sofa_03) | Fran Calvente |
 | `chinese-sofa.glb` | [Chinese Sofa](https://polyhaven.com/a/chinese_sofa) | Kirill Sannikov |
 | `day-bed.glb` | [Vintage Day Bed](https://polyhaven.com/a/vintage_day_bed) | Aron Łyczek |
 | `wooden-bench.glb` | [Painted Wooden Bench](https://polyhaven.com/a/painted_wooden_bench) | Kirill Sannikov |
@@ -85,5 +84,22 @@ All from [Poly Haven](https://polyhaven.com/textures), CC0.
 | `planter-box.glb` | [Planter Box 01](https://polyhaven.com/a/planter_box_01) (also with `--simplify`) | James Ray Cock |
 | `marble-bust.glb` | [Marble Bust 01](https://polyhaven.com/a/marble_bust_01) | Rico Cilliers |
 | `wooden-elephant.glb` | [Carved Wooden Elephant](https://polyhaven.com/a/carved_wooden_elephant) | Greg Zaal |
+| `mantel-clock.glb` | [Mantel Clock 01](https://polyhaven.com/a/mantel_clock_01) | Yann Kervran, Rico Cilliers |
+| `horse-statue.glb` | [Horse Statue 01](https://polyhaven.com/a/horse_statue_01) | Rico Cilliers |
+| `cat-statue.glb` | [Concrete Cat Statue](https://polyhaven.com/a/concrete_cat_statue) | Rico Cilliers, Riley Queen |
+| `vase-ceramic-01.glb` | [Ceramic Vase 01](https://polyhaven.com/a/ceramic_vase_01) | James Ray Cock |
+| `tea-set.glb` | [Tea Set 01](https://polyhaven.com/a/tea_set_01) | James Ray Cock, Rico Cilliers, Jurita Burger |
+| `chandelier-03.glb` | [Chandelier 03](https://polyhaven.com/a/Chandelier_03) | Kirill Sannikov |
+| `chinese-chandelier.glb` | [Chinese Chandelier](https://polyhaven.com/a/chinese_chandelier) | Kirill Sannikov |
+| `gallinera-chair.glb` | [Gallinera Chair](https://polyhaven.com/a/gallinera_chair) | Ulan Cabanilla |
+| `chinese-stool.glb` | [Chinese Stool](https://polyhaven.com/a/chinese_stool) | Kirill Sannikov |
+| `painted-chair.glb` | [Painted Wooden Chair 01](https://polyhaven.com/a/painted_wooden_chair_01) | Kuutti Siitonen |
+| `wooden-chair.glb` | [Wooden Chair 01](https://polyhaven.com/a/WoodenChair_01) | Jake Mobley |
+| `classic-console.glb` | [Classic Console 01](https://polyhaven.com/a/ClassicConsole_01) | Kirill Sannikov |
+| `gothic-commode.glb` | [Gothic Commode 01](https://polyhaven.com/a/GothicCommode_01) | Kirill Sannikov |
+| `drawer-cabinet.glb` | [Drawer Cabinet](https://polyhaven.com/a/drawer_cabinet) | Ulan Cabanilla |
+| `chinese-console.glb` | [Chinese Console Table](https://polyhaven.com/a/chinese_console_table) | Kirill Sannikov |
+| `gallinera-table.glb` | [Gallinera Table](https://polyhaven.com/a/gallinera_table) | Ulan Cabanilla |
+| `painted-table.glb` | [Painted Wooden Table](https://polyhaven.com/a/painted_wooden_table) | Kirill Sannikov |
 
 The block sofa (方塊低沙發) and cloud sofa (雲朵沙發) are not files: `room3d.js` builds them from rounded boxes at runtime (`procSofa`).
