@@ -97,75 +97,34 @@ def same_row(cluster, *nodes):
             row.node(node.nodeid)
 
 
-with diagram("Current deployment · Vercel", "deployment"):
-    with layer("Build", BUILD):
-        repo = service(Github, "GitHub", "main / pull requests")
-    with layer("Frontend", FRONTEND) as frontend:
-        static = service(Server, "Vercel static site", "dist/")
-        browser = service(Client, "Browser", "Three.js / WebGL")
-        edge = service(Server, "Vercel edge", "Managed CDN / cache")
-        same_row(frontend, static, edge, browser)
-    with layer("Service", SERVICE):
-        read_plan = service(NodeJS, "Vercel Node.js Function", "Fast Route · POST /api/read-plan")
-    with layer("External", DATA):
-        model = service(Server, "OpenAI / Anthropic", "Usage billed separately")
-
-    repo >> static >> edge >> browser
-    edge >> Edge(style="dashed") >> read_plan
-    read_plan >> Edge(color=ACCENT) >> model
-
-with diagram("Proposed free static demo", "free-static-preview"):
-    with layer("Build and delivery", BUILD) as build:
-        source = service(Github, "GitHub", "Same build script")
-        pages = service(Cloudflare, "Cloudflare Pages Free", "dist/ · *.pages.dev")
-        same_row(build, source, pages)
-    with layer("Frontend", FRONTEND):
-        browser = service(Client, "Browser", "3D and sample data")
-
-    source >> pages >> browser
-
-with diagram("Future material library · proposal", "material-library"):
-    with layer("Frontend", FRONTEND):
-        browser = service(Client, "Browser", "Browse materials")
-    with layer("Service + CDN", SERVICE) as services:
-        catalog = service(NodeJS, "Catalog API", "GET /api/materials")
-        cdn = service(Cloudflare, "CDN", "Approved asset URLs")
-        same_row(services, catalog, cdn)
-    with layer("Data", DATA) as data:
-        metadata = service(Postgresql, "PostgreSQL", "Metadata + object keys")
-        files = service(Cloudflare, "R2 object storage", "Published files")
-        same_row(data, metadata, files)
-
-    browser >> catalog >> metadata
-    browser >> cdn >> files
-
-
-with diagram("Future components · proposal", "component-stack"):
-    with layer("Domain", BUILD) as domain:
-        registrar = service(Server, "Registrar", "Register / renew")
-        dns = service(Server, "DNS", "Point domain to edge")
-        same_row(domain, registrar, dns)
-    with layer("Frontend", FRONTEND):
-        browser = service(Client, "Browser", "Static UI / 3D")
-    with layer("Edge", FRONTEND):
-        edge = service(Router, "HTTPS edge", "CDN cache / optional LB")
-    with layer("Backend", SERVICE) as backend:
-        frontend = service(Server, "Static host", "dist/")
-        api = service(NodeJS, "Node.js API", "Read plan / catalog")
-        identity = service(Server, "Managed Auth", "OIDC identity provider")
-        same_row(backend, frontend, api, identity)
+with diagram("Interior Design · deployment architecture", "component-stack"):
+    with layer("Entry and release", BUILD) as entry:
+        registrar = service(Server, "Registrar + DNS", "Proposed · register / renew")
+        browser = service(Client, "Browser", "HTML / JS / Three.js")
+        repo = service(Github, "GitHub", "main / PR builds")
+        same_row(entry, registrar, browser, repo)
+    with layer("Edge", FRONTEND) as delivery:
+        edge = service(Router, "Vercel Edge", "HTTPS / cache · optional LB")
+        static = service(Server, "Vercel static host", "dist/")
+        free = service(Cloudflare, "Cloudflare Pages Free", "Proposed · static demo URL")
+        same_row(delivery, edge, static, free)
+    with layer("Application", SERVICE) as application:
+        api = service(NodeJS, "Vercel Node.js API", "Read plan · catalog proposed")
+        identity = service(Server, "Managed Auth", "Proposed · OIDC")
+        same_row(application, api, identity)
     with layer("Data + AI", DATA) as dependencies:
-        db = service(Postgresql, "PostgreSQL", "Catalog metadata")
-        objects = service(Cloudflare, "Object storage", "Published materials")
-        models = service(Server, "LLM API", "OpenAI / Anthropic")
-        same_row(dependencies, db, objects, models)
+        db = service(Postgresql, "PostgreSQL", "Proposed · catalog metadata")
+        models = service(Server, "OpenAI / Anthropic", "If configured · billed separately")
+        objects = service(Cloudflare, "Object storage", "Proposed · catalog assets / CDN")
+        same_row(dependencies, db, models, objects)
 
-    registrar >> dns
-    dns >> Edge(style="dashed") >> edge
+    registrar >> Edge(style="dashed") >> edge
     browser >> edge
-    edge >> frontend
+    repo >> static
+    repo >> Edge(style="dashed") >> free
+    edge >> static
     edge >> api
-    edge >> objects
-    api >> identity
-    api >> db
+    api >> Edge(style="dashed") >> identity
+    api >> Edge(style="dashed") >> db
+    api >> Edge(style="dashed") >> objects
     api >> Edge(color=ACCENT) >> models

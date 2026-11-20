@@ -12,6 +12,6 @@ English · [繁體中文](README.zh-TW.md)
 
 **The first milestone:** Mika and Victor complete the basic flow; validate budget clarity and willingness to upgrade.
 
-[Product & MVP](product/mvp.md) · [Team](delivery/team.md) · [Roadmap](delivery/roadmap.md) · [Architecture](engineering/architecture.md) · [Knowledge sources](engineering/taiwan-knowledge.md) · [Project](https://github.com/orgs/Cathay-AI/projects/1/views/4)
+[Product & MVP](product/mvp.md) · [Team](delivery/team.md) · [Roadmap](delivery/roadmap.md) · [Architecture](engineering/architecture.md) · [Deployment guide](engineering/deployment.md) · [Knowledge sources](engineering/taiwan-knowledge.md) · [Project](https://github.com/orgs/Cathay-AI/projects/1/views/4)
 
 <sub>Product concept, not a live design service. Detailed specifications currently use Traditional Chinese.</sub>

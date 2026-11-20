@@ -12,6 +12,6 @@
 
 **首輪目標：** Mika、Victor 完成基本流程，驗證預算理解與升級意願。
 
-[產品與 MVP](product/mvp.md) · [分工](delivery/team.md) · [Roadmap](delivery/roadmap.md) · [架構](engineering/architecture.md) · [知識來源](engineering/taiwan-knowledge.md) · [看板](https://github.com/orgs/Cathay-AI/projects/1/views/4)
+[產品與 MVP](product/mvp.md) · [分工](delivery/team.md) · [Roadmap](delivery/roadmap.md) · [架構](engineering/architecture.md) · [部署架構與操作文件](engineering/deployment.zh-TW.md) · [知識來源](engineering/taiwan-knowledge.md) · [看板](https://github.com/orgs/Cathay-AI/projects/1/views/4)
 
 <sub>目前為產品構想，尚未提供正式設計服務。</sub>
