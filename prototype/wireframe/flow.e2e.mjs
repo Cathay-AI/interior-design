@@ -60,9 +60,15 @@ try {
       await page.evaluate(([view, parameters]) => {location.hash = view + '?' + parameters;}, [target, query]);
       await page.waitForURL(url => url.hash === '#' + target + '?' + query);
     };
-    const recentHome = name => page.getByRole('region', {name:'最近的家'}).getByRole('article')
-      .filter({has:page.getByRole('heading', {name,exact:true})});
-    const openHome = name => recentHome(name).getByRole('link', {name:'打開專案'});
+    const recentHome = name => page.getByRole('main').getByRole('article')
+      .filter({has:page.getByText(name,{exact:true})});
+    const uploadName = viewport.width === 390 ? '拍照或上傳平面圖' : '上傳平面圖或照片';
+    const startUpload = page.locator('.start-upload input[type=file]');
+    const openHome = name => recentHome(name).getByRole('link');
+    const showDetails = async selector => {
+      const summary = page.locator(selector + ':not([open]) > summary');
+      if (await summary.count()) await summary.click();
+    };
     const planFile = name => ({name, mimeType:'application/pdf', buffer:Buffer.from('%PDF-1.4')});
     const expectResume = async (name, hash) => {
       assert.equal(await openHome(name).getAttribute('href'), hash, name + ' 卡片的續作目的頁');
@@ -70,19 +76,27 @@ try {
       await page.waitForURL(url => url.hash === hash);
     };
     const checkResume = async () => {
-      const examples = page.getByRole('region', {name:'最近的家'}).getByRole('heading', {level:3});
+      const recent = page.getByRole('region', {name:'最近的家'});
+      await recent.getByText('你開始的設計會出現在這裡。').waitFor();
+      assert.equal(await recent.getByRole('article').count(), 0);
+      assert.equal(await page.getByRole('region', {name:'設計示例'}).count(), 0);
+      await capture('homes-simple', false);
+      await showDetails('.home-examples');
+      const examples = page.getByRole('region', {name:'設計示例'}).getByRole('heading', {level:3});
       assert.deepEqual(await examples.allTextContents(), ['靜謐橡木','小家庭','三房兩廳','新家平面圖']);
       for (const [name,hash] of [['靜謐橡木','#project?project=oak'],['小家庭','#brief?project=family'],
         ['三房兩廳','#read?project=floorplan'],['新家平面圖','#scanning?project=upload']]) {
         assert.equal(await openHome(name).getAttribute('href'), hash);
       }
       await expectResume('小家庭', '#brief?project=family');
+      await page.getByPlaceholder('例如：客廳想明亮一點，也要有地方收玩具。').waitFor();
+      assert.equal(await page.getByRole('button',{name:'自然材質 ×'}).isVisible(), false);
       await page.getByLabel('想要什麼樣的家').fill('小家庭・偏好保留');
-      await link('選風格');
+      await link('看風格建議');
       await press('B · 暖調復古');
-      await link('確認方向，看成品');
+      await link('看設計示意');
       await page.locator('.result-quote > .price').filter({hasText:'28–51 萬'}).waitFor();
-      await link('我的家');
+      await route('homes', 'project=family');
       await recentHome('小家庭').getByText('初步報價', {exact:true}).waitFor();
       await capture('resume-card');
       await expectResume('小家庭', '#result?project=family');
@@ -94,14 +108,14 @@ try {
       assert.equal(await page.getByLabel('想要什麼樣的家').inputValue(), '');
     };
     const checkCancellation = async () => {
-      const start = page.getByRole('region', {name:'從哪裡開始'});
+      const start = page.getByRole('region', {name:'開始設計'});
       const cancel = async () => {
         await link('取消');
         await link('我的家');
         await page.getByRole('heading', {name:'我的家',exact:true}).waitFor();
       };
       const cancelledFile = '取消的首份.pdf';
-      await start.getByLabel('上傳平面圖', {exact:true}).setInputFiles(planFile(cancelledFile));
+      await start.locator('input[type=file]').setInputFiles(planFile(cancelledFile));
       await page.getByText(cancelledFile, {exact:true}).waitFor();
       await cancel();
       const home = recentHome('新家 1');
@@ -110,7 +124,7 @@ try {
       await capture('cancel-first-card');
       assert.deepEqual([status,hasCancelledFile], ['新建',0], '首次取消後恢復新建且移除未確認檔名');
       await expectResume('新家 1', '#entry?project=demo-1');
-      const retry = page.getByLabel('上傳建商平面圖');
+      const retry = startUpload;
       await retry.waitFor({state:'attached'});
       await capture('cancel-first-reopen');
       await retry.setInputFiles(planFile('已確認平面.pdf'));
@@ -161,33 +175,81 @@ try {
     await page.getByRole('button', {name:'示意解鎖'}).waitFor();
     await page.goto(base);
     const entry = page.getByRole('main');
-    const upload = entry.getByText('上傳建商平面圖', {exact:true});
-    const uploadBounds = await upload.boundingBox();
-    assert(uploadBounds && uploadBounds.y + uploadBounds.height <= viewport.height, 'upload is visible in the first viewport');
+    assert.match(await startUpload.ariaSnapshot(), new RegExp(uploadName));
+    const uploadBounds = await startUpload.boundingBox();
+    assert(uploadBounds && uploadBounds.height >= 44 && uploadBounds.y + uploadBounds.height <= viewport.height);
+    assert.equal(await entry.locator('input[type=file]').count(), 1);
+    const accepts = (await startUpload.getAttribute('accept')).split(',');
+    assert(accepts.includes('image/*') && accepts.includes('.pdf'));
+    assert.equal(await startUpload.getAttribute('capture'), null);
+    assert.equal(await entry.getByRole('link').count(), 1);
+    assert.equal(await page.getByRole('link', {name:'我的家',exact:true}).count(), 0);
+    assert.equal(await page.getByRole('navigation', {name:'設計階段'}).count(), 0);
+    assert.equal(await page.getByText('26–48 萬', {exact:true}).isVisible(), false);
+    assert.equal(await page.getByRole('link', {name:'快速找風格',exact:true}).count(), 0);
+    assert.equal(await page.getByRole('link', {name:'風格實驗室',exact:true}).count(), 0);
+    const footerCopy = viewport.width === 390 ? '免費看成品與報價，喜歡再解鎖施工圖' : '看成品與報價・免費';
+    await entry.getByText(footerCopy, {exact:true}).waitFor();
+    for (const toolPath of ['fast-route/', 'style-studio/prototype/']) {
+      assert((await page.request.get(base + toolPath)).ok(), toolPath + ' 仍可達');
+    }
     const heroPhoto = entry.getByRole('img', {name:'靜謐橡木客廳示意'});
     const heroSrc = await heroPhoto.getAttribute('src');
     assert(await heroPhoto.evaluate(async img => {
       await img.decode();
       return img.naturalWidth >= 1440;
     }));
-    if (viewport.width === 390) {
-      assert.equal(await page.getByRole('navigation', {name:'設計階段'}).count(), 0);
-      assert.equal(await page.getByText('26–48 萬', {exact:true}).isVisible(), false);
-      for (const name of ['現場拍照', '說一句話']) {
-        const bounds = await entry.getByRole('link', {name, exact:true}).boundingBox();
-        assert(bounds && bounds.y + bounds.height <= viewport.height, name + ' is visible in the first viewport');
-      }
-    }
-    if (viewport.width === 1440) {
-      await page.getByLabel('看磚紅單椅').click();
-      await page.getByText('布面搭配橡木椅腳').waitFor();
-      await page.getByLabel('看磚紅單椅').click();
-    }
     await capture('entry', false);
-    await link('現場拍照');
-    await page.getByLabel('從相簿選或拍攝').waitFor();
+    await page.getByRole('link', {name:'亮亮｜首頁'}).focus();
+    await page.keyboard.press('Tab');
+    assert(await startUpload.evaluate(input => input === document.activeElement && input.matches(':focus-visible')));
+    await capture('entry-focus', false);
+    const picker = page.waitForEvent('filechooser');
+    await startUpload.click();
+    await (await picker).setFiles([]);
+    await startUpload.dispatchEvent('cancel');
+    assert.equal(await page.getByRole('link', {name:'我的家',exact:true}).count(), 0);
+    assert.equal(new URL(page.url()).hash, '');
+    await startUpload.setInputFiles({name:'不能使用.txt',mimeType:'text/plain',buffer:Buffer.from('test')});
+    await entry.getByText('請選圖片或 PDF，再試一次。', {exact:true}).waitFor();
+    assert.equal(await page.getByRole('link', {name:'我的家',exact:true}).count(), 0);
+    await link('手邊沒有？先看一個範例的家');
+    await page.getByText('範例的家 · 示意', {exact:true}).waitFor();
+    await page.getByRole('heading', {name:'實景＋初步報價',exact:true}).waitFor();
+    assert.equal(new URL(page.url()).hash, '#result?project=example');
+    assert.equal(await page.locator('header a[href="#homes"]:not([hidden])').count(), 0);
+    await capture('entry-example');
+    await link('回首頁');
+    await route('homes', 'project=example');
+    const recentAfterSample = page.getByRole('region',{name:'最近的家'});
+    await recentAfterSample.getByText('你開始的設計會出現在這裡。').waitFor();
+    assert.equal(await recentAfterSample.getByRole('article').count(), 0);
     await link('亮亮｜首頁');
-    await page.getByLabel('上傳建商平面圖').setInputFiles({
+    const entryPhoto = await page.request.get(base + 'imagery/living-4.webp');
+    assert(entryPhoto.ok());
+    await startUpload.setInputFiles({name:'入口-客廳.webp',mimeType:'image/webp',buffer:await entryPhoto.body()});
+    await page.waitForURL(url => url.hash === '#scanning?project=demo-1');
+    await page.getByText('目前來源：現場照片', {exact:true}).waitFor();
+    await page.getByText('入口-客廳.webp', {exact:true}).waitFor();
+    await capture('entry-photo-scan');
+    await link('查看解析結果');
+    assert.equal(await page.getByRole('link', {name:'補充偏好',exact:true}).count(), 0);
+    await link('直接選風格');
+    await page.getByRole('heading', {name:'初步推薦風格',exact:true}).waitFor();
+    await capture('entry-photo-style');
+    await link('都不像');
+    await page.getByLabel('想要什麼樣的家').fill('光線柔和');
+    await link('看風格建議');
+    await link('我的家');
+    const photoHome = recentHome('新家 1');
+    await photoHome.waitFor();
+    assert.equal(await page.getByRole('region',{name:'最近的家'}).getByRole('article').count(), 1);
+    await expectResume('新家 1', '#style?project=demo-1');
+    await link('都不像');
+    assert.equal(await page.getByLabel('想要什麼樣的家').inputValue(), '光線柔和');
+    await page.goto(base + '#entry?project=oak');
+    await page.reload();
+    await startUpload.setInputFiles({
       name:'示意平面圖.pdf', mimeType:'application/pdf', buffer:Buffer.from('%PDF-1.4'),
     });
     await assertPanels('.scan-grid');
@@ -202,7 +264,7 @@ try {
     await link('取消');
     await page.getByRole('heading', {name:/把家的想像/}).waitFor();
     assert.equal(new URL(page.url()).hash.split('?')[1], scanHash);
-    await page.getByLabel('上傳建商平面圖').setInputFiles({
+    await startUpload.setInputFiles({
       name:'示意平面圖.pdf', mimeType:'application/pdf', buffer:Buffer.from('%PDF-1.4'),
     });
     await link('查看解析結果');
@@ -221,12 +283,14 @@ try {
     await capture('conditions');
     await press('待補 2');
     await page.getByText('天花板高度', {exact:true}).waitFor();
-    await link('補充偏好');
+    await link('直接選風格');
+    await capture('entry-pdf-style');
+    await link('都不像');
     await page.getByLabel('想要什麼樣的家').fill('橡木與自然光');
-    await link('選風格');
+    await link('看風格建議');
     await press('A · 靜謐橡木');
     await capture('style');
-    await link('確認方向，看成品');
+    await link('看設計示意');
     await page.getByText('26–48 萬', {exact:true}).waitFor();
     await page.getByRole('heading', {name:'法規初檢 · 示意'}).waitFor({timeout:2500});
     const title = page.getByRole('heading', {name:'實景＋初步報價',exact:true});
@@ -517,11 +581,13 @@ try {
     await link('回我的家');
     await page.getByRole('heading', {name:'我的家',exact:true}).waitFor();
     const recent = page.getByRole('region', {name:'最近的家'});
-    const starts = page.getByRole('region', {name:'從哪裡開始'});
-    const projectCard = name => recent.getByRole('article').filter({has:page.getByRole('heading',{name,exact:true})});
+    const starts = page.getByRole('region', {name:'開始設計'});
+    const projectCard = recentHome;
     const savedProject = projectCard('靜謐橡木');
-    const projectLink = name => projectCard(name).getByRole('link',{name:'打開專案'});
-    assert.equal(await recent.getByRole('article').count(), 4);
+    const projectLink = openHome;
+    assert.equal(await recent.getByRole('article').count(), 0);
+    await showDetails('.home-examples');
+    assert.equal(await page.getByRole('region', {name:'設計示例'}).getByRole('article').count(), 4);
     await savedProject.getByRole('img', {name:'廚房示意預覽'}).waitFor();
     await savedProject.getByText('示意已送件', {exact:true}).waitFor();
     await projectCard('三房兩廳').getByRole('group', {name:'平面圖示意'}).waitFor();
@@ -531,12 +597,15 @@ try {
     await projectLink('小家庭').click();
     await page.getByLabel('想要什麼樣的家').fill('小家庭・審查示例');
     const familyParameters = new URL(page.url()).hash.split('?')[1];
-    await link('我的家');
-    await starts.getByRole('button', {name:'說一句話',exact:true}).click();
+    await route('homes', familyParameters);
+    await starts.locator('input[type=file]').setInputFiles(planFile('新案-起始.pdf'));
+    await link('查看解析結果');
+    await link('直接選風格');
+    await link('都不像');
     assert.equal(await page.getByLabel('想要什麼樣的家').inputValue(),'');
     await page.getByLabel('想要什麼樣的家').fill('新案・白牆');
-    await link('選風格');
-    await link('確認方向，看成品');
+    await link('看風格建議');
+    await link('看設計示意');
     await page.getByText('26–48 萬', {exact:true}).waitFor();
     await link('解鎖精修與施工');
     await press('示意解鎖');
@@ -544,7 +613,8 @@ try {
     await route('team', newParameters);
     await page.getByText('待送件', {exact:true}).waitFor();
     await link('我的家');
-    await savedProject.getByRole('link',{name:'打開專案'}).click();
+    await showDetails('.home-examples');
+    await openHome('靜謐橡木').click();
     await page.getByText('示意已送件', {exact:true}).waitFor();
     await route('project', oldParameters);
     await page.getByRole('heading',{name:'這個家'}).waitFor();
@@ -558,7 +628,7 @@ try {
     await route('brief', newParameters);
     assert.equal(await page.getByLabel('想要什麼樣的家').inputValue(),'新案・白牆');
     await link('我的家');
-    await starts.getByLabel('上傳平面圖', {exact:true}).setInputFiles({
+    await starts.locator('input[type=file]').setInputFiles({
       name:'新案-平面圖.pdf', mimeType:'application/pdf', buffer:Buffer.from('%PDF-1.4'),
     });
     await page.getByText('新案-平面圖.pdf', {exact:true}).waitFor();
@@ -569,16 +639,14 @@ try {
     const uploadedCard = projectCard('新家 2');
     await uploadedCard.getByText('待補', {exact:true}).waitFor();
     await uploadedCard.getByText('新案-平面圖.pdf', {exact:true}).waitFor();
-    await starts.getByRole('button', {name:'現場拍照',exact:true}).click();
-    await page.getByRole('heading', {name:'現場拍照',exact:true}).waitFor();
-    const cameraParams = new URL(page.url()).hash.split('?')[1];
-    assert.equal(new Set([oldParameters, familyParameters, newParameters, uploadParams, cameraParams]).size, 5);
     const newPhotoFixture = await page.request.get(base + 'imagery/living-4.webp');
     assert(newPhotoFixture.ok());
-    await page.getByLabel('從相簿選或拍攝').setInputFiles({
+    await starts.locator('input[type=file]').setInputFiles({
       name:'新案-相簿.webp', mimeType:'image/webp', buffer:await newPhotoFixture.body(),
     });
-    await link('拍完了');
+    await page.getByText('新案-相簿.webp', {exact:true}).waitFor();
+    const cameraParams = new URL(page.url()).hash.split('?')[1];
+    assert.equal(new Set([oldParameters, familyParameters, newParameters, uploadParams, cameraParams]).size, 5);
     await page.getByText('新案-相簿.webp', {exact:true}).waitFor();
     assert.equal(await page.getByText('新案-平面圖.pdf', {exact:true}).count(), 0);
     await link('我的家');
@@ -590,9 +658,10 @@ try {
     await route('read', uploadParams);
     await page.getByText('新案-平面圖.pdf', {exact:true}).waitFor();
     assert.equal(await page.getByText('新案-相簿.webp', {exact:true}).count(), 0);
-    await page.goto(base);
+    await page.goto(base + '#entry?project=oak');
+    await page.reload();
     const pdfFile = name => ({name, mimeType:'application/pdf', buffer:Buffer.from('%PDF-1.4')});
-    await page.getByLabel('上傳建商平面圖').setInputFiles(pdfFile('原平面圖.pdf'));
+    await startUpload.setInputFiles(pdfFile('原平面圖.pdf'));
     await link('查看解析結果');
     await press('客廳 9 坪');
     await page.getByLabel('長度（公尺）').fill('7');
@@ -617,7 +686,7 @@ try {
     assert.equal(await page.getByLabel('長度（公尺）').inputValue(), '7');
     assert.equal(await page.getByLabel('寬度（公尺）').inputValue(), '3');
     await link('直接選風格');
-    await link('確認方向，看成品');
+    await link('看設計示意');
     await press('等角');
     await canvas.waitFor();
     await page.getByText('7000 × 3000 mm', {exact:true}).waitFor();
@@ -643,7 +712,7 @@ try {
     }
     await page.emulateMedia({media:'screen'});
     assert.deepEqual(errors, []);
-    console.log(viewport.width + ' px：#9／#13／#16、個別換款和微調、PDF 轉照片、503 重試與 WebGL 1.5×、A-01 7000×3000、廚房套用撤回及明細通過');
+    console.log(viewport.width + ' px：新版單入口與範例、圖片／PDF 到推薦、#9／#13／#16、個別換款和微調、PDF 轉照片、503 重試與 WebGL 1.5×、A-01 7000×3000、廚房套用撤回及明細通過');
     await page.close();
   }
   assert.equal(projectFailures.length, 0, '雙尺寸專案續作與取消解析');
