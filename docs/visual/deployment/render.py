@@ -57,16 +57,22 @@ def component(icon, name, role, proposed=False):
 
 
 def row(group, *components):
+    left, right = (
+        Node("", shape="point", style="invis", width="0.01", height="0.01")
+        for _ in range(2)
+    )
+    ordered = (left, *components, right)
     with group.dot.subgraph() as same_rank:
         same_rank.attr(rank="same")
-        for item in components:
+        for item in ordered:
             same_rank.node(item.nodeid)
-        for left, right in zip(components, components[1:]):
-            same_rank.edge(left.nodeid, right.nodeid, style="invis", weight="40")
+        for before, after in zip(ordered, ordered[1:]):
+            same_rank.edge(before.nodeid, after.nodeid, style="invis", weight="40")
+    return left, right
 
 
-def planned_link():
-    return Edge(color=PLANNED, style="dashed", arrowsize="0.65")
+def planned_link(weight="1"):
+    return Edge(color=PLANNED, style="dashed", arrowsize="0.65", weight=weight)
 
 
 with Diagram(
@@ -109,34 +115,40 @@ with Diagram(
         browser = component(Client, "Browser", "HTML / JS / WebGL")
         domain = component(Router, "Registrar + DNS", "Custom domain / renewal", proposed=True)
         github = component(Github, "GitHub", "Build from main / PR")
-        row(entry, domain, browser, github)
+        entry_bounds = row(entry, domain, browser, github)
 
     with layer("02  EDGE", "#eaf0f8") as delivery:
         static = component(Vercel, "Vercel static host", "Build output: dist/")
         edge = component(Vercel, "Vercel Edge", "HTTPS / CDN cache")
         preview = component(Cloudflare, "Cloudflare Pages Free", "Optional static demo", proposed=True)
-        row(delivery, edge, static, preview)
+        edge_bounds = row(delivery, edge, static, preview)
 
     with layer("03  BACKEND", "#f4ede4") as backend:
         read_plan = component(NodeJS, "Node.js Function", "POST /api/read-plan")
         catalog = component(NodeJS, "Catalog API", "GET /api/materials", proposed=True)
-        row(backend, read_plan, catalog)
+        backend_bounds = row(backend, read_plan, catalog)
 
     with layer("04  DATA / EXTERNAL", "#eaf0e7") as dependencies:
         model = component(Server, "LLM API", "OpenAI / Anthropic, if configured")
         identity = component(User, "Managed Auth", "OIDC identity", proposed=True)
         db = component(Postgresql, "PostgreSQL", "Catalog metadata", proposed=True)
         storage = component(Cloudflare, "Object storage", "Images / GLB · e.g. R2", proposed=True)
-        row(dependencies, model, identity, db, storage)
+        dependency_bounds = row(dependencies, model, identity, db, storage)
 
-    browser >> edge
+    # Align cluster boundaries while keeping the main request path in one column.
+    bounds = (entry_bounds, edge_bounds, backend_bounds, dependency_bounds)
+    for above, below in zip(bounds, bounds[1:]):
+        for start, end in zip(above, below):
+            start >> Edge(style="invis", weight="1000") >> end
+
+    browser >> Edge(weight="200") >> edge
     domain >> planned_link() >> edge
     edge >> static
-    github >> static
+    github >> Edge(weight="40") >> static
     github >> planned_link() >> preview
-    edge >> read_plan
+    edge >> Edge(weight="200") >> read_plan
     edge >> planned_link() >> catalog
-    read_plan >> Edge(color="#a8482f", arrowsize="0.65") >> model
+    read_plan >> Edge(color="#a8482f", arrowsize="0.65", weight="200") >> model
     catalog >> planned_link() >> identity
-    catalog >> planned_link() >> db
+    catalog >> planned_link(weight="40") >> db
     catalog >> planned_link() >> storage
