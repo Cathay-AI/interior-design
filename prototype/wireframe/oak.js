@@ -5,6 +5,7 @@ import { STYLES } from './fast-route/lib/taste.js';
 import { LIMITS, roomSize } from './fast-route/lib/layout.js';
 
 const screen = document.querySelector('#screen');
+const homeLinks = document.querySelectorAll('.site-header a[href="#homes"]');
 const railLinks = document.querySelectorAll('[data-rail]');
 const rail = document.querySelector('.rail');
 const menu = document.querySelector('.project-menu');
@@ -57,6 +58,7 @@ const projects = new Map([
   ['family', {name:'小家庭', page:'brief', draft:newDraft()}],
   ['floorplan', {name:'三房兩廳', page:'read', draft:newDraft()}],
   ['upload', {name:'新家平面圖', page:'scanning', draft:newDraft()}],
+  ['example', {name:'範例的家', page:'result', draft:newDraft(), isExample:true}],
 ]);
 let projectId = 'oak';
 let draft = projects.get(projectId).draft;
@@ -87,7 +89,6 @@ function createProject(page) {
   projects.set(id, {name:'新家 ' + projectCount, page, draft:newDraft(), isNew:true});
   return id;
 }
-const startProject = page => go(page, createProject(page));
 const link = (name, page, primary = false) => el('a', {href:href(page),class:'button' + (primary ? ' primary' : '')}, name);
 const button = (name, click, pressed) => el('button', {type:'button',onclick:click,...(pressed == null ? {} : {'aria-pressed':pressed})}, name);
 const refresh = (change) => (event) => {
@@ -349,12 +350,14 @@ const preview = () => {
       views.map(view => button(view, refresh(() => {draft.view = view;}), draft.view === view))),
     content, cameraControls);
 };
-function upload(event, isPlan = true, newProject = false) {
-  const file = event.target.files[0];
-  if (!file) return;
+function stageSource(label, file, newProject = false) {
   const id = newProject ? createProject('entry') : projectId;
-  projects.get(id).draft.pendingSource = {label:isPlan ? '平面圖' : '機電圖', files:[file.name]};
+  projects.get(id).draft.pendingSource = {label, files:[file.name]};
   go('scanning', id);
+}
+function upload(event, isPlan = true) {
+  const file = event.target.files[0];
+  if (file) stageSource(isPlan ? '平面圖' : '機電圖', file);
 }
 function usePhotos() {
   draft.pendingSource = {label:'現場照片', files:draft.photos.filter(Boolean)};
@@ -389,18 +392,31 @@ function roomSizeForm() {
   el('div', {class:'room-size-fields'}, dimension('長度（公尺）', size?.w, LIMITS.w), dimension('寬度（公尺）', size?.d, LIMITS.d)),
   el('button', {type:'submit'}, '儲存' + rooms[index] + '尺寸'));
 }
-function startOptions(newProject) {
-  const alternative = (name, page) => newProject
-    ? button(name, () => startProject(page))
-    : link(name, page);
+function startUpload(newProject) {
+  const error = el('p', {class:'upload-error',role:'status'});
+  const input = el('input', {type:'file',accept:'image/*,.pdf,application/pdf','aria-labelledby':'upload-label','aria-describedby':'upload-hint',
+    onchange:event => {
+      const file = event.currentTarget.files[0];
+      if (!file) return;
+      const pdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+      const image = file.type.startsWith('image/') || /\.(?:avif|bmp|gif|heic|heif|jpe?g|png|tiff?|webp)$/i.test(file.name);
+      if (!pdf && !image) {
+        event.currentTarget.value = '';
+        error.textContent = '請選圖片或 PDF，再試一次。';
+        return;
+      }
+      error.textContent = '';
+      stageSource(pdf ? '平面圖' : '現場照片', file, newProject);
+    }});
   return el('div', {class:'start-options'},
-    el('label', {class:'start-upload'},
-      el('input', {type:'file',accept:'image/*,.pdf','aria-label':'上傳平面圖',
-        onchange:event => upload(event, true, newProject)}),
-      el('strong', {}, '上傳平面圖'), el('span', {'aria-hidden':'true'}, '→')),
-    el('details', {class:'start-alternatives'},
-      el('summary', {}, '沒有平面圖？'),
-      actions(alternative('拍空間照片', 'camera'), alternative('寫下需求', 'brief'))));
+    el('label', {class:'start-upload'}, input,
+      el('span', {class:'upload-copy'},
+        el('span', {id:'upload-label'},
+          el('strong', {class:'upload-desktop'}, '上傳平面圖或照片'),
+          el('strong', {class:'upload-mobile'}, '拍照或上傳平面圖')),
+        el('small', {id:'upload-hint','aria-hidden':'true'}, '建商平面圖、手繪、現場照片都可以')),
+      el('span', {class:'upload-icon','aria-hidden':'true'}, '↑')),
+    error);
 }
 const proposedOpenKitchen = () => draft.answers[1] === '天天煮';
 const layoutKey = () => JSON.stringify(draft.answers);
@@ -456,11 +472,11 @@ function recentProject(id, project) {
 function homesPage() {
   const entries = [...projects];
   const newHomes = entries.filter(([, project]) => project.isNew).reverse();
-  const examples = entries.filter(([, project]) => !project.isNew);
+  const examples = entries.filter(([, project]) => !project.isNew && !project.isExample);
   return el('div', {class:'homes-dashboard stack'},
     el('header', {class:'homes-heading'}, el('h1', {}, '我的家')),
     el('section', {class:'home-entry','aria-label':'開始設計'},
-      el('p', {}, '開始新的設計'), startOptions(true)),
+      el('p', {}, '開始新的設計'), startUpload(true)),
     el('section', {'aria-labelledby':'recent-homes-title'},
       el('h2', {id:'recent-homes-title'}, '最近的家'),
       newHomes.length ? el('div', {class:'recent-homes'}, newHomes.map(([id, project]) => recentProject(id, project)))
@@ -543,13 +559,13 @@ function profilePage() {
 const pages = {
   entry: hasProject => el('section', {class:'hero','aria-labelledby':'entry-title'},
     el('img', {class:'hero-photo',src:photo,alt:'靜謐橡木客廳示意',width:1536,height:1024,fetchpriority:'high'}),
-    el('h1', {id:'entry-title'}, '看看你的家，', el('br'), '可以怎麼設計。'),
-    el('div', {class:'hero-start'},
-      el('p', {}, '格局圖、手繪草圖都可以。'),
-      startOptions(!hasProject)),
-    el('div', {class:'hero-hotspots'},
-      el('details', {}, el('summary', {'aria-label':'看磚紅單椅'}), el('div', {}, '磚紅單椅', el('small', {}, '布面搭配橡木椅腳'))),
-      el('details', {}, el('summary', {'aria-label':'看橡木收納'}), el('div', {}, '白橡木收納', el('small', {}, '開放層板與封閉櫃體'))))),
+    el('div', {class:'hero-copy'},
+      el('h1', {id:'entry-title'}, '把家的想像，', el('br'), '變成真的。'),
+      el('p', {}, '給我們你的房子，', el('br', {class:'promise-break'}), '還你成品、報價與施工圖。')),
+    el('div', {class:'hero-start'}, startUpload(!hasProject),
+      el('a', {href:href('result', 'example'),class:'hero-example'}, '手邊沒有？先看一個範例的家')),
+    el('ol', {class:'hero-steps'}, el('li', {}, '你給房子'), el('li', {}, '看成品與報價・免費'), el('li', {}, '拿到施工圖・付費')),
+    el('p', {class:'hero-steps-mobile'}, '免費看成品與報價，喜歡再解鎖施工圖')),
   homes: homesPage,
   camera: () => grid(figure(photo, '拍照位置示意'), card(...heading('現場拍照', '第 ' + (draft.shot + 1) + ' 張／4'),
     rows(shots.map((name, i) => [name, i < draft.shot ? '已完成' : i === draft.shot ? '正在拍攝' : '待補'])),
@@ -576,7 +592,7 @@ const pages = {
     sourceDetails(),
     actions(picker('重選平面圖', {accept:'image/*,.pdf'}, upload),
       picker('上傳機電圖', {accept:'image/*,.pdf'}, event => upload(event, false))),
-    actions(link('補充偏好', 'brief'), link('直接選風格', 'style', true)))),
+    actions(link('直接選風格', 'style', true)))),
   conditions: () => card(...heading('補充空間條件'), el('label', {}, '天花板及管線備註',
     el('textarea', {oninput: event => {draft.conditions = event.target.value;}}, draft.conditions || '')), link('返回空間條件', 'read', true)),
   brief: () => grid(figure(image(), '用預設風格預覽'), card(...heading('說說你想要的家'),
@@ -600,7 +616,7 @@ const pages = {
       el('div', {class:'style-options',role:'group','aria-label':'風格方向'}, looks.map((name, i) =>
         el('button', {type:'button','aria-pressed':draft.style === i,onclick:refresh(() => {draft.style = i;})},
           el('img', {src:image(i),alt:'',loading:'lazy'}), 'ABC'[i] + ' · ' + name))),
-      actions(link('上一步', 'brief'), link('看設計示意', 'result', true)))),
+      actions(link('都不像', 'brief'), link('看設計示意', 'result', true)))),
   result: () => {
     const costs = roomCostItems();
     return grid(preview(), el('section', {class:'card stack result-quote'},
@@ -766,6 +782,8 @@ function updateNavigation(page) {
   document.body.dataset.page = page;
   document.body.classList.toggle('workspace', work);
   rail.hidden = menu.hidden = !work;
+  const hasHomes = [...projects.values()].some(project => project.isNew);
+  for (const anchor of homeLinks) anchor.hidden = !hasHomes;
   menu.open = false;
   for (const anchor of railLinks) {
     const target = anchor.dataset.rail;
@@ -806,7 +824,10 @@ function render(focus = true) {
     panel.classList.add('work-panel');
     panel.prepend(phaseNav(page));
   }
-  screen.replaceChildren(layout);
+  if (project.isExample && page !== 'entry' && page !== 'homes') {
+    screen.replaceChildren(el('aside', {class:'example-banner'},
+      el('strong', {}, '範例的家 · 示意'), el('a', {href:'#entry'}, '回首頁')), layout);
+  } else screen.replaceChildren(layout);
   if (focus) {
     screen.focus({preventScroll:true});
     window.scrollTo(0,0);
