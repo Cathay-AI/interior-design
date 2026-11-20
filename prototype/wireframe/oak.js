@@ -61,6 +61,7 @@ const projects = new Map([
 let projectId = 'oak';
 let draft = projects.get(projectId).draft;
 let projectCount = 0;
+let examplesOpen = false;
 const photo = roomScene(0);
 const studio = './style-studio/';
 const image = (n = draft.style) => [photo, studio + 'key-visuals/app/style-2.jpg', studio + 'key-visuals/app/style-1.jpg'][n];
@@ -388,10 +389,19 @@ function roomSizeForm() {
   el('div', {class:'room-size-fields'}, dimension('長度（公尺）', size?.w, LIMITS.w), dimension('寬度（公尺）', size?.d, LIMITS.d)),
   el('button', {type:'submit'}, '儲存' + rooms[index] + '尺寸'));
 }
-const floorUpload = () => el('label', {class:'hero-upload'},
-  el('input', {type:'file',accept:'image/*,.pdf','aria-label':'上傳建商平面圖',onchange:upload}),
-  el('span', {}, el('strong', {}, '上傳建商平面圖'), el('small', {}, '手繪、權狀附圖也可以')),
-  el('span', {class:'upload-arrow','aria-hidden':'true'}, '→'));
+function startOptions(newProject) {
+  const alternative = (name, page) => newProject
+    ? button(name, () => startProject(page))
+    : link(name, page);
+  return el('div', {class:'start-options'},
+    el('label', {class:'start-upload'},
+      el('input', {type:'file',accept:'image/*,.pdf','aria-label':'上傳平面圖',
+        onchange:event => upload(event, true, newProject)}),
+      el('strong', {}, '上傳平面圖'), el('span', {'aria-hidden':'true'}, '→')),
+    el('details', {class:'start-alternatives'},
+      el('summary', {}, '沒有平面圖？'),
+      actions(alternative('拍張照片', 'camera'), alternative('說說你的家', 'brief'))));
+}
 const proposedOpenKitchen = () => draft.answers[1] === '天天煮';
 const layoutKey = () => JSON.stringify(draft.answers);
 const backToLayout = () => el('a', {href:href('layout'),class:'button',onclick:() => {draft.step = 1;}}, '回精修格局');
@@ -418,10 +428,6 @@ function complianceFindings() {
       detail:'依此範例的空間資料，無撒水頭。', status:'符合示例'},
   ];
 }
-const homeStart = (tag, attrs, icon, title, detail, ...controls) => el(tag, {class:'home-start',...attrs},
-  el('span', {class:'home-start-icon','aria-hidden':'true'}, icon),
-  el('strong', {}, title), el('small', {}, detail), controls);
-
 const resumePage = project => project.draft.pendingSource ? 'scanning' : project.page;
 
 function recentProject(id, project) {
@@ -440,33 +446,30 @@ function recentProject(id, project) {
       ? planDiagram(state, state.appliedLayout)
       : el('img', {src:projectPhoto(imageStage, state),alt:rooms[state.room] + '示意預覽'})),
     el('div', {class:'home-project-info'},
-      el('div', {}, el('h3', {}, project.name), el('small', {}, detail)),
-      el('span', {class:'badge'}, status),
-      el('a', {href:href(page, id),class:'home-project-link'}, '打開專案')));
+      el('h3', {}, el('a', {href:href(page, id),class:'home-project-link','aria-label':'繼續 ' + project.name},
+        project.name)),
+      el('small', {}, detail),
+      el('span', {class:'badge'}, status)));
 }
 
 function homesPage() {
   const entries = [...projects];
   const newHomes = entries.filter(([, project]) => project.isNew).reverse();
   const examples = entries.filter(([, project]) => !project.isNew);
-  const recent = [...newHomes, ...examples];
   return el('div', {class:'homes-dashboard stack'},
-    el('header', {class:'homes-heading'},
-      el('h1', {}, '我的家'), el('button', {type:'button',class:'primary',onclick:() => startProject('entry')}, '新建專案')),
-    el('section', {'aria-labelledby':'home-start-title'},
-      el('h2', {id:'home-start-title'}, '從哪裡開始'),
-      el('p', {class:'muted home-start-hint'}, '選一種方式，開始一個新案。'),
-      el('div', {class:'home-starts'},
-        homeStart('label', {}, '↑', '上傳平面圖', '建商圖、手繪都能讀',
-          el('input', {type:'file',accept:'image/*,.pdf','aria-label':'上傳平面圖',
-            onchange:event => upload(event, true, true)})),
-        homeStart('button', {type:'button','aria-label':'現場拍照',onclick:() => startProject('camera')},
-          '◎', '現場拍照', '跟著引導拍幾張'),
-        homeStart('button', {type:'button','aria-label':'說一句話',onclick:() => startProject('brief')},
-          '…', '說一句話', '描述你想要的家'))),
+    el('header', {class:'homes-heading'}, el('h1', {}, '我的家')),
+    el('section', {class:'home-entry','aria-label':'開始設計'},
+      el('p', {}, '開始新的設計'), startOptions(true)),
     el('section', {'aria-labelledby':'recent-homes-title'},
       el('h2', {id:'recent-homes-title'}, '最近的家'),
-      el('div', {class:'recent-homes'}, recent.map(([id, project]) => recentProject(id, project)))));
+      newHomes.length ? el('div', {class:'recent-homes'}, newHomes.map(([id, project]) => recentProject(id, project)))
+        : el('p', {class:'homes-empty'}, '你開始的設計會出現在這裡。')),
+    el('details', {class:'home-examples',...(examplesOpen ? {open:''} : {}),
+      ontoggle:event => {if (event.currentTarget.isConnected) examplesOpen = event.currentTarget.open;}},
+      el('summary', {}, '看看示例'),
+      el('section', {'aria-label':'設計示例'},
+        el('div', {class:'recent-homes'}, examples.map(([id, project]) => recentProject(id, project))))));
+
 }
 
 const scanSteps = [
@@ -537,19 +540,15 @@ function profilePage() {
 }
 
 const pages = {
-  entry: () => el('section', {class:'hero','aria-labelledby':'entry-title'},
+  entry: hasProject => el('section', {class:'hero','aria-labelledby':'entry-title'},
     el('img', {class:'hero-photo',src:photo,alt:'靜謐橡木客廳示意',width:1536,height:1024,fetchpriority:'high'}),
-    el('h1', {id:'entry-title'}, '把家的想像，', el('br'), '變成真的。'),
+    el('h1', {id:'entry-title'}, '看看你的家，', el('br'), '可以怎麼設計。'),
     el('div', {class:'hero-start'},
-      el('p', {class:'hero-mobile-intro'}, '給我們你的房子，還你成品、報價與施工圖。'),
-      floorUpload(), actions(link('現場拍照', 'camera'), link('說一句話', 'brief'))),
+      el('p', {}, '格局圖、手繪草圖都可以。'),
+      startOptions(!hasProject)),
     el('div', {class:'hero-hotspots'},
       el('details', {}, el('summary', {'aria-label':'看磚紅單椅'}), el('div', {}, '磚紅單椅', el('small', {}, '布面搭配橡木椅腳'))),
-      el('details', {}, el('summary', {'aria-label':'看橡木收納'}), el('div', {}, '白橡木收納', el('small', {}, '開放層板與封閉櫃體')))),
-    el('div', {class:'hero-summary'},
-      el('p', {class:'hero-promise'}, '給我們你的房子，', el('br'), '還你成品、報價與施工圖。'),
-      el('div', {class:'hero-price'}, el('strong', {}, '26–48 萬'), el('small', {}, '這間客廳的初步報價示意')),
-      el('p', {}, '成品、報價、法規初檢都免費看。', el('br'), '喜歡了，再解鎖施工圖。'))),
+      el('details', {}, el('summary', {'aria-label':'看橡木收納'}), el('div', {}, '白橡木收納', el('small', {}, '開放層板與封閉櫃體'))))),
   homes: homesPage,
   camera: () => grid(figure(photo, '拍照位置示意'), card(...heading('現場拍照', '第 ' + (draft.shot + 1) + ' 張／4'),
     rows(shots.map((name, i) => [name, i < draft.shot ? '已完成' : i === draft.shot ? '正在拍攝' : '待補'])),
@@ -579,19 +578,19 @@ const pages = {
     actions(link('補充偏好', 'brief'), link('直接選風格', 'style', true)))),
   conditions: () => card(...heading('補充空間條件'), el('label', {}, '天花板及管線備註',
     el('textarea', {oninput: event => {draft.conditions = event.target.value;}}, draft.conditions || '')), link('返回空間條件', 'read', true)),
-  brief: () => grid(figure(image(), '用預設風格預覽'), card(...heading('說一句話，或加幾張參考圖。'),
+  brief: () => grid(figure(image(), '用預設風格預覽'), card(...heading('說說你想要的家'),
     el('label', {}, '想要什麼樣的家', el('textarea', {oninput:event => {draft.note = event.target.value;}}, draft.note)),
     picker('參考圖', {accept:'image/*',multiple:''}, event => {
       draft.refs = Array.from(event.target.files, f => f.name).join('、'); render(false);
     }), draft.refs && el('small', {}, draft.refs),
     actions(...draft.tags.map(tag => button(tag + ' ×', refresh(() => {draft.tags = draft.tags.filter(value => value !== tag);})))) ,
-    link('選風格', 'style', true))),
+    link('看風格建議', 'style', true))),
   style: () => grid(figure(image(), looks[draft.style], looks[draft.style] + '客廳示意'),
     card(...heading('初步推薦風格'),
       el('div', {class:'style-options',role:'group','aria-label':'風格方向'}, looks.map((name, i) =>
         el('button', {type:'button','aria-pressed':draft.style === i,onclick:refresh(() => {draft.style = i;})},
           el('img', {src:image(i),alt:'',loading:'lazy'}), 'ABC'[i] + ' · ' + name))),
-      actions(link('上一步', 'brief'), link('確認方向，看成品', 'result', true)))),
+      actions(link('上一步', 'brief'), link('看設計示意', 'result', true)))),
   result: () => {
     const costs = roomCostItems();
     return grid(preview(), el('section', {class:'card stack result-quote'},
@@ -765,7 +764,7 @@ function updateNavigation(page) {
     else anchor.removeAttribute('aria-current');
   }
   document.querySelector('.site-header > .phase-nav')?.remove();
-  if (page !== 'homes') rail.before(phaseNav(page, work));
+  if (work) rail.before(phaseNav(page, true));
 }
 const projectProgress = {
   entry:'新建', camera:'進行中', scanning:'解析中', read:'待補', conditions:'待補', brief:'進行中', style:'進行中',
@@ -790,7 +789,7 @@ function render(focus = true) {
     project.page = page;
   }
   updateNavigation(page);
-  const layout = pages[page]();
+  const layout = pages[page](projects.has(id));
   const workGrid = layout.matches('.grid') ? layout : layout.querySelector('.grid');
   const panel = workGrid?.children[1];
   if (panel?.classList.contains('card')) {
