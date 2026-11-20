@@ -1,8 +1,18 @@
 """Render the layerwise component diagram used by both deployment guides."""
 
+from html import escape
 from pathlib import Path
 
+import diagrams
 from diagrams import Cluster, Diagram, Edge, Node
+from diagrams.generic.network import Router
+from diagrams.onprem.client import Client, User
+from diagrams.onprem.compute import Server
+from diagrams.onprem.database import Postgresql
+from diagrams.onprem.vcs import Github
+from diagrams.programming.framework import Vercel
+from diagrams.programming.language import NodeJS
+from diagrams.saas.cdn import Cloudflare
 
 
 OUTPUT = Path(__file__).with_name("component-stack")
@@ -29,9 +39,17 @@ def layer(name, fill):
     )
 
 
-def component(name, role, proposed=False):
+def component(icon, name, role, proposed=False):
+    icon_path = Path(diagrams.__file__).parent.parent / icon._icon_dir / icon._icon
+    label = (
+        '< <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4">'
+        f'<TR><TD WIDTH="28" HEIGHT="28" FIXEDSIZE="TRUE">'
+        f'<IMG SRC="{escape(str(icon_path))}" SCALE="TRUE"/></TD>'
+        f'<TD ALIGN="LEFT" BALIGN="LEFT"><B>{escape(name)}</B><BR/>'
+        f'<FONT POINT-SIZE="10">{escape(role)}</FONT></TD></TR></TABLE> >'
+    )
     return Node(
-        f"{name}\n{role}",
+        label,
         color=PLANNED if proposed else CURRENT,
         fillcolor="#f9fbf6" if proposed else "#f9fbfd",
         style="filled,dashed" if proposed else "filled",
@@ -88,30 +106,34 @@ with Diagram(
     edge_attr={"color": CURRENT, "penwidth": "1.3", "arrowsize": "0.65"},
 ):
     with layer("01  ENTRY / CLIENT", "#f0ede6") as entry:
-        browser = component("Browser", "HTML / JS / WebGL")
-        domain = component("Registrar + DNS", "Custom domain / renewal", proposed=True)
-        row(entry, browser, domain)
+        browser = component(Client, "Browser", "HTML / JS / WebGL")
+        domain = component(Router, "Registrar + DNS", "Custom domain / renewal", proposed=True)
+        github = component(Github, "GitHub", "Build from main / PR")
+        row(entry, domain, browser, github)
 
-    with layer("02  DELIVERY", "#eaf0f8") as delivery:
-        static = component("Vercel static host", "dist/")
-        edge = component("Vercel Edge", "HTTPS / CDN cache")
-        row(delivery, static, edge)
+    with layer("02  EDGE", "#eaf0f8") as delivery:
+        static = component(Vercel, "Vercel static host", "Build output: dist/")
+        edge = component(Vercel, "Vercel Edge", "HTTPS / CDN cache")
+        preview = component(Cloudflare, "Cloudflare Pages Free", "Optional static demo", proposed=True)
+        row(delivery, edge, static, preview)
 
     with layer("03  BACKEND", "#f4ede4") as backend:
-        read_plan = component("Node.js Function", "POST /api/read-plan")
-        catalog = component("Catalog API", "GET /api/materials", proposed=True)
+        read_plan = component(NodeJS, "Node.js Function", "POST /api/read-plan")
+        catalog = component(NodeJS, "Catalog API", "GET /api/materials", proposed=True)
         row(backend, read_plan, catalog)
 
     with layer("04  DATA / EXTERNAL", "#eaf0e7") as dependencies:
-        model = component("LLM API", "OpenAI or Anthropic, if configured")
-        identity = component("Managed Auth", "OIDC identity", proposed=True)
-        db = component("PostgreSQL", "Catalog metadata", proposed=True)
-        storage = component("Object storage", "Images / GLB files", proposed=True)
+        model = component(Server, "LLM API", "OpenAI / Anthropic, if configured")
+        identity = component(User, "Managed Auth", "OIDC identity", proposed=True)
+        db = component(Postgresql, "PostgreSQL", "Catalog metadata", proposed=True)
+        storage = component(Cloudflare, "Object storage", "Images / GLB · e.g. R2", proposed=True)
         row(dependencies, model, identity, db, storage)
 
     browser >> edge
     domain >> planned_link() >> edge
     edge >> static
+    github >> static
+    github >> planned_link() >> preview
     edge >> read_plan
     edge >> planned_link() >> catalog
     read_plan >> Edge(color="#a8482f", arrowsize="0.65") >> model
