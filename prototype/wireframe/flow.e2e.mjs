@@ -61,8 +61,8 @@ try {
       await page.waitForURL(url => url.hash === '#' + target + '?' + query);
     };
     const recentHome = name => page.getByRole('main').getByRole('article')
-      .filter({has:page.getByRole('link',{name:'繼續 ' + name,exact:true})});
-    const openHome = name => recentHome(name).getByRole('link', {name:'繼續 ' + name,exact:true});
+      .filter({has:page.getByText(name,{exact:true})});
+    const openHome = name => recentHome(name).getByRole('link');
     const showDetails = async selector => {
       const summary = page.locator(selector + ':not([open]) > summary');
       if (await summary.count()) await summary.click();
@@ -87,6 +87,8 @@ try {
         assert.equal(await openHome(name).getAttribute('href'), hash);
       }
       await expectResume('小家庭', '#brief?project=family');
+      await page.getByPlaceholder('例如：客廳想明亮一點，也要有地方收玩具。').waitFor();
+      assert.equal(await page.getByRole('button',{name:'自然材質 ×'}).isVisible(), false);
       await page.getByLabel('想要什麼樣的家').fill('小家庭・偏好保留');
       await link('看風格建議');
       await press('B · 暖調復古');
@@ -182,8 +184,8 @@ try {
     }));
     assert.equal(await page.getByRole('navigation', {name:'設計階段'}).count(), 0);
     assert.equal(await page.getByText('26–48 萬', {exact:true}).isVisible(), false);
-    assert.equal(await entry.getByRole('button', {name:'拍張照片'}).count(), 0);
-    assert.equal(await entry.getByRole('button', {name:'說說你的家'}).count(), 0);
+    assert.equal(await entry.getByRole('button', {name:'拍空間照片'}).count(), 0);
+    assert.equal(await entry.getByRole('button', {name:'寫下需求'}).count(), 0);
     const alternatives = await entry.getByText('沒有平面圖？', {exact:true}).boundingBox();
     assert(alternatives && alternatives.y + alternatives.height <= viewport.height);
     if (viewport.width === 1440) {
@@ -194,7 +196,7 @@ try {
     await capture('entry', false);
     await showDetails('.start-alternatives');
     await capture('entry-alternatives');
-    await press('拍張照片');
+    await press('拍空間照片');
     await page.getByLabel('從相簿選或拍攝').waitFor();
     await page.waitForURL(url => url.hash === '#camera?project=demo-1');
     await link('我的家');
@@ -550,7 +552,7 @@ try {
     const familyParameters = new URL(page.url()).hash.split('?')[1];
     await link('我的家');
     await showDetails('.start-alternatives');
-    await starts.getByRole('button', {name:'說說你的家',exact:true}).click();
+    await starts.getByRole('button', {name:'寫下需求',exact:true}).click();
     assert.equal(await page.getByLabel('想要什麼樣的家').inputValue(),'');
     await page.getByLabel('想要什麼樣的家').fill('新案・白牆');
     await link('看風格建議');
@@ -589,7 +591,7 @@ try {
     await uploadedCard.getByText('待補', {exact:true}).waitFor();
     await uploadedCard.getByText('新案-平面圖.pdf', {exact:true}).waitFor();
     await showDetails('.start-alternatives');
-    await starts.getByRole('button', {name:'拍張照片',exact:true}).click();
+    await starts.getByRole('button', {name:'拍空間照片',exact:true}).click();
     await page.getByRole('heading', {name:'現場拍照',exact:true}).waitFor();
     const cameraParams = new URL(page.url()).hash.split('?')[1];
     assert.equal(new Set([oldParameters, familyParameters, newParameters, uploadParams, cameraParams]).size, 5);

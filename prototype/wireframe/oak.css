@@ -211,7 +211,7 @@ body[data-page="entry"] .home-link{grid-column:2;grid-row:1;justify-self:end}
 .picker{position:relative;justify-self:start;margin:0}
 .start-upload:has(input:focus-visible),.picker:has(input:focus-visible){outline:3px solid var(--red);outline-offset:3px}
 .start-alternatives{margin-top:.2rem}
-.start-alternatives summary,.home-examples summary{
+.start-alternatives summary,.home-examples summary,.brief-extras summary{
   width:max-content;max-width:100%;padding:.55rem .1rem;min-height:44px;
   font-size:.9rem;font-weight:600;cursor:pointer;
 }
@@ -394,6 +394,8 @@ body[data-page="entry"] .home-link{grid-column:2;grid-row:1;justify-self:end}
 .recent-homes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem}
 .home-examples{border-top:1px solid var(--line);padding-top:.35rem}
 .home-examples .recent-homes{margin-top:.5rem}
+.brief-extras{border-top:1px solid var(--line)}
+.brief-extras>.stack{padding-block:.45rem}
 .home-project:has(.home-project-link:hover){border-color:var(--green)}
 .home-project{position:relative;min-width:0;background:white;border:1px solid var(--line);border-radius:18px;overflow:hidden}
 .home-project-visual{display:grid;place-items:center;aspect-ratio:2;background:var(--linen);overflow:hidden}

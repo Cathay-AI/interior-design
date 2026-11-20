@@ -50,7 +50,7 @@ const newDraft = () => ({
   appliedLayout: false, appliedFeng: [],
   unlocked: false, feng: new Set([0, 1]),
   drawing: 'A-01', comparisonStage: 4, floor: '', floorInput: '',
-  checkedLayout: null, layoutVersion: 0, note: '', refs: '', tags: ['自然材質', '好整理'], team: '設計師＋工班', sent: false,
+  checkedLayout: null, layoutVersion: 0, note: '', refs: '', briefExtrasOpen: false, tags: ['自然材質', '好整理'], team: '設計師＋工班', sent: false,
 });
 const projects = new Map([
   ['oak', {name:'靜謐橡木', page:'project', draft:newDraft()}],
@@ -400,7 +400,7 @@ function startOptions(newProject) {
       el('strong', {}, '上傳平面圖'), el('span', {'aria-hidden':'true'}, '→')),
     el('details', {class:'start-alternatives'},
       el('summary', {}, '沒有平面圖？'),
-      actions(alternative('拍張照片', 'camera'), alternative('說說你的家', 'brief'))));
+      actions(alternative('拍空間照片', 'camera'), alternative('寫下需求', 'brief'))));
 }
 const proposedOpenKitchen = () => draft.answers[1] === '天天煮';
 const layoutKey = () => JSON.stringify(draft.answers);
@@ -439,6 +439,7 @@ function recentProject(id, project) {
   const imageStage = stage === '解析中' ? 0 : stage === '進行中' ? 3 : stages.length - 1;
   const sourceName = source?.files[0];
   const status = stage === '團隊對接' && state.sent ? '示意已送件' : stage;
+  const openLabel = stage === '初步報價' ? '看報價' : '繼續設計';
   const detail = stage === '解析中' || stage === '待補' ? sourceName ?? '示意空間' :
     rooms[state.room] + ' · ' + looks[state.style];
   return el('article', {class:'home-project'},
@@ -446,7 +447,7 @@ function recentProject(id, project) {
       ? planDiagram(state, state.appliedLayout)
       : el('img', {src:projectPhoto(imageStage, state),alt:rooms[state.room] + '示意預覽'})),
     el('div', {class:'home-project-info'},
-      el('h3', {}, el('a', {href:href(page, id),class:'home-project-link','aria-label':'繼續 ' + project.name},
+      el('h3', {}, el('a', {href:href(page, id),class:'home-project-link','aria-label':project.name + '，' + openLabel},
         project.name)),
       el('small', {}, detail),
       el('span', {class:'badge'}, status)));
@@ -466,7 +467,7 @@ function homesPage() {
         : el('p', {class:'homes-empty'}, '你開始的設計會出現在這裡。')),
     el('details', {class:'home-examples',...(examplesOpen ? {open:''} : {}),
       ontoggle:event => {if (event.currentTarget.isConnected) examplesOpen = event.currentTarget.open;}},
-      el('summary', {}, '看看示例'),
+      el('summary', {}, '看示範'),
       el('section', {'aria-label':'設計示例'},
         el('div', {class:'recent-homes'}, examples.map(([id, project]) => recentProject(id, project))))));
 
@@ -579,12 +580,21 @@ const pages = {
   conditions: () => card(...heading('補充空間條件'), el('label', {}, '天花板及管線備註',
     el('textarea', {oninput: event => {draft.conditions = event.target.value;}}, draft.conditions || '')), link('返回空間條件', 'read', true)),
   brief: () => grid(figure(image(), '用預設風格預覽'), card(...heading('說說你想要的家'),
-    el('label', {}, '想要什麼樣的家', el('textarea', {oninput:event => {draft.note = event.target.value;}}, draft.note)),
-    picker('參考圖', {accept:'image/*',multiple:''}, event => {
-      draft.refs = Array.from(event.target.files, f => f.name).join('、'); render(false);
-    }), draft.refs && el('small', {}, draft.refs),
-    actions(...draft.tags.map(tag => button(tag + ' ×', refresh(() => {draft.tags = draft.tags.filter(value => value !== tag);})))) ,
-    link('看風格建議', 'style', true))),
+    el('label', {}, '想要什麼樣的家', el('textarea', {
+      placeholder:'例如：客廳想明亮一點，也要有地方收玩具。',
+      oninput:event => {draft.note = event.target.value;},
+    }, draft.note)),
+    link('看風格建議', 'style', true),
+    el('details', {class:'brief-extras',...(draft.briefExtrasOpen ? {open:''} : {}),
+      ontoggle:event => {if (event.currentTarget.isConnected) draft.briefExtrasOpen = event.currentTarget.open;}},
+      el('summary', {}, '加參考圖或調整偏好'),
+      stack(picker('參考圖', {accept:'image/*',multiple:''}, event => {
+        draft.refs = Array.from(event.target.files, f => f.name).join('、');
+        render(false);
+      }), draft.refs && el('small', {}, draft.refs),
+      actions(draft.tags.map(tag => button(tag + ' ×', refresh(() => {draft.tags = draft.tags.filter(value => value !== tag);}))))))
+    )),
+
   style: () => grid(figure(image(), looks[draft.style], looks[draft.style] + '客廳示意'),
     card(...heading('初步推薦風格'),
       el('div', {class:'style-options',role:'group','aria-label':'風格方向'}, looks.map((name, i) =>
