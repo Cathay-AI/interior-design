@@ -16,6 +16,6 @@
 
 ## 部署架構
 
-![整體部署元件圖，實線為現行路徑，虛線為規劃元件](docs/visual/deployment/component-stack.png)
+![整體部署架構，對照現行 Vercel 原型與未來前端、後端、資料三層](docs/visual/deployment/component-stack.png)
 
 [部署架構與操作文件](docs/engineering/deployment.zh-TW.md)

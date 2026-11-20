@@ -2,9 +2,11 @@
 
 [English](deployment.md)
 
-![整體部署元件圖，實線為現行路徑，虛線為規劃元件](../visual/deployment/component-stack.png)
+![整體部署架構，對照現行 Vercel 原型與未來前端、後端、資料三層](../visual/deployment/component-stack.png)
 
-實線表示現行部署路徑，模型呼叫需有供應商設定。虛線表示規劃中的服務或連線。
+**現在。** Vercel 提供靜態前端及一支 Node.js 讀圖 Function。3D 與示意流程在瀏覽器跑，目前無產品資料庫。只有快找風格的真實平面圖解析會呼叫已設定的模型供應商。
+
+**未來。** 前端、API 與資料可分開部署。前端透過 Edge 接 DNS、TLS 與 CDN。API 負責讀圖、型錄與權限，模型仍由伺服器呼叫。PostgreSQL 存型錄與專案資料，圖片和 3D 大檔放物件儲存。
 
 - **現行部署。** 採用和 Music Taste Match 相同的 GitHub → Vercel 模式。`main` 建置正式站，PR 建置預覽。[建置腳本](../../scripts/build-site.sh) · [Vercel 設定](../../vercel.json) · [目前原型](https://interior-design-gules-pi.vercel.app/)
 - **免費起步。** 建議保留既有 Vercel，先平行驗證 Cloudflare Pages Free 的靜態展示。在 repo 根目錄用 `npm ci` 安裝依賴，建置命令為 `sh scripts/build-site.sh`，發佈目錄為 `dist/`，先用附的 `*.pages.dev` 網址。靜態請求免費且不限量，免費版每月 500 次建置、單檔上限 25 MiB。切換前先確認組織 repo 授權，並比對 `vercel.json` 的回應標頭。Fast Route 真實 AI 讀圖需要另外接 API 並編列用量預算。Vercel Hobby 限個人非商用，且無法直接連接 GitHub 組織擁有的 repo。[Pages 限額](https://developers.cloudflare.com/pages/platform/limits/) · [Pages 計費](https://developers.cloudflare.com/pages/functions/pricing/) · [GitHub 整合](https://developers.cloudflare.com/pages/configuration/git-integration/github-integration/) · [Vercel 方案](https://vercel.com/pricing) · [Git 整合限制](https://vercel.com/docs/limits#git)
@@ -42,6 +44,16 @@
 | DB、物件儲存 | 示意資料隨前端提供，部分進度留在瀏覽器。 | PostgreSQL 交付 schema、SQL migrations 與備份還原方式。素材二進位檔用 S3 相容儲存，交付公開及私有 bucket、權限與檔案清單。 |
 
 先以免費靜態展示起步。有登入、可搜尋素材庫或真實 AI 讀圖需求，再加入對應服務和預算。圖上的負載平衡是多來源才啟用的選項。[Vercel CDN](https://vercel.com/docs/cdn) · [快取設定](https://vercel.com/docs/headers/cache-control-headers) · [負載平衡元件](https://developers.cloudflare.com/load-balancing/understand-basics/load-balancing-components/) · [OIDC](https://openid.net/specs/openid-connect-core-1_0.html)
+
+## 雲端部署選擇
+
+| 優先考量 | 前端 | 後端與資料 | 取捨 |
+| --- | --- | --- | --- |
+| 最省成本做公開展示 | Cloudflare Pages Free 或 Workers Static Assets，沿用 `dist/` | 真實讀圖繼續留在 Vercel Function。靜態展示先用範例。 | 可先搬展示。若新站也要真實讀圖，切流前驗證同網域 `/api/read-plan` 的路由與上傳。 [Pages](https://developers.cloudflare.com/pages/) · [Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/) |
+| 最少改動推出可用版 | 保留 Vercel Edge 與現有靜態建置 | Vercel Functions、代管 PostgreSQL（例如 Neon）與 S3 相容儲存 | 延續現有部署入口，資料可獨立搬。先核對組織方案資格，並為無伺服器 API 設定連線池。 [Vercel 儲存整合](https://vercel.com/docs/marketplace-storage) |
+| 要控制執行環境或私有網路 | CloudFront + S3 來源 | ECS Fargate 上的 Node.js 容器、ALB、RDS for PostgreSQL、S3 素材 | 有容器或私有網路需求再選，搬遷前演練新增的路由、監控與備份工作。 [CloudFront 來源](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/DownloadDistS3AndCustomOrigins.html) · [ECS 負載平衡](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-load-balancing.html) · [RDS PostgreSQL](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_PostgreSQL.html) |
+
+以上是可選的遷移方向。維持公開網域和 API 契約，各層可按需求分開搬。
 
 ## 遷移彈性
 

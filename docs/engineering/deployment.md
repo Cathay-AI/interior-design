@@ -2,9 +2,11 @@
 
 [繁體中文](deployment.zh-TW.md)
 
-![Overall deployment diagram showing the current request path and proposed components](../visual/deployment/component-stack.png)
+![One deployment diagram comparing the current Vercel prototype with the proposed frontend, backend and data tiers](../visual/deployment/component-stack.png)
 
-Solid arrows show the current deployment, including the conditional model call. Dashed arrows show proposed integrations.
+**Now.** Vercel serves the static frontend and runs one Node.js read-plan Function. Browser 3D and the sample flows use no product database. Only Fast Route's real floor-plan parsing can call a model provider.
+
+**Next.** Keep the static frontend, API and data independently deployable. The frontend uses DNS, TLS and a CDN at the edge. The API owns model calls, catalog and authorization. PostgreSQL stores catalog and project metadata, and object storage serves the approved images and 3D files.
 
 - **Today.** GitHub → Vercel Git integration, the same delivery pattern as Music Taste Match. `main` builds production and pull requests get previews. [Build script](../../scripts/build-site.sh) · [Vercel config](../../vercel.json) · [Live prototype](https://interior-design-gules-pi.vercel.app/)
 - **Start with free hosting.** Keep the existing Vercel deployment and evaluate Cloudflare Pages Free in parallel for a static demo. From the repository root, run `npm ci` if dependencies are not already installed, build with `sh scripts/build-site.sh`, and publish `dist/` to the included `*.pages.dev` address. Static requests are free and unlimited. The free plan allows 500 builds per month and 25 MiB per file. Confirm access to the organization repo and reproduce the response headers in `vercel.json` before switching traffic. Real Fast Route parsing requires a separate API and usage budget. Vercel Hobby is for personal, non-commercial use and cannot connect directly to an organization-owned Git repository. [Pages limits](https://developers.cloudflare.com/pages/platform/limits/) · [Pages pricing](https://developers.cloudflare.com/pages/functions/pricing/) · [GitHub integration](https://developers.cloudflare.com/pages/configuration/git-integration/github-integration/) · [Vercel pricing](https://vercel.com/pricing) · [Git integration limits](https://vercel.com/docs/limits#git)
@@ -42,6 +44,16 @@ The production route returned HTTP 405 to a GET request, as designed. This verif
 | DB and object storage | Sample data ships with the frontend. Some progress stays in the browser. | Deliver PostgreSQL schema, SQL migrations and a backup/restore procedure. For binary assets, deliver S3-compatible bucket configuration, permissions and an object manifest. |
 
 Start with a free static demo. Add services and budget as sign-in, searchable assets, or real AI parsing become necessary. The optional load balancer is for multiple origins. [Vercel CDN](https://vercel.com/docs/cdn) · [Cache headers](https://vercel.com/docs/headers/cache-control-headers) · [Load-balancing components](https://developers.cloudflare.com/load-balancing/understand-basics/load-balancing-components/) · [OIDC](https://openid.net/specs/openid-connect-core-1_0.html)
+
+## Cloud deployment choices
+
+| Goal | Frontend | Backend and data | Main trade-off |
+| --- | --- | --- | --- |
+| Lowest-cost public demo | Cloudflare Pages Free or Workers Static Assets with the same `dist/` | Keep the existing Vercel Function for real parsing. The static demo uses sample data. | Move the demo first. To enable real parsing on the new site, add and verify same-origin routing for `/api/read-plan` before switching traffic. [Pages](https://developers.cloudflare.com/pages/) · [Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/) |
+| Fewest changes for a product pilot | Vercel Edge and existing static build | Vercel Functions, managed PostgreSQL such as Neon, and S3-compatible storage | Keep one deployment entry while making data independent. Check organizational plan eligibility and enable connection pooling for serverless access. [Vercel storage integrations](https://vercel.com/docs/marketplace-storage) |
+| More control over runtime and networking | CloudFront + an S3 origin | Node.js container on ECS Fargate behind an ALB, RDS for PostgreSQL, S3 for material assets | Choose this when container runtime or private networking is required. Rehearse the additional routing, monitoring and backup operations before cutting over. [CloudFront origins](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/DownloadDistS3AndCustomOrigins.html) · [ECS load balancing](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-load-balancing.html) · [RDS PostgreSQL](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_PostgreSQL.html) |
+
+The platforms above are migration candidates. Keep a stable public domain and API contract so each tier can move on its own.
 
 ## Migration options
 
