@@ -1,6 +1,5 @@
-"""Render the single deployment architecture diagram used in the docs."""
+"""Render the layerwise component diagram used by both deployment guides."""
 
-from html import escape
 from pathlib import Path
 
 from diagrams import Cluster, Diagram, Edge, Node
@@ -9,108 +8,113 @@ from diagrams import Cluster, Diagram, Edge, Node
 OUTPUT = Path(__file__).with_name("component-stack")
 INK = "#1f1d1a"
 PAPER = "#f6f4ef"
-NODE_STYLE = {
-    "shape": "plain",
-    "fontcolor": INK,
-    "fontname": "Helvetica",
-    "fontsize": "12",
-    "fixedsize": "false",
-    "width": "0",
-    "height": "0",
-}
+CURRENT = "#315376"
+PLANNED = "#54644e"
 
 
-def tier(title, detail, *components):
-    cards = "".join(
-        f'<TD BGCOLOR="#f6f4ef" BORDER="1" COLOR="#d7d2c8">'
-        f'<FONT POINT-SIZE="11">{escape(component)}</FONT></TD>'
-        for component in components
-    )
-    return Node(
-        '< <TABLE BORDER="1" COLOR="#b7b2a9" BGCOLOR="#fffdf8" '
-        'CELLBORDER="0" CELLSPACING="0" CELLPADDING="7" WIDTH="235">'
-        f'<TR><TD ALIGN="LEFT" BALIGN="LEFT"><B>{escape(title)}</B><BR/>'
-        f'<FONT POINT-SIZE="11" COLOR="#575750">{escape(detail)}</FONT></TD></TR>'
-        '<TR><TD ALIGN="LEFT"><TABLE BORDER="0" CELLBORDER="0" '
-        f'CELLSPACING="5" CELLPADDING="5"><TR>{cards}</TR></TABLE></TD></TR>'
-        '</TABLE> >'
-    )
-
-def stage(title, fill, outline):
+def layer(name, fill):
     return Cluster(
-        title,
+        name,
         graph_attr={
             "style": "rounded,filled",
             "fillcolor": fill,
-            "pencolor": outline,
+            "pencolor": "#c9c5bc",
             "fontcolor": INK,
             "fontname": "Helvetica",
             "fontsize": "13",
-            "margin": "14",
+            "labelloc": "t",
+            "labeljust": "l",
+            "margin": "20",
         },
     )
 
 
+def component(name, role, proposed=False):
+    return Node(
+        f"{name}\n{role}",
+        color=PLANNED if proposed else CURRENT,
+        fillcolor="#f9fbf6" if proposed else "#f9fbfd",
+        style="filled,dashed" if proposed else "filled",
+    )
+
+
+def row(group, *components):
+    with group.dot.subgraph() as same_rank:
+        same_rank.attr(rank="same")
+        for item in components:
+            same_rank.node(item.nodeid)
+        for left, right in zip(components, components[1:]):
+            same_rank.edge(left.nodeid, right.nodeid, style="invis", weight="40")
+
+
+def planned_link():
+    return Edge(color=PLANNED, style="dashed", arrowsize="0.65")
+
+
 with Diagram(
-    "Interior Design · deployment",
+    "Interior Design · deployment components",
     filename=str(OUTPUT),
     direction="TB",
+    outformat="png",
     show=False,
     graph_attr={
+        "label": '< <B>Interior Design · deployment components</B><BR ALIGN="LEFT"/>'
+                 '<FONT POINT-SIZE="12">Solid: current deployment    ·    Dashed: proposed components and routes</FONT> >',
         "bgcolor": PAPER,
         "fontcolor": INK,
         "fontname": "Helvetica",
-        "fontsize": "20",
+        "fontsize": "22",
         "labeljust": "l",
         "labelloc": "t",
-        "pad": "0.22",
-        "ranksep": "0.27",
-        "nodesep": "0.34",
+        "pad": "0.30",
+        "ranksep": "0.38",
+        "nodesep": "0.36",
         "splines": "ortho",
         "newrank": "true",
-        "dpi": "105",
+        "dpi": "120",
     },
-    node_attr=NODE_STYLE,
-    edge_attr={"color": "#69675f", "arrowsize": "0.55"},
-) as chart:
-    with stage("Current · Vercel prototype", "#eaf0f8", "#a3afbd"):
-        current_web = tier(
-            "Frontend and delivery", "One Vercel project · 3D in the browser",
-            "Vercel Edge", "Static dist/", "WebGL",
-        )
-        current_api = tier(
-            "Backend", "Same project · Fast Route parsing",
-            "Node.js Function", "POST /api/read-plan",
-        )
-        current_model = tier(
-            "Model API", "Server-side call if configured · no product database",
-            "OpenAI", "Anthropic",
-        )
+    node_attr={
+        "shape": "component",
+        "fontcolor": INK,
+        "fontname": "Helvetica",
+        "fontsize": "12",
+        "labelloc": "c",
+        "fixedsize": "false",
+        "width": "1.65",
+        "height": "0.72",
+        "margin": "0.16,0.11",
+        "penwidth": "1.25",
+    },
+    edge_attr={"color": CURRENT, "penwidth": "1.3", "arrowsize": "0.65"},
+):
+    with layer("01  ENTRY / CLIENT", "#f0ede6") as entry:
+        browser = component("Browser", "HTML / JS / WebGL")
+        domain = component("Registrar + DNS", "Custom domain / renewal", proposed=True)
+        row(entry, browser, domain)
 
-        current_web >> current_api >> Edge(color="#a8482f") >> current_model
+    with layer("02  DELIVERY", "#eaf0f8") as delivery:
+        static = component("Vercel static host", "dist/")
+        edge = component("Vercel Edge", "HTTPS / CDN cache")
+        row(delivery, static, edge)
 
-    with stage("Future · separately deployable tiers", "#eaf0e7", "#a1ad9e"):
-        future_web = tier(
-            "Frontend and delivery", "CDN cache · load balancing when needed",
-            "Registrar / DNS", "TLS / CDN", "Static dist/",
-        )
-        future_api = tier(
-            "Backend and connections", "Read plan + catalog · API enforces access",
-            "Node.js API", "OIDC Auth", "LLM API",
-        )
-        future_data = tier(
-            "Data and materials", "Database metadata · public/private file buckets",
-            "PostgreSQL", "Object storage",
-        )
+    with layer("03  BACKEND", "#f4ede4") as backend:
+        read_plan = component("Node.js Function", "POST /api/read-plan")
+        catalog = component("Catalog API", "GET /api/materials", proposed=True)
+        row(backend, read_plan, catalog)
 
-        future_web >> future_api >> future_data
+    with layer("04  DATA / EXTERNAL", "#eaf0e7") as dependencies:
+        model = component("LLM API", "OpenAI or Anthropic, if configured")
+        identity = component("Managed Auth", "OIDC identity", proposed=True)
+        db = component("PostgreSQL", "Catalog metadata", proposed=True)
+        storage = component("Object storage", "Images / GLB files", proposed=True)
+        row(dependencies, model, identity, db, storage)
 
-    for current, future in (
-        (current_web, future_web),
-        (current_api, future_api),
-        (current_model, future_data),
-    ):
-        with chart.dot.subgraph() as row:
-            row.attr(rank="same")
-            row.node(current.nodeid)
-            row.node(future.nodeid)
+    browser >> edge
+    domain >> planned_link() >> edge
+    edge >> static
+    edge >> read_plan
+    edge >> planned_link() >> catalog
+    read_plan >> Edge(color="#a8482f", arrowsize="0.65") >> model
+    catalog >> planned_link() >> identity
+    catalog >> planned_link() >> db
+    catalog >> planned_link() >> storage

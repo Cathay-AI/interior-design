@@ -2,7 +2,9 @@
 
 [繁體中文](deployment.zh-TW.md)
 
-![One deployment diagram comparing the current Vercel prototype with the proposed frontend, backend and data tiers](../visual/deployment/component-stack.png)
+![Layerwise deployment component diagram with solid lines for current and dashed lines for proposed components](../visual/deployment/component-stack.png)
+
+Read the diagram from entry through delivery and backend to data and external services. Each box is a component. Solid blue lines show current paths, a solid red line marks the backend model call, and dashed green lines show proposed components and paths.
 
 **Now.** Vercel serves the static frontend and runs one Node.js read-plan Function. Browser 3D and the sample flows use no product database. Only Fast Route's real floor-plan parsing can call a model provider.
 

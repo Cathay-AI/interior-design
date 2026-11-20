@@ -2,7 +2,9 @@
 
 [English](deployment.md)
 
-![整體部署架構，對照現行 Vercel 原型與未來前端、後端、資料三層](../visual/deployment/component-stack.png)
+![由上到下的部署元件圖，實線表示現行，虛線表示提案](../visual/deployment/component-stack.png)
+
+圖由入口、前端交付、後端、資料與外部服務往下讀。每個方塊是一個元件，藍色實線表示現行路徑，紅色實線標示後端對模型的呼叫，綠色虛線表示未來元件與連線。
 
 **現在。** Vercel 提供靜態前端及一支 Node.js 讀圖 Function。3D 與示意流程在瀏覽器跑，目前無產品資料庫。只有快找風格的真實平面圖解析會呼叫已設定的模型供應商。
 

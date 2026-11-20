@@ -16,6 +16,6 @@ Describe your space with **voice or text and reference images**. Explore a **3D 
 
 ## Deployment
 
-![One deployment diagram comparing the current Vercel prototype with the proposed frontend, backend and data tiers](docs/visual/deployment/component-stack.png)
+![Layerwise deployment component diagram with solid lines for current and dashed lines for proposed components](docs/visual/deployment/component-stack.png)
 
 [Deployment guide](docs/engineering/deployment.md)
