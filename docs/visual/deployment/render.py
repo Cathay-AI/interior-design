@@ -1,171 +1,116 @@
-"""Render the README deployment and material-library diagrams."""
+"""Render the single deployment architecture diagram used in the docs."""
 
 from html import escape
 from pathlib import Path
 
-import diagrams
 from diagrams import Cluster, Diagram, Edge, Node
-from diagrams.generic.network import Router
-from diagrams.onprem.client import Client
-from diagrams.onprem.compute import Server
-from diagrams.onprem.database import Postgresql
-from diagrams.onprem.vcs import Github
-from diagrams.programming.language import NodeJS
-from diagrams.saas.cdn import Cloudflare
 
 
-OUTPUT_DIR = Path(__file__).parent
-PAPER = "#f6f4ef"
+OUTPUT = Path(__file__).with_name("component-stack")
 INK = "#1f1d1a"
-ACCENT = "#a8482f"
-BUILD = "#eeeae3"
-FRONTEND = "#eaf0f8"
-SERVICE = "#f4e9e2"
-DATA = "#eaf0e7"
-
-DIAGRAM_STYLE = {
-    "bgcolor": PAPER,
-    "fontname": "Helvetica",
-    "fontcolor": INK,
-    "fontsize": "23",
-    "labelloc": "t",
-    "labeljust": "l",
-    "pad": "0.27",
-    "ranksep": "0.38",
-    "nodesep": "0.5",
-    "splines": "ortho",
-    "dpi": "105",
-}
+PAPER = "#f6f4ef"
 NODE_STYLE = {
+    "shape": "plain",
     "fontcolor": INK,
     "fontname": "Helvetica",
-    "fontsize": "14",
-    "shape": "plain",
+    "fontsize": "12",
     "fixedsize": "false",
     "width": "0",
     "height": "0",
 }
-EDGE_STYLE = {"color": "#766e64", "arrowsize": "0.65", "penwidth": "1.4"}
 
 
-def diagram(title, filename):
-    return Diagram(
-        title,
-        filename=str(OUTPUT_DIR / filename),
-        direction="TB",
-        outformat="png",
-        show=False,
-        graph_attr=DIAGRAM_STYLE,
-        node_attr=NODE_STYLE,
-        edge_attr=EDGE_STYLE,
+def tier(title, detail, *components):
+    cards = "".join(
+        f'<TD BGCOLOR="#f6f4ef" BORDER="1" COLOR="#d7d2c8">'
+        f'<FONT POINT-SIZE="11">{escape(component)}</FONT></TD>'
+        for component in components
+    )
+    return Node(
+        '< <TABLE BORDER="1" COLOR="#b7b2a9" BGCOLOR="#fffdf8" '
+        'CELLBORDER="0" CELLSPACING="0" CELLPADDING="7" WIDTH="235">'
+        f'<TR><TD ALIGN="LEFT" BALIGN="LEFT"><B>{escape(title)}</B><BR/>'
+        f'<FONT POINT-SIZE="11" COLOR="#575750">{escape(detail)}</FONT></TD></TR>'
+        '<TR><TD ALIGN="LEFT"><TABLE BORDER="0" CELLBORDER="0" '
+        f'CELLSPACING="5" CELLPADDING="5"><TR>{cards}</TR></TABLE></TD></TR>'
+        '</TABLE> >'
     )
 
-
-def layer(title, color):
+def stage(title, fill, outline):
     return Cluster(
         title,
         graph_attr={
             "style": "rounded,filled",
-            "fillcolor": color,
-            "bgcolor": color,
-            "pencolor": "#b9b0a5",
+            "fillcolor": fill,
+            "pencolor": outline,
             "fontcolor": INK,
             "fontname": "Helvetica",
-            "fontsize": "14",
-            "margin": "20",
+            "fontsize": "13",
+            "margin": "14",
         },
     )
 
 
-def service(icon, name, detail):
-    # Diagrams' provider icons are packaged separately from the Python modules.
-    icon_path = Path(diagrams.__file__).parent.parent / icon._icon_dir / icon._icon
-    return Node(
-        '< <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2">'
-        f'<TR><TD WIDTH="56" HEIGHT="56" FIXEDSIZE="TRUE">'
-        f'<IMG SRC="{escape(str(icon_path))}" SCALE="TRUE"/></TD></TR>'
-        f'<TR><TD><B>{escape(name)}</B></TD></TR>'
-        f'<TR><TD><FONT POINT-SIZE="11">{escape(detail)}</FONT></TD></TR>'
-        '</TABLE> >'
-    )
+with Diagram(
+    "Interior Design · deployment",
+    filename=str(OUTPUT),
+    direction="TB",
+    show=False,
+    graph_attr={
+        "bgcolor": PAPER,
+        "fontcolor": INK,
+        "fontname": "Helvetica",
+        "fontsize": "20",
+        "labeljust": "l",
+        "labelloc": "t",
+        "pad": "0.22",
+        "ranksep": "0.27",
+        "nodesep": "0.34",
+        "splines": "ortho",
+        "newrank": "true",
+        "dpi": "105",
+    },
+    node_attr=NODE_STYLE,
+    edge_attr={"color": "#69675f", "arrowsize": "0.55"},
+) as chart:
+    with stage("Current · Vercel prototype", "#eaf0f8", "#a3afbd"):
+        current_web = tier(
+            "Frontend and delivery", "One Vercel project · 3D in the browser",
+            "Vercel Edge", "Static dist/", "WebGL",
+        )
+        current_api = tier(
+            "Backend", "Same project · Fast Route parsing",
+            "Node.js Function", "POST /api/read-plan",
+        )
+        current_model = tier(
+            "Model API", "Server-side call if configured · no product database",
+            "OpenAI", "Anthropic",
+        )
 
+        current_web >> current_api >> Edge(color="#a8482f") >> current_model
 
-def same_row(cluster, *nodes):
-    with cluster.dot.subgraph() as row:
-        row.attr(rank="same")
-        for node in nodes:
-            row.node(node.nodeid)
+    with stage("Future · separately deployable tiers", "#eaf0e7", "#a1ad9e"):
+        future_web = tier(
+            "Frontend and delivery", "CDN cache · load balancing when needed",
+            "Registrar / DNS", "TLS / CDN", "Static dist/",
+        )
+        future_api = tier(
+            "Backend and connections", "Read plan + catalog · API enforces access",
+            "Node.js API", "OIDC Auth", "LLM API",
+        )
+        future_data = tier(
+            "Data and materials", "Database metadata · public/private file buckets",
+            "PostgreSQL", "Object storage",
+        )
 
+        future_web >> future_api >> future_data
 
-with diagram("Current deployment · Vercel", "deployment"):
-    with layer("Build", BUILD):
-        repo = service(Github, "GitHub", "main / pull requests")
-    with layer("Frontend", FRONTEND) as frontend:
-        static = service(Server, "Vercel static site", "dist/")
-        browser = service(Client, "Browser", "Three.js / WebGL")
-        edge = service(Server, "Vercel edge", "Managed CDN / cache")
-        same_row(frontend, static, edge, browser)
-    with layer("Service", SERVICE):
-        read_plan = service(NodeJS, "Vercel Node.js Function", "Fast Route · POST /api/read-plan")
-    with layer("External", DATA):
-        model = service(Server, "OpenAI / Anthropic", "Usage billed separately")
-
-    repo >> static >> edge >> browser
-    edge >> Edge(style="dashed") >> read_plan
-    read_plan >> Edge(color=ACCENT) >> model
-
-with diagram("Proposed free static demo", "free-static-preview"):
-    with layer("Build and delivery", BUILD) as build:
-        source = service(Github, "GitHub", "Same build script")
-        pages = service(Cloudflare, "Cloudflare Pages Free", "dist/ · *.pages.dev")
-        same_row(build, source, pages)
-    with layer("Frontend", FRONTEND):
-        browser = service(Client, "Browser", "3D and sample data")
-
-    source >> pages >> browser
-
-with diagram("Future material library · proposal", "material-library"):
-    with layer("Frontend", FRONTEND):
-        browser = service(Client, "Browser", "Browse materials")
-    with layer("Service + CDN", SERVICE) as services:
-        catalog = service(NodeJS, "Catalog API", "GET /api/materials")
-        cdn = service(Cloudflare, "CDN", "Approved asset URLs")
-        same_row(services, catalog, cdn)
-    with layer("Data", DATA) as data:
-        metadata = service(Postgresql, "PostgreSQL", "Metadata + object keys")
-        files = service(Cloudflare, "R2 object storage", "Published files")
-        same_row(data, metadata, files)
-
-    browser >> catalog >> metadata
-    browser >> cdn >> files
-
-
-with diagram("Future components · proposal", "component-stack"):
-    with layer("Domain", BUILD) as domain:
-        registrar = service(Server, "Registrar", "Register / renew")
-        dns = service(Server, "DNS", "Point domain to edge")
-        same_row(domain, registrar, dns)
-    with layer("Frontend", FRONTEND):
-        browser = service(Client, "Browser", "Static UI / 3D")
-    with layer("Edge", FRONTEND):
-        edge = service(Router, "HTTPS edge", "CDN cache / optional LB")
-    with layer("Backend", SERVICE) as backend:
-        frontend = service(Server, "Static host", "dist/")
-        api = service(NodeJS, "Node.js API", "Read plan / catalog")
-        identity = service(Server, "Managed Auth", "OIDC identity provider")
-        same_row(backend, frontend, api, identity)
-    with layer("Data + AI", DATA) as dependencies:
-        db = service(Postgresql, "PostgreSQL", "Catalog metadata")
-        objects = service(Cloudflare, "Object storage", "Published materials")
-        models = service(Server, "LLM API", "OpenAI / Anthropic")
-        same_row(dependencies, db, objects, models)
-
-    registrar >> dns
-    dns >> Edge(style="dashed") >> edge
-    browser >> edge
-    edge >> frontend
-    edge >> api
-    edge >> objects
-    api >> identity
-    api >> db
-    api >> Edge(color=ACCENT) >> models
+    for current, future in (
+        (current_web, future_web),
+        (current_api, future_api),
+        (current_model, future_data),
+    ):
+        with chart.dot.subgraph() as row:
+            row.attr(rank="same")
+            row.node(current.nodeid)
+            row.node(future.nodeid)
