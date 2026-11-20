@@ -521,6 +521,12 @@ function scanningPage() {
         el('a', {href:href('read'),class:'button primary',onclick:confirmSource}, '查看解析結果'))), 'scan-grid');
 }
 
+function changeLayoutStep(offset) {
+  draft.step += offset;
+  render(false);
+  screen.querySelector('#layout-question').focus();
+}
+
 function profilePage() {
   const proposed = proposedOpenKitchen();
   const original = homeCosts(false);
@@ -541,7 +547,7 @@ function profilePage() {
     el('div', {class:'profile-total',role:'status','aria-label':'整戶估價'},
       el('small', {}, isOriginal ? '整戶 · 原本估算' : '整戶 · 調整後估算'),
       el('strong', {}, price(sumCosts(displayed.wholeHome))))),
-    card(...heading('你的居家人格'),
+    card(el('h1', {id:'profile-title',tabindex:'-1'}, '你的居家人格'),
       el('div', {class:'profile-personality'}, el('small', {}, '你的選擇'),
         el('h2', {}, proposed ? '窩居料理派' : '自然實用派'),
         el('p', {}, draft.answers.filter(Boolean).join(' · ') || '回精修格局補上選擇。')),
@@ -691,11 +697,11 @@ const pages = {
     return grid(stack(...heading('格局精修', '第 ' + (draft.step + 1) + ' 關／5 · ' + ['回家','怎麼煮','怎麼收','怎麼睡','誰會來'][draft.step]),
       plan(false, draft.layoutPreview && proposedOpenKitchen()),
       el('p', {}, draft.layoutPreview && proposedOpenKitchen() ? '示意調整：開放廚房與中島' : '原本平面')),
-      card(el('h2', {}, prompt), actions(...choices.map(choice =>
+      card(el('h2', {id:'layout-question',tabindex:'-1'}, prompt), actions(...choices.map(choice =>
         button(choice, refresh(() => {draft.answers[draft.step] = choice; draft.profileOriginal = false;}), choice === draft.answers[draft.step]))),
         button('預覽調整／原本平面', refresh(() => {draft.layoutPreview = !draft.layoutPreview;}), draft.layoutPreview),
-        actions(draft.step > 0 && button('上一關', refresh(() => {draft.step--;})),
-          draft.step < 4 ? button('下一關', refresh(() => {draft.step++;}), null, 'primary') : link('看居家人格', 'profile', 'button primary'))));
+        actions(draft.step > 0 && button('上一關', () => changeLayoutStep(-1)),
+          draft.step < 4 ? button('下一關', () => changeLayoutStep(1), null, 'primary') : link('看居家人格', 'profile', 'button primary'))));
   },
   profile: profilePage,
   compliance: () => {
@@ -833,7 +839,9 @@ function render(focus = true) {
     screen.replaceChildren(el('aside', {class:'example-banner'},
       el('strong', {}, '範例的家 · 示意'), el('a', {href:'#entry'}, '回首頁')), layout);
   } else screen.replaceChildren(layout);
-  if (focus) {
+  if (focus && page === 'profile') {
+    screen.querySelector('#profile-title').focus();
+  } else if (focus) {
     screen.focus({preventScroll:true});
     window.scrollTo(0,0);
   }

@@ -52,7 +52,7 @@ button[aria-pressed=true],.primary{background:var(--oak);border-color:var(--oak)
   color:var(--oak-dark);font-weight:600;text-underline-offset:.2em;
 }
 .text-link:hover{text-decoration-thickness:2px}
-:where(button,a,input,textarea,select,summary):focus-visible{
+:where(button,a,input,textarea,select,summary,#layout-question,#profile-title):focus-visible{
   outline:var(--focus-ring);outline-offset:2px;
 }
 button:disabled{opacity:.5;cursor:default;box-shadow:none;outline:none}
@@ -130,7 +130,7 @@ footer a{color:inherit;text-underline-offset:.2em}
 .room-preview[data-view="平面"] .view-modes{position:static;width:fit-content;margin-bottom:.6rem}
 .room-preview .hotspot{
   position:absolute;top:66%;left:73%;width:44px;height:44px;transform:translate(-10px,-10px);
-  display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:transparent;box-shadow:none;
+  display:grid;place-items:center;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;
 }
 .room-preview .hotspot::before{
   content:"";width:24px;height:24px;border:2px solid white;border-radius:50%;

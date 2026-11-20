@@ -5,8 +5,82 @@ const base = process.argv[2] ?? 'http://127.0.0.1:5173/';
 const browser = await chromium.launch();
 const projectFailures = [];
 const projectOnly = process.argv[3] === '--project-only';
+const desktopAndMobile = [{width:1440,height:900}, {width:390,height:844}];
+const controlsOnly = process.argv[3] === '--controls-only';
+async function checkControlTargets() {
+  const failures = [];
+  for (const viewport of [...desktopAndMobile, {width:380,height:844}]) {
+    const {width} = viewport;
+    const mobile = width < 400;
+    const page = await browser.newPage({viewport,hasTouch:mobile});
+    const capture = name => process.env.WIREFRAME_SCREENSHOTS && page.screenshot({
+      path:process.env.WIREFRAME_SCREENSHOTS + '/' + name + '-' + width + '.png',
+    });
+    const check = async (name, run) => {
+      try {
+        await run();
+        console.log(width + ' px：' + name + '通過');
+      } catch (error) {
+        failures.push(width + ' px：' + name + ' ' + error.message);
+      }
+    };
+    await check('格局換關焦點', async () => {
+      await page.goto(base + '#unlock?project=oak');
+      await page.getByRole('button', {name:'示意解鎖',exact:true}).click();
+      const expectFocus = async (heading, evidence) => {
+        await page.getByRole('heading', {name:heading,exact:true}).waitFor({timeout:5000});
+        const active = await page.evaluate(() => ({
+          tag:document.activeElement.tagName,
+          text:document.activeElement.matches('h1,h2,button') ? document.activeElement.textContent.trim() : '',
+        }));
+        if (evidence) await capture(evidence);
+        assert.deepEqual(active, {tag:heading === '你的居家人格' ? 'H1' : 'H2',text:heading});
+      };
+      const enter = (name, role = 'button') => page.getByRole(role, {name,exact:true}).press('Enter');
+      await enter('下一關');
+      await expectFocus('怎麼煮？', 'layout-next-focus');
+      await page.keyboard.press('Tab');
+      assert(await page.getByRole('button', {name:'天天煮',exact:true}).evaluate(node => node === document.activeElement));
+      await enter('上一關');
+      await expectFocus('怎麼回家？', 'layout-previous-focus');
+      for (const heading of ['怎麼煮？','怎麼收？','怎麼睡？','誰會來？']) {
+        await enter('下一關');
+        await expectFocus(heading);
+      }
+      await enter('看居家人格', 'link');
+      await expectFocus('你的居家人格', 'layout-result-focus');
+    });
+    await check('家具熱點四角', async () => {
+      const hotspot = page.getByRole('link', {name:'查看家具與材質',exact:true});
+      const missed = [];
+      for (const [name, horizontal, vertical] of [['左上',0,0],['右上',1,0],['左下',0,1],['右下',1,1]]) {
+        await page.goto(base + '#result?project=oak');
+        await hotspot.scrollIntoViewIfNeeded();
+        const box = await hotspot.boundingBox();
+        assert(box?.width >= 44 && box.height >= 44);
+        const x = box.x + (horizontal ? box.width - 1 : 1);
+        const y = box.y + (vertical ? box.height - 1 : 1);
+        const hit = await hotspot.evaluate((node, point) =>
+          node.contains(document.elementFromPoint(point.x, point.y)), {x,y});
+        if (mobile) await page.touchscreen.tap(x,y);
+        else await page.mouse.click(x,y);
+        if (!hit) {
+          missed.push(name);
+          if (name === '左上') await capture('hotspot-corner-missed');
+          continue;
+        }
+        await page.getByRole('heading', {name:'家具與材質',exact:true}).waitFor({timeout:5000});
+        if (name === '左上') await capture('hotspot-corner-opened');
+      }
+      assert.deepEqual(missed, [], '44 × 44 px 內應無遮擋，未命中角落');
+    });
+    await page.close();
+  }
+  assert.equal(failures.length, 0, failures.join('\n'));
+}
 try {
-  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+  if (!projectOnly) await checkControlTargets();
+  for (const viewport of controlsOnly ? [] : desktopAndMobile) {
     const page = await browser.newPage({ viewport });
     await page.addInitScript(() => {
       const projections = new WeakMap();
@@ -318,15 +392,6 @@ try {
     await sofaSwap.waitFor({timeout:2000});
     await chairSwap.waitFor({timeout:2000});
     await capture('living', false);
-    const furnitureHotspot = page.getByRole('link', {name:'查看家具與材質', exact:true});
-    await furnitureHotspot.scrollIntoViewIfNeeded();
-    assert(await furnitureHotspot.evaluate(node => {
-      const {x,y,width,height} = node.getBoundingClientRect();
-      return width >= 44 && height >= 44 && node.contains(document.elementFromPoint(x + width / 2, y + 4));
-    }), '家具熱點應可點到 24 px 圖示之外');
-    await furnitureHotspot.click({position:{x:22,y:4}});
-    await page.getByRole('heading', {name:'家具與材質', exact:true}).waitFor();
-    await link('看更新後報價');
     const livingPhoto = page.getByRole('img', {name:'客廳 · 完工示意'});
     const expectVariant = async (asset, estimate) => {
       await page.locator('.result-quote > .price').filter({hasText:estimate}).waitFor();
