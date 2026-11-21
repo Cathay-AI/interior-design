@@ -386,17 +386,23 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await main.getByText('已選 1／3 組', {exact:true}).waitFor();
   });
 
-  await step('14 送出完成與名單鎖定', async () => {
+  await step('14 送出完成、名單與報價快照鎖定', async () => {
     await button('送出交接包，約現場丈量').click();
     await title('送出了。接下來等團隊回覆。');
     assert.equal(await route(), 'sent');
-    await main.getByText('示意團隊 B 已收到 3D、施工圖和報價清單', {exact:false}).waitFor();
+    const sentCaption = await main.locator('.media .floating').textContent();
+    await main.getByText('示意團隊 B 已收到第', {exact:false}).waitFor();
     await main.getByText('示意送件・沒有發送任何資料').waitFor();
     await page.goBack();
     await title('找人把它做出來');
     assert.equal(await button(/^示意團隊 C/).isDisabled(), true, '送出後團隊選項須鎖定');
-    await link('看送出紀錄').click();
-    await main.getByText('示意團隊 B 已收到 3D、施工圖和報價清單', {exact:false}).waitFor();
+    const id = new URL(page.url()).hash.split('project=')[1];
+    await page.goto(base + '#edit?project=' + id);
+    await main.locator('.edit-stage-add').click();
+    await button('＋ 地毯').click();
+    await page.goto(base + '#sent?project=' + id);
+    assert.equal(await main.locator('.media .floating').textContent(), sentCaption, '送件後繼續編輯不可改寫原送出完成頁報價');
+    await main.getByText('你之後已編輯到第', {exact:false}).waitFor();
   });
 
   await step('14b LINE 通知示意', async () => {
@@ -404,18 +410,20 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await title('LINE 通知長這樣');
     assert.equal(await main.locator('.notice-list li').count(), 3);
     await main.getByText('示意團隊 B 想約你丈量').waitFor();
-    await button(/^選時段：本週六/).click();
-    await main.getByText('已記錄示意丈量時段', {exact:false}).waitFor();
+    await button('選時段：本週六 10:00').click();
+    await main.getByText('已選 本週六 10:00。這是示意，不會發送預約。').waitFor();
     await link('回送出完成').waitFor();
   });
 
-  await step('03b 空間條件（掃描檔）', async () => {
+  await step('03b 空間條件（掃描檔，含導覽跳轉一致）', async () => {
     await page.goto(base + '#entry');
     await page.locator('#entry-title').waitFor();
     await upload('living-room.usdz');
     await title('正在讀你的掃描檔');
-    await link('看我讀到什麼').click();
+    const id = new URL(page.url()).hash.split('project=')[1];
+    await page.goto(base + '#read?project=' + id);
     await title('量好的，直接用');
+    await main.getByText('living-room.usdz').waitFor();
     await main.getByText('空間條件 96%').waitFor();
     assert.equal(await main.getByText('範例尺寸').count() >= 4, true, '掃描檔須標範例尺寸');
     assert.equal(await main.getByText('實測').count(), 0, '示意版不可標成實測');

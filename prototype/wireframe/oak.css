@@ -68,6 +68,7 @@ ul{padding-inline-start:1.25rem}
 .rows{padding:0;margin:0;list-style:none}
 .rows li{display:flex;justify-content:space-between;gap:1rem;padding:.7rem 0;border-bottom:1px solid var(--line)}
 .badge{font-size:.8rem;color:var(--green-text);white-space:nowrap}
+.badge.neutral{color:#605b54}
 .paid{color:var(--red)}
 label{display:block;margin-bottom:.65rem}
 textarea,select,input[type=url],input[type=text]{display:block;width:100%;min-height:44px;padding:.6rem .75rem;border:1px solid var(--line);border-radius:12px;font:inherit;background:white;color:inherit}
