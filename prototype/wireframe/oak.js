@@ -1423,17 +1423,20 @@ const pages = {
             }}, '送出交接包，約現場丈量'))));
   },
   sent: () => {
-    const snap = draft.sentSnapshot;
-    const sentList = snap?.teams ?? draft.sentTeams;
-    const names = sentList.length ? sentList.map(index => teams[index][0]).join('、') : '尚未送出名單';
-    const sentVer = snap?.layoutVersion ?? draft.layoutVersion;
-    const sentRoom = snap?.room ?? rooms[draft.room];
-    const sentEst = snap?.estimate ?? estimate();
-    const drifted = snap && draft.layoutVersion !== snap.layoutVersion;
+    const snap = draft.sent ? draft.sentSnapshot : null;
+    if (!snap) {
+      return grid(figure(projectPhoto(), '目前設計（第 ' + draft.layoutVersion + ' 版）・尚未送出交接包'),
+        card(eyebrow('03', '交給團隊'), ...heading('尚未送出交接包', '你還沒有送出，或剛才已重設示意送件。'),
+          el('p', {class:'panel-note',role:'status'}, '目前沒有送出紀錄。請回到「交給團隊」勾選要聯絡你的團隊並按送出，這裡才會保留該版本的送件快照。'),
+          actions(link('回這個家', 'project'), link('去選團隊', 'team', 'button primary'))));
+    }
+    const names = snap.teams.map(index => teams[index][0]).join('、');
+    const sentVer = snap.layoutVersion;
+    const drifted = draft.layoutVersion !== sentVer;
     const steps = [['交接包送出了', names + ' 已收到第 ' + sentVer + ' 版的 3D、施工圖和報價清單（示意紀錄，已鎖定送出名單與報價）'],
       ['團隊回覆丈量時段', '回覆時間待確認；正式上線後會用 LINE 通知你（示意，這次不會傳訊息）'],
       ['現場丈量', '施工圖依實際尺寸定稿'], ['正式報價與簽約', '由你和團隊直接談']];
-    return grid(figure(snap?.photo ?? projectPhoto(), '送出當下（第 ' + sentVer + ' 版）・' + sentRoom + '初步報價 ' + sentEst),
+    return grid(figure(snap.photo, '送出當下（第 ' + sentVer + ' 版）・' + snap.room + '初步報價 ' + snap.estimate),
       card(eyebrow('03', '交給團隊'), ...heading('送出了。接下來等團隊回覆。', '示意送件・沒有發送任何資料'),
         el('ol', {class:'scan-steps','aria-label':'接下來'}, steps.map(([name, note], i) =>
           el('li', {class:'scan-step','data-state':i ? '待處理' : '已完成'},
@@ -1444,13 +1447,22 @@ const pages = {
         actions(link('回這個家', 'project'), link('看 LINE 通知長什麼樣', 'notices', 'button primary'))));
   },
   notices: () => {
-    const sentList = draft.sentSnapshot?.teams ?? draft.sentTeams;
-    const first = teams[sentList[0] ?? 0][0];
-    const estText = draft.sentSnapshot?.estimate ?? price(sumCosts(roomCostItems(0)));
-    const notes = [['生成完成時', '你家的 3D 好了', '客廳・' + looks[draft.style] + '，初步報價 ' + estText + '。', '打開看', 'result'],
-      ['設計師覆核完成時', '施工圖 ' + drawingSheets().length + ' 張都覆核好了', '可以下載，或直接交給團隊。', '看施工圖', 'drawings'],
-      ['團隊回覆時', first + ' 想約你丈量', '提了兩個現場丈量時段，請選擇方便的時間。（最多只會有 3 組團隊聯絡你）', '選時段', 'slot']];
+    const snap = draft.sent ? draft.sentSnapshot : null;
+    const ver = snap ? snap.layoutVersion : draft.layoutVersion;
+    const estText = snap ? snap.estimate : price(sumCosts(roomCostItems(0)));
+    const drifted = Boolean(snap && draft.layoutVersion !== snap.layoutVersion);
+    const openLabel = drifted ? '打開看（目前第 ' + draft.layoutVersion + ' 版）' : '打開看（第 ' + ver + ' 版）';
+    const drawLabel = drifted ? '看施工圖（目前第 ' + draft.layoutVersion + ' 版）' : '看施工圖（第 ' + ver + ' 版）';
+    const thirdCard = snap
+      ? ['團隊回覆時', teams[snap.teams[0]][0] + ' 想約你丈量', '對應第 ' + ver + ' 版交接包，提了兩個現場丈量時段，請選擇方便的時間。（最多只會有 3 組團隊聯絡你）', '選時段', 'slot']
+      : ['團隊回覆時', '送出後團隊會從這裡約丈量', '目前尚未送出交接包；送出後，你選的團隊會在此提現場丈量時段。', '去選團隊', 'team'];
+    const notes = [
+      ['生成完成時', '你家的 3D 好了', '第 ' + ver + ' 版・' + (snap?.room ?? '客廳') + '・' + looks[draft.style] + '，初步報價 ' + estText + '。', openLabel, 'result'],
+      ['設計師覆核完成時', '施工圖 ' + drawingSheets().length + ' 張都覆核好了', '對應第 ' + ver + ' 版，可以下載或直接交給團隊。', drawLabel, 'drawings'],
+      thirdCard,
+    ];
     return card(eyebrow('03', 'LINE 通知'), ...heading('LINE 通知長這樣', '示意畫面・LINE 官方帳號還沒開通，不會真的傳訊息。'),
+      drifted && el('p', {class:'panel-note',role:'status'}, '以下通知對應已送出的第 ' + ver + ' 版（' + estText + '）。你目前已編輯到第 ' + draft.layoutVersion + ' 版（目前' + rooms[draft.room] + '初步報價 ' + estimate() + '），點下方按鈕會開啟目前最新的第 ' + draft.layoutVersion + ' 版。'),
       el('div', {class:'line-chat'},
         el('div', {class:'line-chat-head'}, el('span', {}, '亮亮室內設計'), el('small', {}, 'LINE 官方帳號示意')),
         el('ul', {class:'notice-list'}, notes.map(([when, title, body, action, page]) => el('li', {},
@@ -1459,8 +1471,8 @@ const pages = {
             ? el('div', {class:'actions'}, ['本週六 10:00', '本週日 14:00'].map(slot =>
               button(draft.slotPicked === slot ? '已選：' + slot : '選時段：' + slot, refresh(() => {draft.slotPicked = slot;}), draft.slotPicked === slot)))
             : action && link(action, page))))),
-      draft.slotPicked && el('p', {role:'status'}, '已選 ' + draft.slotPicked + '。這是示意，不會發送預約。'),
-      actions(link('回送出完成', 'sent'), link('回這個家', 'project', 'button primary')));
+      snap && draft.slotPicked && el('p', {role:'status'}, '已選 ' + draft.slotPicked + '。這是示意，不會發送預約。'),
+      actions(snap ? link('回送出完成', 'sent') : link('去選團隊', 'team'), link('回這個家', 'project', 'button primary')));
   },
 };
 const phase = [

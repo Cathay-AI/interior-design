@@ -405,14 +405,23 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await main.getByText('你之後已編輯到第', {exact:false}).waitFor();
   });
 
-  await step('14b LINE 通知示意', async () => {
+  await step('14b LINE 通知示意（含版次差異與重設後空紀錄防呆）', async () => {
+    const id = new URL(page.url()).hash.split('project=')[1];
     await link('看 LINE 通知長什麼樣').click();
     await title('LINE 通知長這樣');
     assert.equal(await main.locator('.notice-list li').count(), 3);
+    await main.getByText('以下通知對應已送出的第', {exact:false}).waitFor();
+    await link(/^打開看（目前第 \d+ 版）$/).waitFor();
+    await link(/^看施工圖（目前第 \d+ 版）$/).waitFor();
     await main.getByText('示意團隊 B 想約你丈量').waitFor();
     await button('選時段：本週六 10:00').click();
     await main.getByText('已選 本週六 10:00。這是示意，不會發送預約。').waitFor();
-    await link('回送出完成').waitFor();
+    await page.goto(base + '#team?project=' + id);
+    await button('重設示意送件').click();
+    await page.goto(base + '#sent?project=' + id);
+    await title('尚未送出交接包');
+    assert.equal(await main.getByText('送出了。接下來等團隊回覆。').count(), 0, '重設後直開 #sent 不可偽裝成已送出');
+    await link('去選團隊').waitFor();
   });
 
   await step('03b 空間條件（掃描檔，含導覽跳轉一致）', async () => {
