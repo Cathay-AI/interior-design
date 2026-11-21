@@ -640,7 +640,7 @@ function roomSizeForm() {
 
 function startUpload(newProject) {
   const error = el('p', {class:'upload-error', role:'status'});
-  const input = el('input', {type:'file', accept:uploadTypes, 'aria-labelledby':'upload-label', 'aria-describedby':'upload-hint',
+  const input = el('input', {type:'file', accept:uploadTypes, 'aria-labelledby':'upload-label', 'aria-describedby':'entry-description',
     onchange:event => {
       const file = event.currentTarget.files[0];
       if (!file) return;
@@ -657,14 +657,7 @@ function startUpload(newProject) {
     }});
   return el('div', {class:'start-options'},
     el('label', {class:'start-upload'}, input,
-      el('span', {class:'upload-copy'},
-        el('span', {id:'upload-label'},
-          el('strong', {class:'upload-desktop'}, '上傳平面圖或照片'),
-          el('strong', {class:'upload-mobile'}, '拍照或上傳平面圖')),
-        el('small', {id:'upload-hint'}, '建商平面圖、現場照片、LiDAR 掃描檔都可以')),
-      el('span', {class:'upload-icon upload-desktop', 'aria-hidden':'true'}, IC.upload()),
-      el('span', {class:'upload-icon upload-mobile', 'aria-hidden':'true'}, IC.camera())),
-    el('small', {class:'upload-demo-note'}, '試玩使用固定格局與圖片。選檔只記錄檔名。'),
+      IC.upload(), el('span', {id:'upload-label'}, '選擇平面圖或照片')),
     error);
 }
 
@@ -1436,18 +1429,14 @@ const pages = {
     el('img', {class:'hero-photo', src:photo, alt:'靜謐橡木客廳示意', width:1536, height:1024, fetchpriority:'high'}),
     el('header', {class:'hero-header'},
       el('a', {href:'#entry', 'aria-label':'首頁'}, brandMark(30)),
-      el('a', {href:'#homes', class:'home-link'}, '我的家')),
+      el('nav', {'aria-label':'首頁導覽'},
+        el('a', {href:'#homes', class:'entry-home-link'}, IC.home(), '我的家'))),
     el('div', {class:'hero-copy'},
       el('h1', {id:'entry-title'}, '把家的想像，', el('br'), '變成真的。'),
-      el('p', {}, '用範例體驗空間設計、裝修估價與圖面交接。')),
+      el('p', {id:'entry-description'}, '用範例試看設計與估價。選檔只記錄檔名。')),
     el('div', {class:'hero-start'},
       startUpload(!hasProject),
-      el('a', {href:'#browse', class:'hero-example'}, '還沒想法？先逛幾個家'),
-      el('p', {class:'hero-steps-mobile'}, '先看風格與示意報價，再試用編輯與圖面')),
-    el('ol', {class:'hero-steps', 'aria-label':'接下來'},
-      el('li', {}, el('b', {}, '1'), '確認空間條件'),
-      el('li', {}, el('b', {}, '2'), '看成品與報價・免費'),
-      el('li', {}, el('b', {}, '3'), '試用編輯與示意施工圖'))),
+      el('a', {href:'#browse', class:'hero-example'}, '看設計範例', IC.arrow()))),
 
   homes: homesPage,
 

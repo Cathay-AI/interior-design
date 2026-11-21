@@ -67,15 +67,15 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
   await step('01 入口', async () => {
     await page.goto(base);
     await page.locator('#entry-title').waitFor();
-    await main.getByRole('link', {name:'我的家'}).waitFor();
-    await main.getByText('建商平面圖、現場照片、LiDAR 掃描檔都可以').first().waitFor();
+    await main.getByRole('navigation', {name:'首頁導覽'}).getByRole('link', {name:'我的家'}).waitFor();
+    await main.getByText('用範例試看設計與估價。選檔只記錄檔名。').waitFor();
     assert.equal(await main.locator('.start-upload input[type=file]').count(), 1, '入口只有一個上傳按鈕');
     const bg = await main.locator('.start-upload').evaluate(node => getComputedStyle(node).backgroundColor);
     assert.equal(bg, 'rgb(31, 29, 26)', '入口上傳按鈕須為墨色 #1F1D1A');
   });
 
-  await step('01b 還沒想法：先逛幾個家', async () => {
-    await link('還沒想法？先逛幾個家').click();
+  await step('01b 看設計範例', async () => {
+    await link('看設計範例').click();
     await title(/先逛幾個家/);
     await snap('page-browse');
     assert.deepEqual(await main.locator('.browse-card strong').allTextContents(), ['靜謐橡木', '霧灰', '暖光木質', '床頭木牆', '整面書牆']);
