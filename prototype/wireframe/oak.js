@@ -1,5 +1,5 @@
 import { finishFilter, roomScene, saveComparison, stages } from './room-scenes.js';
-import { roomDims, wireframeDrawingSet } from './fast-route/lib/drawings.js';
+import { roomDims, roomReferencePlan, wireframeDrawingSet } from './fast-route/lib/drawings.js';
 import { designEstimate } from './fast-route/lib/estimate.js';
 import { STYLES } from './fast-route/lib/taste.js';
 import { LIMITS, roomSize } from './fast-route/lib/layout.js';
@@ -234,9 +234,15 @@ const picker = (label, attrs, fn, className = 'button picker pill-btn') => el('l
   el('input', {type:'file','aria-label':label,...attrs,onchange:fn}));
 const price = (values) => values.join('–') + ' 萬';
 const roomArea = (i = draft.room, projectDraft = draft) => {
-  const size = projectDraft.roomSizes.get(i);
+  const size = knownRoomSize(i, projectDraft);
   return size ? Math.round(size.w * size.d / 3.3058 * 10) / 10 : areas[i];
 };
+function knownRoomSize(index, projectDraft = draft) {
+  if (index === 0 && projectDraft.source?.label === 'LiDAR 掃描檔') {
+    return {w:projectDraft.scan.len / 100, d:projectDraft.scan.wid / 100, h:projectDraft.scan.ceil / 100};
+  }
+  return projectDraft.roomSizes.get(index);
+}
 const roomKind = (i = draft.room) => ['客廳','餐廳','廚房','衛浴','臥室','衛浴','臥室','臥室'][i];
 const setRoom = i => {
   if (i !== draft.room) draft.zoomIndex = 1;
@@ -250,8 +256,25 @@ const roomLook = (projectDraft = draft) => ({
 });
 const houseAge = (projectDraft = draft) => projectDraft.houseAge === '中古屋' ? '中古屋' : '新成屋';
 const roomCondition = () => {
-  const size = draft.roomSizes.get(draft.room);
-  return {space:roomKind(), ping:roomArea(), age:houseAge(), len:size?.w, wid:size?.d};
+  const size = knownRoomSize(draft.room);
+  const living = draft.room === 0;
+  return {
+    space:draft.room === 6 ? '書房' : roomKind(), ping:roomArea(), age:houseAge(),
+    len:size?.w, wid:size?.d, height:size?.h,
+    windowType:living && draft.source?.label === 'LiDAR 掃描檔' ? draft.windowType : undefined,
+    removed:living ? [...draft.removed] : [],
+  };
+};
+
+function referenceRoom() {
+  const condition = roomCondition();
+  return {...roomSize(condition, condition.ping), space:condition.space, windowType:condition.windowType,
+    removed:condition.removed, openKitchen:condition.space === '廚房' && draft.appliedLayout, reference:true};
+}
+
+const dimensionLabel = size => {
+  const {w, d, h} = roomDims(size);
+  return w + ' × ' + d + ' × ' + h + ' mm';
 };
 
 // 3D WebGL viewer (kept for 等角 live 3D mode)
@@ -270,10 +293,9 @@ function loadModel() {
   }
   return modelModule;
 }
-async function showModel(container, zoomOut, zoomIn, retry, notice, dimensions) {
+async function showModel(container, zoomOut, zoomIn, retry, notice, size, look) {
   retry.hidden = zoomOut.hidden = zoomIn.hidden = true;
   notice.textContent = '載入 3D';
-  dimensions.textContent = '';
   container.classList.remove('model-failed');
   const fail = () => {
     if (!container.isConnected) return;
@@ -282,17 +304,12 @@ async function showModel(container, zoomOut, zoomIn, retry, notice, dimensions) 
     container.classList.add('model-failed');
     zoomOut.hidden = zoomIn.hidden = true;
     retry.hidden = false;
-    notice.textContent = '3D 預覽示意';
+    notice.textContent = '3D 無法載入，顯示同房間平面';
   };
   try {
     const { mountRoom3D } = await loadModel();
     if (!container.isConnected) return;
-    const condition = roomCondition();
-    const size = roomSize(condition, condition.ping);
-    scene = mountRoom3D(container, roomLook(), 'A',
-      {...size, space:condition.space, openKitchen:draft.appliedLayout}, fail, draft.zoomIndex);
-    const actual = roomDims(scene.stats().size);
-    dimensions.textContent = actual.w + ' × ' + actual.d + ' mm';
+    scene = mountRoom3D(container, look, 'A', size, fail, draft.zoomIndex);
     const zoom = delta => {
       const {index, atMin, atMax} = scene.zoomBy(delta);
       draft.zoomIndex = index;
@@ -308,14 +325,13 @@ async function showModel(container, zoomOut, zoomIn, retry, notice, dimensions) 
     fail();
   }
 }
-function modelControls(container) {
+function modelControls(container, size, look) {
   const zoomOut = el('button', {type:'button','aria-label':'縮小 3D'}, '−');
   const zoomIn = el('button', {type:'button','aria-label':'放大 3D'}, '＋');
   const notice = el('small', {role:'status'});
-  const dimensions = el('small', {class:'model-dimensions','aria-label':'3D 尺寸'});
-  const restart = () => showModel(container, zoomOut, zoomIn, retry, notice, dimensions);
+  const restart = () => showModel(container, zoomOut, zoomIn, retry, notice, size, look);
   const retry = button('重試 3D', async () => { await restart(); });
-  const controls = el('div', {class:'model-controls'}, el('div', {class:'model-meta'}, notice, dimensions), zoomOut, zoomIn, retry);
+  const controls = el('div', {class:'model-controls'}, notice, zoomOut, zoomIn, retry);
   return {controls, restart};
 }
 
@@ -523,25 +539,15 @@ function planStage({topPill, pins = [], legend = false, scanLine = false, editab
       el('span', {}, pill('!', 'ink'), '請確認')));
 }
 
-function preview({topPill = '', hotspots = false, onSpot = null, activeSpot = 'chair', showQuote = false, viewKey = 'view', isoStatic = false, callouts = false, extraOverlay = null} = {}) {
-  const views = ['實景', '等角', '平面'];
+const previewViews = ['實景', '等角', '平面'];
+function preview({topPill = '', hotspots = false, onSpot = null, activeSpot = 'chair', showQuote = false, viewKey = 'view', hubTitle = false, extraOverlay = null} = {}) {
   const currentView = draft[viewKey];
   let content;
   let cameraControls;
-  if (currentView === '平面') {
-    content = planStage({topPill: topPill || (rooms[draft.room] + '・平面示意'), marks: draft.changes});
-  } else if (currentView === '等角' && isoStatic && draft.room === 0) {
+  if (currentView === '實景') {
     content = el('div', {class:'media'},
-      el('img', {src:'./imagery/iso-living.jpg', alt:'客廳等角剖面示意'}),
-      topPill && el('div', {class:'stage-pill'}, topPill),
-      callouts && el('div', {class:'iso-callout', style:'left:36%;top:62%'}, el('span',{class:'dot'}), el('span',{class:'stem'}), el('span',{class:'txt'},'模組沙發・米白')),
-      callouts && el('div', {class:'iso-callout', style:'left:40%;top:40%'}, el('span',{class:'dot'}), el('span',{class:'stem'}), el('span',{class:'txt'},'紅絨單椅')),
-      callouts && el('div', {class:'iso-callout', style:'right:10%;top:30%'}, el('span',{class:'txt'},'橡木牆板與懸浮櫃'), el('span',{class:'stem'}), el('span',{class:'dot'})),
-      callouts && el('div', {class:'iso-callout', style:'left:8%;top:37%'}, el('span',{class:'dot'}), el('span',{class:'stem'}), el('span',{class:'txt'},'落地窗')));
-  } else {
-    content = el('div', {class:'media'},
-      el('img', {src:projectPhoto(), alt:rooms[draft.room] + ' · 完工示意', style:'filter:' + finishFilter(0)}),
-      topPill && el('div', {class:'stage-pill'}, topPill),
+      el('img', {src:projectPhoto(), alt:rooms[draft.room] + '・風格參考照', style:'filter:' + finishFilter(0)}),
+      !hubTitle && el('div', {class:'stage-pill'}, topPill ? topPill + '・風格參考照' : '風格參考照'),
       hotspots && (onSpot
         ? [
             el('button', {type:'button', class:'hotspot' + (activeSpot === 'chair' ? ' white' : ''), style:'left:80%;top:62%', 'aria-label':'查看單椅', onclick:() => onSpot('chair')}),
@@ -554,17 +560,29 @@ function preview({topPill = '', hotspots = false, onSpot = null, activeSpot = 'c
       showQuote && el('div', {class:'stage-quote'},
         el('small', {}, rooms[draft.room] + '・初步報價（示意）'),
         el('strong', {}, estimate())));
-    if (currentView === '等角') {
-      content.classList.add('model');
-      const model = modelControls(content);
+  } else {
+    const size = referenceRoom();
+    const look = roomLook();
+    const isModel = currentView === '等角';
+    const name = rooms[draft.room];
+    const dims = dimensionLabel(size);
+    const plan = roomReferencePlan(size, look);
+    content = el('div', {class:'media reference-stage' + (isModel ? ' model' : ''), role:'group', 'aria-label':name + '空間參考'},
+      el('img', {class:'reference-plan', src:'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(plan), alt:name + '單室平面配置・' + dims}),
+      el('div', {class:'reference-meta'},
+        el('strong', {}, (hubTitle ? '' : name + '・') + (isModel ? '3D 配置參考' : '單室平面')),
+        el('small', {class:'reference-dimensions', 'aria-label':'配置尺寸（長、寬、高）'}, dims),
+        el('small', {}, (size.windowType ?? '範例門窗') + '・待現場丈量')));
+    if (isModel) {
+      const model = modelControls(content, size, look);
       cameraControls = model.controls;
       model.restart();
     }
   }
   return el('div', {class:'room-preview', 'data-view':currentView},
     el('div', {class:'view-modes', role:'group', 'aria-label':'房間檢視'},
-      views.map(v => button(v, refresh(() => { draft[viewKey] = v; }), currentView === v))),
-    content, extraOverlay, cameraControls);
+      previewViews.map(v => button(v, refresh(() => { draft[viewKey] = v; }), currentView === v))),
+    content, currentView === '實景' && extraOverlay, cameraControls);
 }
 
 function stageSource(label, file, newProject = false) {
@@ -958,12 +976,12 @@ function homesPage() {
       el('div', {class:'dash-bottom'},
         el('section', {class:'dash-panel'},
           el('div', {class:'dash-panel-head'},
-            el('div', {}, el('b', {style:'display:block;font-size:14px'}, '同一個家，三種看法'), el('small', {}, '實景看感覺，等角看結構，平面看尺寸')),
+            el('div', {}, el('b', {style:'display:block;font-size:14px'}, '同一個家，三種看法'), el('small', {}, '風格照看材質，等角和平面對照配置')),
             el('a', {href:href('project', 'oak'), class:'text-link', style:'font-size:13px'}, '打開這個家')),
           el('div', {class:'dash-views'},
-            el('a', {href:href('project', 'oak'), class:'dash-view-tile'}, el('img', {src:'./imagery/living-4.webp', alt:'實景示意'}), el('span', {}, '實景')),
-            el('a', {href:href('whole', 'oak'), class:'dash-view-tile'}, el('img', {src:'./imagery/iso-living.jpg', alt:'等角剖面示意'}), el('span', {}, '等角')),
-            el('a', {href:href('read', 'oak'), class:'dash-view-tile'}, el('img', {src:'./imagery/top-living.jpg', alt:'平面示意'}), el('span', {}, '平面')))),
+            ...[['實景', el('img', {src:'./imagery/living-4.webp', alt:''})], ['等角', IC.cube()], ['平面', IC.grid()]].map(([view, visual]) =>
+              el('a', {href:href('project', 'oak') + '&view=' + encodeURIComponent(view), class:'dash-view-tile'},
+                visual, el('span', {}, view))))),
         el('section', {class:'dash-panel'},
           el('div', {class:'dash-panel-head'},
             el('div', {}, el('b', {style:'display:block;font-size:14px'}, '你家用到的家具'), el('small', {}, '示意型錄，點了就能換')),
@@ -1315,13 +1333,14 @@ function projectPage() {
         '下一步：', el('strong', {}, locked ? '確認成品後，點右下「解鎖施工圖」' : '點右下「繼續編輯」調整家具，或看施工圖交給團隊'))),
     el('div', {class:'hub-stage'},
       preview({
+        hubTitle:true,
         extraOverlay: el('p', {class:'hub-price'},
           el('small', {}, '初步報價・示意金額'),
           el('strong', {class:'price'}, estimate())),
       }),
       el('div', {class:'hub-title'},
         el('h1', {}, '你家・' + rooms[draft.room]),
-        el('small', {}, looks[draft.style] + '・' + roomArea() + ' 坪'),
+        draft.view === '實景' ? el('span', {class:'hub-style-label'}, '風格參考照') : el('small', {}, roomArea() + ' 坪'),
         !locked && pill('已解鎖', 'red')),
       el('div', {class:'hub-rooms'}, link('整戶', 'whole'), roomButtons())),
     draft.room === 0 && tuneForm(true),
@@ -1527,7 +1546,7 @@ const pages = {
       const scanRow = (name, key, room) => el('div', {class:'scan-edit-row'},
         el('span', {}, name),
         el('span', {class:'num-wrap'},
-          el('input', {type:'number', 'aria-label':name + '（公分）', min:'100', max:'6000', step:'1', required:'', value:String(scan[key]),
+          el('input', {type:'number', 'aria-label':name + '（公分）', min:key === 'beam' ? 100 : 200, max:key === 'ceil' || key === 'beam' ? 1200 : 6000, step:'1', required:'', value:String(scan[key]),
             onchange:event => {
               const value = event.target.valueAsNumber;
               if (!event.target.validity.valid || !Number.isFinite(value)) {
@@ -1536,7 +1555,6 @@ const pages = {
               }
               scan[key] = value;
               if (room) {
-                draft.roomSizes.set(0, {w:scan.len / 100, d:scan.wid / 100});
                 const roomButton = plan.querySelector('.plan-room');
                 roomButton.querySelector('small').textContent = roomArea(0) + ' 坪';
                 roomButton.setAttribute('aria-label', rooms[0] + ' ' + roomArea(0) + ' 坪');
@@ -1726,11 +1744,7 @@ const pages = {
     const sampleTitle = sample?.room === draft.room && sample.style === draft.style ? sample.title : null;
     const costs = roomCostItems();
     const sheets = drawingSheets();
-    const thumbMeta = [
-      ['平面', './imagery/top-living.jpg'],
-      ['立面', './imagery/iso-living.jpg'],
-      ['水電', './imagery/top-living.jpg'],
-    ];
+    const thumbMeta = ['平面', '立面', '水電'].map(type => sheets.find(sheet => sheet.type === type));
     return workspaceGrid(
       preview({topPill:looks[draft.style], hotspots:draft.room === 0}),
       workPanel({
@@ -1747,11 +1761,11 @@ const pages = {
             el('div', {class:'drawings-teaser-head'},
               el('b', {}, '施工圖 ' + sheets.length + ' 張'),
               el('span', {}, draft.unlocked ? '已解鎖・可檢視下載' : '模擬解鎖後可查看示意圖')),
-            el('div', {class:'drawings-thumbs'}, thumbMeta.map(([name, src]) =>
+            el('div', {class:'drawings-thumbs'}, thumbMeta.map(sheet =>
               el('span', {class:'drawings-thumb' + (draft.unlocked ? ' unlocked' : '')},
-                el('img', {src, alt:name + '施工圖示意'}),
+                drawingImage(sheet),
                 !draft.unlocked && el('span', {class:'lock-dot', 'aria-hidden':'true'}, IC.lock(15)),
-                el('span', {class:'thumb-label'}, name))))),
+                el('span', {class:'thumb-label'}, sheet.type))))),
         ],
         footer:[
           draft.unlocked ? link('繼續編輯', 'edit', 'button secondary') : link('解鎖施工圖', 'unlock', 'button secondary'),
@@ -1769,13 +1783,13 @@ const pages = {
       el('div', {class:'hub-stage whole-stage'},
         preview({
           topPill:'你家・三房兩廳・正在看：' + rooms[draft.room],
-          viewKey:'wholeView', isoStatic:true, callouts:true,
+          viewKey:'wholeView',
         }),
         el('div', {class:'hub-rooms'}, link('整戶', 'whole'), roomButtons())),
       workPanel({
         page:'whole', addon:true, eyebrowText:'02 整個家', titleText:'一間一間看，整戶一起算',
         body:[
-          liangBubble('點下面的房間切換。每一間的材質和家具都接同一份資料庫，報價是加總出來的（皆為示意）。'),
+          liangBubble('點下方切換房間。用等角和平面對照門窗與家具位置，報價依房間加總。'),
           el('div', {class:'stack', style:'gap:2px'}, rooms.map((name, i) =>
             el('button', {type:'button', class:'whole-room-row', 'aria-pressed':String(draft.room === i), onclick:refresh(() => setRoom(i))},
               el('b', {}, name), el('small', {}, roomArea(i) + ' 坪'), el('span', {style:'font-weight:600'}, price(sumCosts(costsByRoom[i])))))),
@@ -2101,12 +2115,12 @@ const pages = {
         : cadFrame(selected, {stamp:'AI 初稿・待設計師覆核'}));
 
     return workspaceGrid(leftStage, workPanel({
-      page:'drawings', extraClass:'drawing-controls', eyebrowText:'03 示意施工圖／待覆核', titleText:'客廳示意施工圖',
+      page:'drawings', extraClass:'drawing-controls', eyebrowText:'03 示意施工圖／待覆核', titleText:rooms[draft.room] + '示意施工圖',
       body:[
         el('ol', {class:'review-bars review-stages', 'aria-label':'圖面進度'},
           ['AI 初稿', '設計師覆核', '現場丈量', '定稿可施工'].map((name, i) =>
             el('li', i === 0 ? {'aria-current':'step'} : {}, el('span', {class:'seg'}), name))),
-        liangBubble('這 ' + sheets.length + ' 張固定圖面用來示範交接，尚未經設計師覆核，並不包含編輯頁的修改。'),
+        liangBubble('這 ' + sheets.length + ' 張示意圖用來示範交接。平面與等角共用尺寸和配置。另加、自備的家具以清單為準，現場仍須丈量與覆核。'),
         !showQuote && el('ul', {class:'sheet-rows'}, current.map(sheet => el('li', {},
           el('button', {type:'button', class:'sheet-row-btn', 'aria-pressed':String(sheet.no === selected.no),
             onclick:refresh(() => { draft.drawing = sheet.no; })},
@@ -2145,8 +2159,8 @@ const pages = {
         el('h2', {}, '團隊一打開就看得懂你要什麼，', el('br'), '不用從頭再講一次。')),
       el('div', {id:'handover-grid', class:'handover-grid'},
         el('div', {class:'handover-card'},
-          el('div', {class:'h-media'}, el('img', {src:projectPhoto(), alt:'3D 成品示意'})),
-          el('div', {class:'h-body'}, el('b', {}, '3D 成品'), el('span', {}, rooms.length + ' 個空間・' + looks[draft.style]))),
+          el('div', {class:'h-media'}, el('img', {src:projectPhoto(), alt:'風格參考照'})),
+          el('div', {class:'h-body'}, el('b', {}, '風格參考照'), el('span', {}, rooms.length + ' 個空間・' + looks[draft.style]))),
         el('div', {class:'handover-card'},
           el('div', {class:'h-media plan-mini'}, planDiagram(draft, draft.appliedLayout)),
           el('div', {class:'h-body'}, el('b', {}, '施工圖 ' + drawingSheets().length + ' 張（示意初稿）'), el('span', {}, '平面・立面・水電'))),
@@ -2261,7 +2275,7 @@ const pages = {
       : ['團隊回覆時', '送出後團隊會從這裡約丈量', '目前尚未送出交接包；送出後，你選的團隊會在此提現場丈量時段。', '去選團隊', 'team'];
     const notes = [
       ['生成完成時', '範例設計預覽已就緒', '第 ' + ver + ' 版・' + (snap?.room ?? '客廳') + '・' + looks[draft.style] + '，初步報價 ' + estText + '。', openLabel, 'result'],
-      ['圖面通知範例', '可查看 ' + drawingSheets().length + ' 張示意施工圖', '圖面為固定客廳範例，尚未覆核。', drawLabel, 'drawings'],
+      ['圖面通知範例', '可查看 ' + drawingSheets().length + ' 張示意施工圖', '圖面為目前房間的示意配置，尚未覆核。', drawLabel, 'drawings'],
       thirdCard,
     ];
     return el('div', {class:'line-wrap'},
@@ -2312,17 +2326,22 @@ function updateNavigation(page) {
 }
 
 let lastPage;
+let lastHash;
 function render(focus = true) {
   clearInterval(ticker);
   scene?.dispose();
   scene = undefined;
   const [route, query] = location.hash.slice(1).split('?');
-  const id = new URLSearchParams(query).get('project');
+  const params = new URLSearchParams(query);
+  const id = params.get('project');
   if (projects.has(id)) projectId = id;
   const project = projects.get(projectId);
   draft = project.draft;
   const requested = Object.hasOwn(pages, route) ? route : 'entry';
   const page = premium.includes(requested) && !draft.unlocked ? 'unlock' : requested;
+  const view = params.get('view');
+  if (lastHash !== location.hash && page === 'project' && previewViews.includes(view)) draft.view = view;
+  lastHash = location.hash;
   if (draft.pendingSource && !['scanning', 'entry', 'camera', 'homes', 'browse', 'tool'].includes(page)) {
     confirmSource();
   }

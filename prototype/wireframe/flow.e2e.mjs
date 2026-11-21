@@ -25,6 +25,7 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
   const title = name => main.getByRole('heading', {level:1, name, exact:typeof name === 'string'}).waitFor({timeout:5000});
   const link = name => main.getByRole('link', {name, exact:typeof name === 'string'});
   const button = name => main.getByRole('button', {name, exact:typeof name === 'string'});
+  const viewMode = name => main.getByRole('group', {name:'房間檢視'}).getByRole('button', {name, exact:true});
   const route = async () => new URL(page.url()).hash.slice(1).split('?')[0];
   const firstScreen = async name => {
     if (!mobile) return;
@@ -188,7 +189,7 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     assert.match(quote, /^\d+–\d+ 萬$/);
     assert.notEqual(quote, '26–48 萬', '中古屋的報價要含基礎工程');
     await button('平面').click();
-    await main.locator('.room-preview .plan').waitFor();
+    await main.locator('.room-preview img.reference-plan').waitFor();
     await button('實景').click();
     await link('解鎖施工圖').waitFor();
     await main.locator('details.cost-details summary').click();
@@ -317,6 +318,29 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await button('客廳').click();
     await link('‹ 回這個家').click();
     await title('你家・客廳');
+  });
+
+  await step('八房的等角、單室平面、尺寸與照片標示一致', async () => {
+    const roomNames = ['客廳', '餐廳', '廚房', '客衛', '主臥', '主衛', '次臥 1', '次臥 2'];
+    for (const room of roomNames) {
+      await main.getByRole('group', {name:'房間', exact:true}).getByRole('button', {name:room, exact:true}).click();
+      await viewMode('平面').click();
+      const plan = main.getByRole('group', {name:room + '空間參考'});
+      const planImage = plan.locator('img.reference-plan');
+      const planSource = await planImage.getAttribute('src');
+      const dimensions = await plan.locator('.reference-dimensions').textContent();
+      assert.match(dimensions, /^\d+ × \d+ × \d+ mm$/);
+      await planImage.evaluate(image => image.decode());
+      const tabs = await main.getByRole('group', {name:'房間檢視'}).boundingBox();
+      assert.ok(tabs.height <= 56 && tabs.width <= 250, room + ' 檢視選單不可擋住平面');
+      await viewMode('等角').click();
+      await plan.and(main.locator('[data-ready="true"]')).locator('canvas').waitFor({timeout:30000});
+      assert.equal(await plan.locator('.reference-dimensions').textContent(), dimensions);
+      assert.equal(await planImage.getAttribute('src'), planSource);
+      await viewMode('實景').click();
+      await main.getByRole('img', {name:room + '・風格參考照', exact:true}).waitFor();
+    }
+    await main.getByRole('group', {name:'房間', exact:true}).getByRole('button', {name:'客廳', exact:true}).click();
   });
 
   await step('未解鎖不能直接進付費頁', async () => {
@@ -530,6 +554,23 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await main.getByLabel('天花板高度（公分）').fill('265');
     await link('下一步：選風格').click();
     await title('我先推薦三個方向');
+    await page.goto(base + '#project?project=' + id);
+    await viewMode('平面').click();
+    const currentLayout = main.locator('.reference-stage');
+    await currentLayout.getByText('5620 × 4710 × 2650 mm').waitFor();
+    await currentLayout.getByText('半窗・待現場丈量').waitFor();
+    const halfWindowPlan = await currentLayout.locator('.reference-plan').getAttribute('src');
+    await viewMode('等角').click();
+    await currentLayout.locator('canvas').waitFor({timeout:30000});
+    await currentLayout.getByText('5620 × 4710 × 2650 mm').waitFor();
+    await page.goto(base + '#read?project=' + id);
+    await button('開放通道').click();
+    await page.goto(base + '#project?project=' + id);
+    await viewMode('平面').click();
+    await currentLayout.getByText('開放通道・待現場丈量').waitFor();
+    const openingPlan = await currentLayout.locator('.reference-plan').getAttribute('src');
+    assert.notEqual(openingPlan, halfWindowPlan);
+    assert.match(decodeURIComponent(openingPlan), /通道（示意）/);
   });
 
   await step('側門 免費小工具', async () => {
@@ -541,6 +582,25 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await main.getByText('已選「empty-room.jpg」', {exact:false}).waitFor();
     await link('想看整個家和報價？上傳平面圖').click();
     await page.locator('#entry-title').waitFor();
+  });
+
+  await step('手填寬深後，單室平面和 3D 一起更新', async () => {
+    await page.goto(base + '#read?project=oak');
+    await main.getByRole('button', {name:/^客廳 \d/}).click();
+    await main.getByLabel('長度（公尺）').fill('5.4');
+    await main.getByLabel('寬度（公尺）').fill('3.8');
+    await button('儲存客廳尺寸').click();
+    await main.getByText('已儲存手改尺寸', {exact:false}).waitFor();
+    await page.goto(base + '#project?project=oak');
+    await viewMode('平面').click();
+    await main.locator('.reference-dimensions').getByText('5400 × 3800 × 2800 mm').waitFor();
+    const plan = main.locator('img.reference-plan');
+    const manualPlan = await plan.getAttribute('src');
+    assert.match(decodeURIComponent(manualPlan), />5400<.*>3800</s);
+    await viewMode('等角').click();
+    await main.locator('.reference-stage[data-ready="true"] canvas').waitFor({timeout:30000});
+    await main.locator('.reference-dimensions').getByText('5400 × 3800 × 2800 mm').waitFor();
+    assert.equal(await plan.getAttribute('src'), manualPlan);
   });
 
   await step('沒有程式錯誤', async () => {

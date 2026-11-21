@@ -317,6 +317,7 @@ body[data-page="homes"] main{min-height:100svh;display:flex;flex-direction:colum
 .dash-views{flex:1;display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:8px;min-height:150px}
 .dash-view-tile{position:relative;border-radius:14px;overflow:hidden;background:var(--stage);min-height:130px;text-decoration:none}
 .dash-view-tile img{width:100%;height:100%;object-fit:cover;display:block}
+.dash-view-tile>svg{position:absolute;left:50%;top:58%;translate:-50% -50%;width:34px;height:34px;color:var(--muted)}
 .dash-view-tile span{position:absolute;left:10px;top:10px;padding:3px 10px;border-radius:10px;background:#FFFFFF;font-size:12px;font-weight:700;color:var(--ink)}
 .dash-furn{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .dash-furn-card{border-radius:16px;background:var(--paper);padding:8px;display:flex;flex-direction:column;gap:6px;text-decoration:none;color:var(--ink)}
@@ -402,7 +403,6 @@ body[data-page="homes"] main{min-height:100svh;display:flex;flex-direction:colum
   background:transparent;color:var(--ink);font-size:13px;font-weight:500;
 }
 .view-modes button[aria-pressed="true"]{background:var(--ink);color:#FFFFFF;font-weight:600}
-.room-preview[data-view="平面"] .view-modes{left:16px;bottom:16px}
 
 /* Hotspots on photo */
 .hotspot,.edit-spot{
@@ -429,14 +429,27 @@ body[data-page="homes"] main{min-height:100svh;display:flex;flex-direction:colum
 }
 .edit-spot[aria-pressed="true"] .spot-tag{background:var(--ink);color:#FFFFFF}
 .edit-spot.tag-left .spot-tag{left:auto;right:calc(50% + 18px)}
-.model canvas{position:absolute;inset:0;width:100%;height:100%;background:var(--linen)}
+.model canvas{position:absolute;inset:0;width:100%;height:100%;background:var(--linen);z-index:1}
+.reference-stage{background:var(--linen)}
+.reference-stage>.reference-plan{
+  position:absolute;inset:64px 14px 62px;width:calc(100% - 28px);height:calc(100% - 126px);
+  object-fit:contain;object-position:center;
+}
+.reference-meta{
+  position:absolute;top:14px;left:14px;z-index:3;pointer-events:none;
+  display:grid;gap:2px;padding:8px 12px;border-radius:14px;background:#fff;font-size:13px;
+}
+.reference-meta small,.model-controls>small{font-size:11px;color:var(--muted)}
+.hub-stage .reference-meta{top:74px;left:20px}
+.whole-stage .reference-meta{top:16px}
+.hub-style-label{font-size:11px;color:var(--muted);white-space:nowrap}
 .model-controls{
   position:absolute;top:16px;right:16px;z-index:4;display:flex;align-items:center;gap:4px;
   padding:4px;border-radius:14px;background:#FFFFFF;box-shadow:var(--shadow-float);
 }
 .model-controls button{min-width:44px;min-height:44px;padding:0;border-radius:10px;background:var(--paper)}
-.model-meta{padding:0 6px;display:flex;flex-direction:column;line-height:1.2}
-.model-meta small{font-size:11px}
+.model-controls button:last-child{padding-inline:8px}
+.hub-stage .model-controls{top:74px;right:20px}
 
 /* Dotted plan canvas (N15, N1, N12, N5, N6, N65, N7) */
 .plan-stage{
@@ -676,7 +689,6 @@ body[data-page="homes"] main{min-height:100svh;display:flex;flex-direction:colum
 }
 .hub-price small{font-size:11px;color:var(--muted)}
 .hub-price .price{font-size:28px;font-weight:600;letter-spacing:-.02em}
-.hub-stage .room-preview[data-view="平面"] ~ .hub-rooms{bottom:18px}
 
 /* Hub white voice/text bar with Liang-Liang */
 .hub-tune{
@@ -1289,6 +1301,12 @@ body[data-page="homes"] main{min-height:100svh;display:flex;flex-direction:colum
   .hub-stage .room-preview .media{min-height:280px;height:280px;border-radius:20px}
   .hub-stage .view-modes{left:10px;bottom:10px;top:auto;right:auto}
   .hub-stage .view-modes button{padding:0 10px;font-size:12px}
+  .reference-stage .reference-meta{
+    top:auto;left:auto;right:10px;bottom:10px;padding:6px 9px;font-size:12px;line-height:1.3;
+  }
+  .hub-stage .model-controls,.model-controls{top:10px;right:10px}
+  .model-controls>small{max-width:76px}
+  .hub-style-label{font-size:10px}
   .hub-title{left:10px;top:10px;min-height:34px;padding:4px 12px;border-radius:12px}
   .hub-title h1{font-size:13px}
   .hub-title small{display:none}
