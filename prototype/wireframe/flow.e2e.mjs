@@ -5,8 +5,82 @@ const base = process.argv[2] ?? 'http://127.0.0.1:5173/';
 const browser = await chromium.launch();
 const projectFailures = [];
 const projectOnly = process.argv[3] === '--project-only';
+const desktopAndMobile = [{width:1440,height:900}, {width:390,height:844}];
+const controlsOnly = process.argv[3] === '--controls-only';
+async function checkControlTargets() {
+  const failures = [];
+  for (const viewport of [...desktopAndMobile, {width:380,height:844}]) {
+    const {width} = viewport;
+    const mobile = width < 400;
+    const page = await browser.newPage({viewport,hasTouch:mobile});
+    const capture = name => process.env.WIREFRAME_SCREENSHOTS && page.screenshot({
+      path:process.env.WIREFRAME_SCREENSHOTS + '/' + name + '-' + width + '.png',
+    });
+    const check = async (name, run) => {
+      try {
+        await run();
+        console.log(width + ' px：' + name + '通過');
+      } catch (error) {
+        failures.push(width + ' px：' + name + ' ' + error.message);
+      }
+    };
+    await check('格局換關焦點', async () => {
+      await page.goto(base + '#unlock?project=oak');
+      await page.getByRole('button', {name:'示意解鎖',exact:true}).click();
+      const expectFocus = async (heading, evidence) => {
+        await page.getByRole('heading', {name:heading,exact:true}).waitFor({timeout:5000});
+        const active = await page.evaluate(() => ({
+          tag:document.activeElement.tagName,
+          text:document.activeElement.matches('h1,h2,button') ? document.activeElement.textContent.trim() : '',
+        }));
+        if (evidence) await capture(evidence);
+        assert.deepEqual(active, {tag:heading === '你的居家人格' ? 'H1' : 'H2',text:heading});
+      };
+      const enter = (name, role = 'button') => page.getByRole(role, {name,exact:true}).press('Enter');
+      await enter('下一關');
+      await expectFocus('怎麼煮？', 'layout-next-focus');
+      await page.keyboard.press('Tab');
+      assert(await page.getByRole('button', {name:'天天煮',exact:true}).evaluate(node => node === document.activeElement));
+      await enter('上一關');
+      await expectFocus('怎麼回家？', 'layout-previous-focus');
+      for (const heading of ['怎麼煮？','怎麼收？','怎麼睡？','誰會來？']) {
+        await enter('下一關');
+        await expectFocus(heading);
+      }
+      await enter('看居家人格', 'link');
+      await expectFocus('你的居家人格', 'layout-result-focus');
+    });
+    await check('家具熱點四角', async () => {
+      const hotspot = page.getByRole('link', {name:'查看家具與材質',exact:true});
+      const missed = [];
+      for (const [name, horizontal, vertical] of [['左上',0,0],['右上',1,0],['左下',0,1],['右下',1,1]]) {
+        await page.goto(base + '#result?project=oak');
+        await hotspot.scrollIntoViewIfNeeded();
+        const box = await hotspot.boundingBox();
+        assert(box?.width >= 44 && box.height >= 44);
+        const x = box.x + (horizontal ? box.width - 1 : 1);
+        const y = box.y + (vertical ? box.height - 1 : 1);
+        const hit = await hotspot.evaluate((node, point) =>
+          node.contains(document.elementFromPoint(point.x, point.y)), {x,y});
+        if (mobile) await page.touchscreen.tap(x,y);
+        else await page.mouse.click(x,y);
+        if (!hit) {
+          missed.push(name);
+          if (name === '左上') await capture('hotspot-corner-missed');
+          continue;
+        }
+        await page.getByRole('heading', {name:'家具與材質',exact:true}).waitFor({timeout:5000});
+        if (name === '左上') await capture('hotspot-corner-opened');
+      }
+      assert.deepEqual(missed, [], '44 × 44 px 內應無遮擋，未命中角落');
+    });
+    await page.close();
+  }
+  assert.equal(failures.length, 0, failures.join('\n'));
+}
 try {
-  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+  if (!projectOnly) await checkControlTargets();
+  for (const viewport of controlsOnly ? [] : desktopAndMobile) {
     const page = await browser.newPage({ viewport });
     await page.addInitScript(() => {
       const projections = new WeakMap();
@@ -94,7 +168,7 @@ try {
       await page.getByLabel('想要什麼樣的家').fill('小家庭・偏好保留');
       await link('看風格建議');
       await press('B · 暖調復古');
-      await link('看設計示意');
+      await link('看實景與報價');
       await page.locator('.result-quote > .price').filter({hasText:'28–51 萬'}).waitFor();
       await route('homes', 'project=family');
       await recentHome('小家庭').getByText('初步報價', {exact:true}).waitFor();
@@ -237,7 +311,7 @@ try {
     await link('直接選風格');
     await page.getByRole('heading', {name:'初步推薦風格',exact:true}).waitFor();
     await capture('entry-photo-style');
-    await link('都不像');
+    await link('都不像？');
     await page.getByLabel('想要什麼樣的家').fill('光線柔和');
     await link('看風格建議');
     await link('我的家');
@@ -245,7 +319,7 @@ try {
     await photoHome.waitFor();
     assert.equal(await page.getByRole('region',{name:'最近的家'}).getByRole('article').count(), 1);
     await expectResume('新家 1', '#style?project=demo-1');
-    await link('都不像');
+    await link('都不像？');
     assert.equal(await page.getByLabel('想要什麼樣的家').inputValue(), '光線柔和');
     await page.goto(base + '#entry?project=oak');
     await page.reload();
@@ -285,12 +359,24 @@ try {
     await page.getByText('天花板高度', {exact:true}).waitFor();
     await link('直接選風格');
     await capture('entry-pdf-style');
-    await link('都不像');
+    await link('都不像？');
     await page.getByLabel('想要什麼樣的家').fill('橡木與自然光');
     await link('看風格建議');
-    await press('A · 靜謐橡木');
+    const firstStyle = page.getByRole('button', {name:'A · 靜謐橡木', exact:true});
+    const secondStyle = page.getByRole('button', {name:'B · 暖調復古', exact:true});
+    await firstStyle.focus();
+    await page.keyboard.press('Tab');
+    assert(await secondStyle.evaluate(node => node === document.activeElement && getComputedStyle(node).outlineWidth === '2px'));
+    await page.keyboard.press('Space');
+    assert.equal(await secondStyle.getAttribute('aria-pressed'), 'true');
+    assert.equal(await firstStyle.getAttribute('aria-pressed'), 'false');
+    assert.notEqual(await secondStyle.evaluate(node => getComputedStyle(node).backgroundColor),
+      await firstStyle.evaluate(node => getComputedStyle(node).backgroundColor));
+    await page.getByText('可寫下需求或提供參考圖', {exact:true}).waitFor();
+    await capture('style-selected-focus', false);
+    await firstStyle.click();
     await capture('style');
-    await link('看設計示意');
+    await link('看實景與報價');
     await page.getByText('26–48 萬', {exact:true}).waitFor();
     await page.getByRole('heading', {name:'法規初檢 · 示意'}).waitFor({timeout:2500});
     const title = page.getByRole('heading', {name:'實景＋初步報價',exact:true});
@@ -316,7 +402,11 @@ try {
     const addPrices = ([a,b], [x,y]) => [a + x, b + y];
     const assertCost = async (name, low, high, evidence) => {
       const details = page.locator('details').filter({has:page.getByText(name, {exact:true})});
-      await details.getByText(name, {exact:true}).click();
+      const summary = details.locator('summary');
+      const bounds = await summary.boundingBox();
+      assert(bounds?.height >= 44, name + ' 的整列需要 44 px 點擊高度');
+      await summary.click({position:{x:bounds.width - 5,y:bounds.height / 2}});
+      assert(await details.evaluate(node => node.open), name + ' 可從摘要列邊緣展開');
       const entries = await details.locator('li').evaluateAll(rows => rows.map(row => [
         row.querySelector('span').firstChild.textContent, row.querySelector('strong').textContent,
       ]));
@@ -325,7 +415,8 @@ try {
       for (const [min, max] of Object.values(costs)) assert(min <= max);
       assert.deepEqual(Object.values(costs).reduce(addPrices, [0,0]), [low,high]);
       if (evidence) await capture(evidence);
-      await details.getByText(name, {exact:true}).click();
+      await summary.press('Enter');
+      assert(!(await details.evaluate(node => node.open)), name + ' 可用鍵盤收起');
       return costs;
     };
     const singleDetails = '看單室費用明細';
@@ -336,7 +427,7 @@ try {
       }, '家具換款只調整家具軟裝，收納櫃、窗簾與其他工項維持原價');
     };
     const checkWhole = async (low, high, evidence) => {
-      await link('整戶');
+      await link('看整戶');
       const quote = page.locator('.card').filter({has:page.getByRole('heading', {name:'整戶初步報價',exact:true})});
       await quote.waitFor();
       const headings = await quote.locator(':scope > .price').allTextContents();
@@ -414,13 +505,13 @@ try {
     await expectZoom(1.5);
     assert(await zoomIn.isDisabled());
     await capture('zoom-retry');
-    const wholeLink = page.getByRole('link', {name:'整戶', exact:true});
+    const wholeLink = page.getByRole('link', {name:'看整戶', exact:true});
     await wholeLink.scrollIntoViewIfNeeded();
     assert(await wholeLink.evaluate(anchor => {
       const {x,y,width,height} = anchor.getBoundingClientRect();
       return anchor.contains(document.elementFromPoint(x + width / 2, y + height / 2));
     }), '整戶連結須可直接點選，不被解鎖按鈕覆蓋');
-    await link('整戶');
+    await link('看整戶');
     await assertCost(wholeDetails, 168, 280);
     await press('餐廳');
     await page.getByText('縮放 1×', {exact:true}).waitFor();
@@ -601,11 +692,11 @@ try {
     await starts.locator('input[type=file]').setInputFiles(planFile('新案-起始.pdf'));
     await link('查看解析結果');
     await link('直接選風格');
-    await link('都不像');
+    await link('都不像？');
     assert.equal(await page.getByLabel('想要什麼樣的家').inputValue(),'');
     await page.getByLabel('想要什麼樣的家').fill('新案・白牆');
     await link('看風格建議');
-    await link('看設計示意');
+    await link('看實景與報價');
     await page.getByText('26–48 萬', {exact:true}).waitFor();
     await link('解鎖精修與施工');
     await press('示意解鎖');
@@ -686,7 +777,7 @@ try {
     assert.equal(await page.getByLabel('長度（公尺）').inputValue(), '7');
     assert.equal(await page.getByLabel('寬度（公尺）').inputValue(), '3');
     await link('直接選風格');
-    await link('看設計示意');
+    await link('看實景與報價');
     await press('等角');
     await canvas.waitFor();
     await page.getByText('7000 × 3000 mm', {exact:true}).waitFor();

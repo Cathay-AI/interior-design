@@ -89,8 +89,9 @@ function createProject(page) {
   projects.set(id, {name:'新家 ' + projectCount, page, draft:newDraft(), isNew:true});
   return id;
 }
-const link = (name, page, primary = false) => el('a', {href:href(page),class:'button' + (primary ? ' primary' : '')}, name);
-const button = (name, click, pressed) => el('button', {type:'button',onclick:click,...(pressed == null ? {} : {'aria-pressed':pressed})}, name);
+const link = (name, page, className = 'button') => el('a', {href:href(page),class:className}, name);
+const button = (name, click, pressed, className = '') => el('button', {type:'button',class:className,onclick:click,
+  ...(pressed == null ? {} : {'aria-pressed':pressed})}, name);
 const refresh = (change) => (event) => {
   const buttons = Array.from(screen.querySelectorAll('button'));
   const index = buttons.indexOf(event.currentTarget);
@@ -246,8 +247,9 @@ function costDetails(label, items) {
     el('span', {}, name, basis && el('small', {}, basis)),
     el('strong', {}, price(values))));
   return el('details', {class:'cost-details'}, el('summary', {}, label),
-    el('p', {class:'muted'}, '依工項列出示意區間，實際單價與工法在現場丈量後確認。'),
-    el('ul', {class:'rows'}, entries));
+    el('div', {class:'cost-breakdown'},
+      el('p', {class:'muted'}, '依工項列出示意區間，實際單價與工法在現場丈量後確認。'),
+      el('ul', {class:'rows'}, entries)));
 }
 const estimate = () => price(sumCosts(roomCostItems()));
 const itemChanged = (key, projectDraft = draft) => key === 'chair' ? projectDraft.chairChanged : projectDraft.changedRooms.has(0);
@@ -519,6 +521,12 @@ function scanningPage() {
         el('a', {href:href('read'),class:'button primary',onclick:confirmSource}, '查看解析結果'))), 'scan-grid');
 }
 
+function changeLayoutStep(offset) {
+  draft.step += offset;
+  render(false);
+  screen.querySelector('#layout-question').focus();
+}
+
 function profilePage() {
   const proposed = proposedOpenKitchen();
   const original = homeCosts(false);
@@ -539,7 +547,7 @@ function profilePage() {
     el('div', {class:'profile-total',role:'status','aria-label':'整戶估價'},
       el('small', {}, isOriginal ? '整戶 · 原本估算' : '整戶 · 調整後估算'),
       el('strong', {}, price(sumCosts(displayed.wholeHome))))),
-    card(...heading('你的居家人格'),
+    card(el('h1', {id:'profile-title',tabindex:'-1'}, '你的居家人格'),
       el('div', {class:'profile-personality'}, el('small', {}, '你的選擇'),
         el('h2', {}, proposed ? '窩居料理派' : '自然實用派'),
         el('p', {}, draft.answers.filter(Boolean).join(' · ') || '回精修格局補上選擇。')),
@@ -592,15 +600,15 @@ const pages = {
     sourceDetails(),
     actions(picker('重選平面圖', {accept:'image/*,.pdf'}, upload),
       picker('上傳機電圖', {accept:'image/*,.pdf'}, event => upload(event, false))),
-    actions(link('直接選風格', 'style', true)))),
+    actions(link('直接選風格', 'style', 'button primary')))),
   conditions: () => card(...heading('補充空間條件'), el('label', {}, '天花板及管線備註',
-    el('textarea', {oninput: event => {draft.conditions = event.target.value;}}, draft.conditions || '')), link('返回空間條件', 'read', true)),
+    el('textarea', {oninput: event => {draft.conditions = event.target.value;}}, draft.conditions || '')), link('返回空間條件', 'read', 'button primary')),
   brief: () => grid(figure(image(), '用預設風格預覽'), card(...heading('說說你想要的家'),
     el('label', {}, '想要什麼樣的家', el('textarea', {
       placeholder:'例如：客廳想明亮一點，也要有地方收玩具。',
       oninput:event => {draft.note = event.target.value;},
     }, draft.note)),
-    link('看風格建議', 'style', true),
+    link('看風格建議', 'style', 'button primary'),
     el('details', {class:'brief-extras',...(draft.briefExtrasOpen ? {open:''} : {}),
       ontoggle:event => {if (event.currentTarget.isConnected) draft.briefExtrasOpen = event.currentTarget.open;}},
       el('summary', {}, '加參考圖或調整偏好'),
@@ -615,20 +623,23 @@ const pages = {
     card(...heading('初步推薦風格'),
       el('div', {class:'style-options',role:'group','aria-label':'風格方向'}, looks.map((name, i) =>
         el('button', {type:'button','aria-pressed':draft.style === i,onclick:refresh(() => {draft.style = i;})},
-          el('img', {src:image(i),alt:'',loading:'lazy'}), 'ABC'[i] + ' · ' + name))),
-      actions(link('都不像', 'brief'), link('看設計示意', 'result', true)))),
+          el('img', {src:image(i),alt:'',loading:'lazy'}), el('span', {}, 'ABC'[i] + ' · ' + name),
+          draft.style === i && el('span', {class:'style-check','aria-hidden':'true'}, '✓')))),
+      el('div', {class:'style-next'}, link('看實景與報價', 'result', 'button primary'),
+        el('div', {class:'style-alternative'}, link('都不像？', 'brief', 'text-link'),
+          el('small', {}, '可寫下需求或提供參考圖'))))),
   result: () => {
     const costs = roomCostItems();
     return grid(preview(), el('section', {class:'card stack result-quote'},
       ...heading('實景＋初步報價', rooms[draft.room] + ' · 免費'),
       el('strong', {class:'price'}, price(sumCosts(costs))), draft.room === 0 && resultFurniture(),
       costDetails('看單室費用明細', costs),
-      actions(link('毛胚到完成', 'compare'), link('整戶', 'whole'), link('家具與材質', 'materials'), link('這個家', 'project')),
+      actions(link('毛胚到完成', 'compare'), link('看整戶', 'whole'), link('家具與材質', 'materials'), link('這個家', 'project')),
       card(el('h2', {}, '法規初檢 · 示意'),
         rows([['消防', '2 項要注意'], ['建築', '1 項待補資料']]),
         el('small', {}, '範例初檢，實際適用情況須經專業人員複核。'),
-        link(draft.unlocked ? '看法規細評' : '解鎖看逐條', draft.unlocked ? 'compliance' : 'unlock')),
-      el('div', {class:'result-next'}, link('解鎖精修與施工', 'unlock', true))), 'result-grid');
+        link(draft.unlocked ? '看法規細評' : '解鎖看逐條', draft.unlocked ? 'compliance' : 'unlock', draft.unlocked ? 'button' : 'button premium-action')),
+      el('div', {class:'result-next'}, link('解鎖精修與施工', 'unlock', 'button premium-action'))), 'result-grid');
   },
   project: () => stack(...heading('這個家', projects.get(projectId).name + ' · 我的家'), actions(link('空間條件', 'read'),
     link('3D 與報價', 'result'), link('施工圖與團隊', draft.unlocked ? 'drawings' : 'unlock')),
@@ -676,21 +687,21 @@ const pages = {
               notice.textContent = '圖檔載入失敗，請再試一次。';
             }
           }), notice,
-          actions(link('看初步報價', 'result'), link('看整戶', 'whole', true)))));
+          actions(link('看初步報價', 'result'), link('看整戶', 'whole', 'button primary')))));
   },
   unlock: () => grid(figure(image(), '整戶一次解鎖'), card(...heading('喜歡了，再把它做出來。', '付費方案示意 · 價格待定'),
     rows([['格局精修', '含'], ['法規細部評估', '示意'], ['風水評估', '選用'], ['施工圖', '含'], ['對接團隊', '含']]),
-    actions(link('先不要', 'result'), button('示意解鎖', () => {draft.unlocked = true; go('layout');})))),
+    actions(link('先不要', 'result'), button('示意解鎖', () => {draft.unlocked = true; go('layout');}, null, 'premium-action')))),
   layout: () => {
     const [prompt, ...choices] = questions[draft.step];
     return grid(stack(...heading('格局精修', '第 ' + (draft.step + 1) + ' 關／5 · ' + ['回家','怎麼煮','怎麼收','怎麼睡','誰會來'][draft.step]),
       plan(false, draft.layoutPreview && proposedOpenKitchen()),
       el('p', {}, draft.layoutPreview && proposedOpenKitchen() ? '示意調整：開放廚房與中島' : '原本平面')),
-      card(el('h2', {}, prompt), actions(...choices.map(choice =>
+      card(el('h2', {id:'layout-question',tabindex:'-1'}, prompt), actions(...choices.map(choice =>
         button(choice, refresh(() => {draft.answers[draft.step] = choice; draft.profileOriginal = false;}), choice === draft.answers[draft.step]))),
-        button('預覽調整／原本平面', refresh(() => {draft.layoutPreview = !draft.layoutPreview;})),
-        actions(draft.step > 0 && button('上一關', refresh(() => {draft.step--;})),
-          draft.step < 4 ? button('下一關', refresh(() => {draft.step++;})) : link('看居家人格', 'profile', true))));
+        button('預覽調整／原本平面', refresh(() => {draft.layoutPreview = !draft.layoutPreview;}), draft.layoutPreview),
+        actions(draft.step > 0 && button('上一關', () => changeLayoutStep(-1)),
+          draft.step < 4 ? button('下一關', () => changeLayoutStep(1), null, 'primary') : link('看居家人格', 'profile', 'button primary'))));
   },
   profile: profilePage,
   compliance: () => {
@@ -716,8 +727,8 @@ const pages = {
         }},
         el('label', {}, '你家在第幾樓？', el('input', {type:'number',min:'1',max:'200',step:'1',required:'',
           value:draft.floorInput,oninput:event => {draft.floorInput = event.target.value;}})),
-        el('button', {type:'submit'}, '儲存樓層並重查')),
-        actions(backToLayout(), link('看風水', 'feng', true))));
+        el('button', {type:'submit',class:'primary'}, '儲存樓層並重查')),
+        actions(backToLayout(), link('看風水', 'feng', 'button primary'))));
   },
   feng: () => grid(plan(), card(...heading('風水評估', '傳統習俗參考 · 12 項示意'),
     rows([['客廳動線','建議調整'],['主臥床頭','建議調整'],['大門方位','待補']]),
@@ -751,14 +762,14 @@ const pages = {
           button(label(sheet), refresh(() => {draft.drawing = sheet.no;}), sheet.no === selected.no),
           el('span', {class:'badge'}, sheet.status)))),
         rows([[featuredItem(),'1 件'], ['初步報價',estimate()], ['現場丈量','待丈量']]),
-        actions(link('看法規細評', 'compliance'), button('列印／另存 PDF', () => window.print()), link('對接團隊', 'team', true))));
+        actions(link('看法規細評', 'compliance'), button('列印／另存 PDF', () => window.print()), link('對接團隊', 'team', 'button primary'))));
   },
   team: () => grid(figure(projectPhoto(), '這個家的示意交接包'), card(...heading('對接團隊', '示意團隊 · 不會發送資料'),
     actions(...['設計師＋工班','只找統包工班'].map(name =>
       button(name, refresh(() => {draft.team = name;}), draft.team === name))),
     rows([['3D、施工圖與報價清單','示例'],['空間條件與法規', draft.checkedLayout === layoutKey() ? '示意已檢核' : '待核對'],
       ['送交接包', draft.sent ? '示意已送件' : '待送件'], ['現場丈量','待排程'], ['正式報價與簽約','待丈量']]),
-    actions(button(draft.sent ? '重設示意送件' : '模擬送交接包', refresh(() => {draft.sent = !draft.sent;})), link('回我的家', 'homes')))),
+    actions(button(draft.sent ? '重設示意送件' : '模擬送交接包', refresh(() => {draft.sent = !draft.sent;}), null, draft.sent ? '' : 'primary'), link('回我的家', 'homes')))),
 };
 const phase = [
   ['你給房子', '免費', 'read', ['entry','camera','scanning','conditions','read']],
@@ -828,7 +839,9 @@ function render(focus = true) {
     screen.replaceChildren(el('aside', {class:'example-banner'},
       el('strong', {}, '範例的家 · 示意'), el('a', {href:'#entry'}, '回首頁')), layout);
   } else screen.replaceChildren(layout);
-  if (focus) {
+  if (focus && page === 'profile') {
+    screen.querySelector('#profile-title').focus();
+  } else if (focus) {
     screen.focus({preventScroll:true});
     window.scrollTo(0,0);
   }
