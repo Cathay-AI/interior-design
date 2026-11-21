@@ -582,9 +582,13 @@ function fengFindings() {
 }
 const openFindings = (findings, prefix) =>
   findings.filter(item => item.status === '要處理' && !draft.dismissed.has(prefix + item.id)).length;
-const findingCounts = (findings, prefix) => '要處理 ' + openFindings(findings, prefix) +
-  '・待補 ' + findings.filter(item => item.status === '待補資料').length +
-  '・沒問題 ' + findings.filter(item => item.status === '沒問題').length;
+function findingCounts(findings, prefix) {
+  const count = status => findings.filter(item => item.status === status).length;
+  const open = openFindings(findings, prefix);
+  const skipped = count('要處理') - open;
+  return '要處理 ' + open + '・待補 ' + count('待補資料') + (count('待覆核') ? '・待覆核 ' + count('待覆核') : '') +
+    (skipped ? '・不處理 ' + skipped : '') + '・沒問題 ' + count('沒問題');
+}
 // Compliance and feng shui share one result format: item, place, state, note, source, advice.
 function findingList(findings, prefix) {
   return findings.map((item, index) => {
@@ -599,7 +603,9 @@ function findingList(findings, prefix) {
       el('small', {}, '來源：' + item.source + '・條號待專業確認'),
       open && actions(item.adopt && el('button', {type:'button',class:'primary','aria-label':'採納，回編輯套用：' + item.advice,
         onclick:() => { item.adopt(); draft.editMessage = '已採納「' + item.advice + '」。'; go('edit'); }}, '採納，回編輯套用'),
-        el('button', {type:'button','aria-label':'不處理：' + item.name,onclick:refresh(() => draft.dismissed.add(key))}, '不處理')));
+        el('button', {type:'button','aria-label':'不處理：' + item.name,onclick:refresh(() => draft.dismissed.add(key))}, '不處理')),
+      dismissed && actions(el('button', {type:'button','aria-label':'改回要處理：' + item.name,
+        onclick:refresh(() => draft.dismissed.delete(key))}, '改回要處理')));
   });
 }
 const resumePage = project => project.draft.pendingSource ? 'scanning' : project.page;
@@ -817,6 +823,7 @@ function editPage() {
     el('div', {class:'actions edit-tabs',role:'group','aria-label':'怎麼改'}, ['換一款', '換材質', '拿掉'].map(tab =>
       button(tab, refresh(() => {draft.editTab = tab;}), draft.editTab === tab))),
     el('div', {class:'tab-body'}, body), form,
+    el('small', {}, '示意版聽得懂：沙發換霧灰或米白、單椅換墨綠或磚紅。'),
     draft.editMessage && el('p', {role:'status'}, draft.editMessage),
     el('details', {class:'add-menu',...(draft.addOpen ? {open:''} : {}),
       ontoggle:event => {if (event.currentTarget.isConnected) draft.addOpen = event.currentTarget.open;}},
@@ -891,20 +898,21 @@ function projectPage() {
       el('strong', {}, name), el('small', {}, note),
       paid && el('span', {class:'badge' + (gated ? ' paid' : '')}, gated ? '解鎖後' : '新開啟'));
   };
-  return grid(preview(), card(el('p', {class:'eyebrow'}, el('span', {}, '這個家・' + projects.get(projectId).name)),
-    el('h1', {}, '你家・' + rooms[draft.room]),
-    el('p', {class:'muted'}, looks[draft.style] + '・' + roomArea() + ' 坪' + (locked ? '' : '・已解鎖')),
-    roomButtons(),
-    el('p', {class:'quote-line'}, el('strong', {class:'price'}, estimate()), el('small', {}, '初步報價・示意金額'), link('看整戶', 'whole', 'text-link')),
+  return el('div', {class:'hub stack'},
+    el('div', {class:'hub-stage'}, preview(),
+      el('div', {class:'hub-title'}, el('h1', {}, '你家・' + rooms[draft.room]),
+        el('small', {}, looks[draft.style] + '・' + roomArea() + ' 坪' + (locked ? '' : '・已解鎖'))),
+      el('div', {class:'hub-rooms'}, link('整戶', 'whole'), roomButtons()),
+      el('p', {class:'hub-price'}, el('small', {}, '初步報價・示意金額'), el('strong', {class:'price'}, estimate()))),
     draft.room === 0 && tuneForm(),
-    el('section', {class:'stack'}, el('h2', {}, '加值：想看的時候再進去'),
-      el('div', {class:'addon-grid'},
-        addon('家具與材質', '每一件都有尺寸', 'materials'), addon('毛胚到完成', '拉一下看家長出來', 'compare'),
-        addon('法規細評', '逐條檢核附來源', 'compliance', true), addon('風水評估', '逐項檢查與建議', 'feng', true),
-        addon('生活測驗', '五題找出你的偏好', 'quiz', true))),
-    el('div', {class:'result-next'}, locked
-      ? [link('解鎖施工圖', 'unlock', 'button premium-action'), el('small', {}, '編輯你的家＋施工圖 ' + drawingSheets().length + ' 張')]
-      : [link('繼續編輯', 'edit', 'button primary'), el('small', {}, '換家具、換材質')])), 'result-grid');
+    el('nav', {class:'addon-grid hub-cards','aria-label':'加值與下一步'},
+      addon('家具與材質', '每一件都有尺寸', 'materials'), addon('毛胚到完成', '拉一下看家長出來', 'compare'),
+      addon('法規細評', '逐條檢核附來源', 'compliance', true), addon('風水評估', '逐項檢查與建議', 'feng', true),
+      addon('生活測驗', '五題找出你的偏好', 'quiz', true),
+      locked
+        ? el('a', {href:href('unlock'),class:'addon-card hub-cta'}, el('strong', {}, '解鎖施工圖'),
+          el('small', {}, '編輯你的家＋施工圖 ' + drawingSheets().length + ' 張'))
+        : el('a', {href:href('edit'),class:'addon-card hub-cta'}, el('strong', {}, '繼續編輯'), el('small', {}, '換家具、換材質'))));
 }
 
 // Homes to look around before uploading: room, direction, title, note.
@@ -1091,7 +1099,7 @@ const pages = {
     }), changedRoom())),
     rows([[featuredItem(), '1 件'], [catalogue.FLOORS[0].n, '地板'], [catalogue.WALLS[0].n, '牆面']]),
     actions(link('看整戶清單', 'whole'), link('換好了，更新報價', 'result', 'button primary')),
-    el('a', {href:studio + 'prototype/',class:'text-link'}, '開啟 3D 風格實驗室'))),
+    el('a', {href:studio + 'prototype/',class:'text-link'}, '開啟 3D 風格實驗室')), 'result-grid'),
   compare: () => {
     const room = rooms[draft.room];
     const stage = draft.comparisonStage;
@@ -1155,8 +1163,10 @@ const pages = {
         el('p', {class:'panel-note',role:'status'}, answered
           ? '記下來了。測驗只問你怎麼生活，不會動你的設計；五關答完再一起帶去編輯。' : '測驗只問你怎麼生活，不會動你的設計。'),
         actions(step > 0 && button('上一關', () => changeQuizStep(-1)),
-          step < 4 ? button('下一關：' + quizStages[step + 1], () => changeQuizStep(1), null, 'primary')
-            : link('看測驗結果', 'profile', 'button primary'))), 'profile-grid');
+          step < 4 ? el('button', {type:'button',class:'primary', ...(answered ? {} : {disabled:''}),
+            onclick:() => changeQuizStep(1)}, '下一關：' + quizStages[step + 1])
+            : answered ? link('看測驗結果', 'profile', 'button primary')
+              : el('button', {type:'button',class:'primary',disabled:''}, '看測驗結果'))), 'profile-grid');
   },
   profile: profilePage,
   compliance: () => {
@@ -1198,14 +1208,16 @@ const pages = {
     const label = sheet => sheet.no + ' ' + sheet.title;
     const types = [...new Set(sheets.map(sheet => sheet.type))];
     const current = sheets.filter(sheet => sheet.type === selected.type);
+    const reviewed = sheets.filter(sheet => /已覆核/.test(sheet.status)).length;
     return grid(stack(el('section', {class:'card stack print-sheet'}, el('h2', {}, label(selected)),
       drawingImage(selected, 'drawing'),
       el('small', {}, '第 ' + draft.layoutVersion + ' 版 · ' + selected.status))),
       el('aside', {class:'card stack drawing-controls'}, eyebrow('03', '真實施工圖'),
         ...heading('你家的施工圖包', '示意圖面・待現場丈量與專業覆核'),
         el('ol', {class:'review-stages','aria-label':'圖面進度'}, ['AI 初稿', '設計師覆核', '現場丈量', '定稿可施工'].map((name, i) =>
-          el('li', i === 0 ? {'aria-current':'step'} : {}, name))),
-        el('p', {class:'panel-note'}, sheets.length + ' 張圖都出來了，目前是 AI 初稿。水電要等現場丈量才能定。'),
+          el('li', i === Number(reviewed > 0) ? {'aria-current':'step'} : {}, name))),
+        el('p', {class:'panel-note'}, sheets.length + ' 張圖都出來了，其中 ' + reviewed + ' 張標為示意已覆核。水電要等現場丈量才能定。'),
+        el('small', {}, '圖面是客廳的示意圖，還不會畫出你在編輯頁改過的項目。'),
         actions(...types.map(type => button(type + ' ' + sheets.filter(sheet => sheet.type === type).length + ' 張',
           refresh(() => {draft.drawing = sheets.find(sheet => sheet.type === type).no;}), selected.type === type))),
         el('ul', {class:'rows'}, current.map(sheet => el('li', {},
@@ -1213,7 +1225,7 @@ const pages = {
           el('span', {class:'badge'}, sheet.status)))),
         rows([[rooms[draft.room] + '初步報價', estimate()], ['整戶初步報價', price(sumCosts(homeCosts().wholeHome))], ['消防與裝修法規', openFindings(complianceFindings(), 'c:') + ' 項要處理'],
           ...(draft.own.length ? [['屋主自備家具', draft.own.length + ' 件・不計入報價']] : [])]),
-        actions(link('看法規細節', 'compliance'), link('回編輯', 'edit'), button('下載 PDF', () => window.print())),
+        actions(link('看法規細節', 'compliance'), link('回編輯', 'edit'), button('列印或存成 PDF', () => window.print())),
         actions(link('交給團隊做出來', 'team', 'button primary'))));
   },
   team: () => grid(stack(figure(projectPhoto(), '這個家的交接包'),

@@ -149,9 +149,10 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await link('進到這個家').click();
     await title('你家・客廳');
     const cards = main.locator('.addon-card');
-    assert.deepEqual((await cards.locator('strong').allTextContents()), ['家具與材質', '毛胚到完成', '法規細評', '風水評估', '生活測驗']);
+    assert.deepEqual((await cards.locator('strong').allTextContents()), ['家具與材質', '毛胚到完成', '法規細評', '風水評估', '生活測驗', '解鎖施工圖']);
     const targets = await cards.evaluateAll(nodes => nodes.map(node => new URL(node.href).hash.slice(1).split('?')[0]));
-    assert.deepEqual(targets, ['materials', 'compare', 'unlock', 'unlock', 'unlock']);
+    assert.deepEqual(targets, ['materials', 'compare', 'unlock', 'unlock', 'unlock', 'unlock']);
+    if (!mobile) assert.ok(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 80), '桌機「這個家」要一屏看完');
     assert.equal(await main.getByText('解鎖後', {exact:true}).count(), 3);
     await main.getByText(/^編輯你的家＋施工圖 \d+ 張$/).waitFor();
   });
@@ -179,7 +180,7 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
   });
 
   await step('補充 整戶', async () => {
-    await link('看整戶').click();
+    await link('整戶').click();
     await title('一間一間看，整戶一起算');
     await button('下一間：餐廳').click();
     await button('下一間：廚房').waitFor();
@@ -209,12 +210,12 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await link('回這個家').click();
     await title('你家・客廳');
     assert.equal(await main.locator('.addon-card').getByText('新開啟', {exact:true}).count(), 3);
-    assert.equal(await link('解鎖施工圖').count(), 0);
-    await link('繼續編輯').waitFor();
+    assert.equal(await link(/^解鎖施工圖/).count(), 0);
+    await link(/^繼續編輯/).waitFor();
   });
 
   await step('10 編輯你的家：換、加、拿掉、復原', async () => {
-    await link('繼續編輯').click();
+    await link(/^繼續編輯/).click();
     await title('單椅');
     assert.equal(await route(), 'edit');
     const quote = main.getByRole('status', {name:'改完的報價'});
@@ -266,7 +267,7 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await main.getByText('要處理 2・待補 1・沒問題 1').waitFor();
     await main.getByLabel('你家在第幾樓？').fill('8');
     await button('儲存樓層並重查').click();
-    await main.getByText('要處理 2・待補 0・沒問題 1').waitFor();
+    await main.getByText('要處理 2・待補 0・待覆核 1・沒問題 1').waitFor();
     await button('採納，回編輯套用：不動天花板，就不用申請').click();
     assert.equal(await route(), 'edit');
     await main.getByText('已採納「不動天花板，就不用申請」。').waitFor();
@@ -283,7 +284,10 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await main.locator('.edited-rows').getByText('玄關加屏風櫃').waitFor();
     await link('風水 1').click();
     await button('不處理：床頭靠窗').click();
-    await main.getByText('要處理 0・待補 1・沒問題 2').waitFor();
+    await main.getByText('要處理 0・待補 1・不處理 1・沒問題 2').waitFor();
+    await button('改回要處理：床頭靠窗').click();
+    await main.getByText('要處理 1・待補 1・沒問題 2').waitFor();
+    await button('不處理：床頭靠窗').click();
     await button('納入風水').click();
     await main.getByText('已略過風水，這一版不檢查。').waitFor();
     await link('回編輯').click();
@@ -298,6 +302,7 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await link('回這個家').click();
     await link(/^生活測驗/).click();
     await title('回到家第一件事？');
+    assert.equal(await button('下一關：怎麼煮').isDisabled(), true, '沒選不能到下一關');
     await button(/^東西先放好/).click();
     await main.getByText('記下來了。測驗只問你怎麼生活，不會動你的設計；五關答完再一起帶去編輯。').waitFor();
     await button('下一關：怎麼煮').click();
@@ -326,12 +331,13 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await link('改好了，出施工圖').click();
     await title('你家的施工圖包');
     await main.locator('img.drawing').waitFor();
-    assert.equal(await main.locator('.review-stages li[aria-current]').textContent(), 'AI 初稿');
+    assert.equal(await main.locator('.review-stages li[aria-current]').textContent(), '設計師覆核');
+    await main.getByText(/張標為示意已覆核/).waitFor();
     await main.getByText('屋主自備家具').waitFor();
     await main.getByText('客廳初步報價').waitFor();
     await main.getByText('整戶初步報價').waitFor();
     await link('回編輯').waitFor();
-    await button('下載 PDF').waitFor();
+    await button('列印或存成 PDF').waitFor();
   });
 
   await step('13 交給團隊（最多 3 組）', async () => {
