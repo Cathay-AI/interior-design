@@ -132,9 +132,9 @@ const newDraft = () => ({
 const browseHomes = [
   ['example', 0, 0, '客廳・9 坪', '靜謐橡木', './imagery/living-4.webp'],
   ['example-fog', 0, 1, '客廳・9 坪', '霧灰', './imagery/hq-living-fog.jpg'],
-  ['example-dining', 1, 0, '餐廳・4.5 坪', '暖光木質', './imagery/hq-dining.jpg'],
-  ['example-bedroom', 4, 0, '主臥・5.5 坪', '床頭木牆', './imagery/hq-master.jpg'],
-  ['example-study', 6, 0, '書房・3.5 坪', '整面書牆', './imagery/hq-study.jpg'],
+  ['example-dining', 1, 0, '餐廳・4.5 坪', '暖光木質', roomScene(1)],
+  ['example-bedroom', 4, 0, '主臥・5.5 坪', '床頭木牆', roomScene(4)],
+  ['example-study', 6, 0, '書房・3.5 坪', '整面書牆', roomScene(6)],
 ];
 
 const projects = new Map([
