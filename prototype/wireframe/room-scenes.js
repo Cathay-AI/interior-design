@@ -4,7 +4,20 @@ export const stages = ['毛胚', '地坪與牆面', '木作與櫃體', '家具�
 const rooms = ['living', 'dining', 'kitchen', 'guest-bath', 'main-bedroom', 'main-bath', 'study-bedroom', 'guest-bedroom'];
 const looks = ['none', 'sepia(.22) saturate(1.2) contrast(1.12) brightness(.9)', 'saturate(.78) brightness(1.12)'];
 
+const hqFinished = [
+  './imagery/living-4.webp',
+  './imagery/hq-dining.jpg',
+  './imagery/hq-kitchen.jpg',
+  './imagery/hq-bath.jpg',
+  './imagery/hq-master.jpg',
+  './imagery/hq-bath.jpg',
+  './imagery/hq-study.jpg',
+  './imagery/hq-study.jpg',
+];
+
 export function roomScene(room, stage = stages.length - 1, openKitchen = false) {
+  if (room === 0 && stage === 0) return './imagery/hq-living-bare.jpg';
+  if (stage === stages.length - 1 && hqFinished[room]) return hqFinished[room];
   const name = room === 2 && openKitchen ? 'open-kitchen' : rooms[room];
   return './imagery/' + name + '-' + stage + '.webp';
 }
