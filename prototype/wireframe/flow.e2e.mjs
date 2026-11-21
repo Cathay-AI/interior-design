@@ -1,7 +1,7 @@
 // End-to-end walk of the Quiet Oak flow, in the order of the design canvas:
-//   free   入口 → 解析 → 空間條件 → 推薦風格 → 生成 3D → 你家的樣子 → 這個家
-//   paid   解鎖 → 解鎖完成 → 這個家（已解鎖）→ 精修格局 → 施工圖 → 交給團隊
-//   add-ons are entered from 這個家 and never change the layout by themselves.
+//   free   入口（沒想法先逛）→ 解析＋問屋型 → 空間條件 → 推薦風格 → 生成 3D → 你家的樣子 → 這個家
+//   paid   解鎖 → 解鎖完成 → 這個家（已解鎖）→ 編輯你的家 → 施工圖 → 交給團隊 → 送出完成
+//   add-ons are entered from 這個家 and never change the design by themselves; the free tool is a side door.
 // Usage: node flow.e2e.mjs [base URL]. Set WIREFRAME_SCREENSHOTS to a folder to keep a picture of every page.
 import { strict as assert } from 'node:assert';
 import { chromium } from 'playwright';
@@ -22,7 +22,7 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 
   const main = page.locator('main');
-  const title = name => main.getByRole('heading', {level:1, name, exact:true}).waitFor({timeout:5000});
+  const title = name => main.getByRole('heading', {level:1, name, exact:typeof name === 'string'}).waitFor({timeout:5000});
   const link = name => main.getByRole('link', {name, exact:typeof name === 'string'});
   const button = name => main.getByRole('button', {name, exact:typeof name === 'string'});
   const route = async () => new URL(page.url()).hash.slice(1).split('?')[0];
@@ -50,26 +50,49 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     }
   };
 
+  const upload = name => main.locator('.start-upload input[type=file]').setInputFiles({
+    name, mimeType:name.endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream', buffer:Buffer.from('demo'),
+  });
+  const rowsChanged = () => main.locator('.edited-rows li').count();
+
   await step('01 入口', async () => {
     await page.goto(base);
     await page.locator('#entry-title').waitFor();
-    await page.getByRole('link', {name:'手邊沒有？先看一個範例的家'}).waitFor();
+    await main.getByText('建商平面圖、現場照片、LiDAR 掃描檔都可以').first().waitFor();
     assert.equal(await main.locator('.start-upload input[type=file]').count(), 1, '入口只有一個上傳按鈕');
   });
 
-  await step('02 空間解析中', async () => {
-    await main.locator('.start-upload input[type=file]').setInputFiles({
-      name:'建商平面圖.pdf', mimeType:'application/pdf', buffer:Buffer.from('%PDF-1.4 demo'),
-    });
+  await step('01b 還沒想法：先逛幾個家', async () => {
+    await page.getByRole('link', {name:'還沒想法？先逛幾個家'}).click();
+    await title('還沒想法？先逛幾個家，挑有感覺的。');
+    assert.deepEqual(await main.locator('.browse-card small').allTextContents(), ['靜謐橡木', '霧灰', '暖光木質', '床頭木牆', '整面書牆']);
+    await main.locator('.browse-card').nth(1).click();
+    await title('客廳・霧灰');
+    await main.getByText('範例的家 · 示意').waitFor();
+    await page.goto(base + '#browse');
+    await main.locator('.browse-card').nth(3).click();
+    await title('主臥・靜謐橡木');
+    await page.goto(base + '#browse');
+    await link('‹ 回首頁').click();
+    await page.locator('#entry-title').waitFor();
+  });
+
+  await step('02 解析中＋問屋型', async () => {
+    await upload('建商平面圖.pdf');
     await title('正在讀你的平面圖');
     assert.equal(await route(), 'scanning');
     await main.getByText('建商平面圖.pdf').waitFor();
     assert.equal(await main.locator('.scan-step[data-state="已完成"]').count(), 5);
+    await main.getByText('只影響報價怎麼算，不答也能繼續。').waitFor();
+    await button(/^中古屋/).click();
+    assert.equal(await button(/^中古屋/).getAttribute('aria-pressed'), 'true');
+    assert.equal(await button(/^新成屋/).getAttribute('aria-pressed'), 'false');
   });
 
-  await step('03 空間條件', async () => {
+  await step('03 空間條件（讀圖）', async () => {
     await link('看我讀到什麼').click();
     await title('我讀懂的你家');
+    await main.getByText('有掃描檔的話會更準。', {exact:false}).waitFor();
     await main.getByText('空間條件 72%').waitFor();
     await button('待補 2').click();
     assert.equal(await main.locator('.detail-rows li').count(), 2);
@@ -80,16 +103,18 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
   await step('04 推薦風格', async () => {
     await link('對，看推薦的風格').click();
     await title('我先推薦三個方向');
-    const options = main.getByRole('group', {name:'風格方向'}).getByRole('button');
-    assert.deepEqual((await options.allTextContents()).map(text => text.slice(0, 6)), ['A 靜謐橡木', 'B 日光米白', 'C 森林木框']);
-    await button(/^B 日光米白/).click();
+    const options = main.getByRole('group', {name:'風格方向'}).locator('button strong');
+    assert.deepEqual(await options.allTextContents(), ['A 靜謐橡木', 'B 霧灰', 'C 墨綠']);
+    await button(/^B 霧灰/).click();
     await link('用 B 生成我家的 3D').waitFor();
+    await button(/^C 墨綠/).click();
+    await link('用 C 生成我家的 3D').waitFor();
     await button(/^A 靜謐橡木/).click();
     await link('用 A 生成我家的 3D').waitFor();
   });
 
   await step('04b 一句話微調', async () => {
-    await link('都不像？說一句話或丟參考圖').click();
+    await link('都不像').click();
     await title('都不像？說一句話，或丟幾張你喜歡的圖。');
     await button('淺色地板').click();
     assert.equal(await button('淺色地板').getAttribute('aria-pressed'), 'true');
@@ -103,12 +128,15 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await title('正在把你家蓋出來');
     assert.equal(await route(), 'generating');
     assert.equal(await main.locator('.scan-step[data-state="已完成"]').count(), 4);
+    await main.getByText('不想等可以先離開', {exact:false}).waitFor();
   });
 
   await step('06 你家的樣子＋報價', async () => {
     await link('看成品與報價').click();
     await title('客廳・靜謐橡木');
-    assert.match(await main.locator('.price').first().textContent(), /^\d+–\d+ 萬$/);
+    const quote = await main.locator('.price').first().textContent();
+    assert.match(quote, /^\d+–\d+ 萬$/);
+    assert.notEqual(quote, '26–48 萬', '中古屋的報價要含基礎工程');
     await button('平面').click();
     await main.locator('.room-preview .plan').waitFor();
     await button('實景').click();
@@ -125,6 +153,7 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     const targets = await cards.evaluateAll(nodes => nodes.map(node => new URL(node.href).hash.slice(1).split('?')[0]));
     assert.deepEqual(targets, ['materials', 'compare', 'unlock', 'unlock', 'unlock']);
     assert.equal(await main.getByText('解鎖後', {exact:true}).count(), 3);
+    await main.getByText(/^編輯你的家＋施工圖 \d+ 張$/).waitFor();
   });
 
   await step('加值 家具與材質', async () => {
@@ -144,7 +173,8 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await button('2 地坪與牆面').click();
     assert.equal(await button('2 地坪與牆面').getAttribute('aria-pressed'), 'true');
     await button('5 燈光').click();
-    await link('‹ 回這個家').click();
+    await link('看初步報價').waitFor();
+    await link('回這個家', ).click();
     await title('你家・客廳');
   });
 
@@ -159,92 +189,116 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
 
   await step('未解鎖不能直接進付費頁', async () => {
     const id = new URL(page.url()).hash.split('project=')[1];
-    for (const name of ['layout', 'quiz', 'compliance', 'feng', 'drawings', 'team', 'unlocked']) {
+    for (const name of ['edit', 'own', 'quiz', 'compliance', 'feng', 'drawings', 'team', 'sent', 'notices', 'unlocked']) {
       await page.goto(base + '#' + name + '?project=' + id);
-      await title('喜歡的話，拿到施工圖');
+      await title('喜歡的話，把它變成你的');
     }
   });
 
   await step('08 解鎖', async () => {
     await main.getByText('示意解鎖，不會收費。').waitFor();
+    await main.getByText('初步報價不是正式報價；施工圖在現場丈量後定稿。').waitFor();
     await link('先不要').waitFor();
     await button('解鎖').click();
-    await title('解鎖了。現在可以把它做出來。');
+    await title('解鎖了。現在可以把它變成你的。');
     assert.equal(await route(), 'unlocked');
+    await link('開始編輯').waitFor();
   });
 
   await step('09 這個家（已解鎖）', async () => {
     await link('回這個家').click();
     await title('你家・客廳');
-    assert.equal(await main.locator('.addon-card').getByText('已解鎖', {exact:true}).count(), 3);
+    assert.equal(await main.locator('.addon-card').getByText('新開啟', {exact:true}).count(), 3);
     assert.equal(await link('解鎖施工圖').count(), 0);
-    await link('繼續精修格局').waitFor();
+    await link('繼續編輯').waitFor();
   });
 
-  await step('10 精修格局：每改一次出新版本', async () => {
-    await link('繼續精修格局').click();
-    await title('格局方案 v1');
-    const total = main.getByRole('status', {name:'整戶估價'});
-    const original = await total.textContent();
-    await button('＋ 廚房打開，做中島').click();
-    await title('格局方案 v2');
-    await main.locator('.plan[data-open-kitchen="true"]').waitFor();
-    assert.notEqual(await total.textContent(), original, '調整後整戶估算要變');
-    await button('原本 v1').click();
-    assert.equal(await total.textContent(), original.replace('這一版', '原本'));
-    await button('調整後 v2').click();
-    await link('法規 2').waitFor();
-    await link('風水 2').waitFor();
-    await link('生活測驗 未做').waitFor();
+  await step('10 編輯你的家：換、加、拿掉、復原', async () => {
+    await link('繼續編輯').click();
+    await title('單椅');
+    assert.equal(await route(), 'edit');
+    const quote = main.getByRole('status', {name:'改完的報價'});
+    const before = await quote.textContent();
+    assert.equal(await rowsChanged(), 0);
+    await button(/^墨綠絨布/).click();
+    await main.getByText('單椅換成墨綠休閒椅。').waitFor();
+    assert.equal(await rowsChanged(), 1);
+    assert.notEqual(await quote.textContent(), before, '換款後報價要變');
+    await button('選沙發').click();
+    await title('沙發');
+    await button(/^霧灰布/).click();
+    assert.equal(await rowsChanged(), 2);
+    await button('復原：沙發').click();
+    assert.equal(await rowsChanged(), 1);
+    await button('拿掉', ).click();
+    await button('拿掉沙發').click();
+    assert.equal(await rowsChanged(), 2);
+    await button('放回沙發').click();
+    assert.equal(await rowsChanged(), 1);
+    await main.getByLabel('或說一句話').fill('單椅換磚紅');
+    await button('套用這句話').click();
+    await main.getByText('單椅換成磚紅休閒椅。').waitFor();
+    assert.equal(await rowsChanged(), 0);
+    assert.equal(await quote.textContent(), before);
+    await main.getByText('＋ 加一樣東西').click();
+    await button('＋ 落地燈').click();
+    assert.equal(await rowsChanged(), 1);
   });
 
-  await step('加值 法規細評：只檢查、採納後回精修出新版', async () => {
+  await step('10b 放你自己的家具', async () => {
+    await button('換一款').click();
+    await link(/^放你自己的/).click();
+    await title('放你自己的家具');
+    await main.getByText(/^放得下/).waitFor();
+    await main.getByLabel('寬（公分）').fill('9999');
+    await main.getByText(/^放不下/).waitFor();
+    assert.equal(await button('放進我家').isDisabled(), true);
+    await main.getByLabel('寬（公分）').fill('68');
+    await button('放進我家').click();
+    await main.getByText('你的家具放進來了，施工清單會標「屋主自備」。', {exact:false}).waitFor();
+    await main.locator('.edited-rows').getByText('你自己的家具').waitFor();
+  });
+
+  await step('加值 法規細評：只檢查、採納後回編輯', async () => {
     await link('法規 2').click();
     await title('逐條檢核，附來源');
-    await main.getByText('檢核對象：格局方案 v2').waitFor();
+    await main.getByText('檢核對象：目前的設計').waitFor();
     await main.getByText('要處理 2・待補 1・沒問題 1').waitFor();
     await main.getByLabel('你家在第幾樓？').fill('8');
     await button('儲存樓層並重查').click();
     await main.getByText('要處理 2・待補 0・沒問題 1').waitFor();
-    await main.locator('.plan[data-open-kitchen="true"]').waitFor();
-    await button('採納，回精修套用：保留這道牆，就不用申請').click();
-    await title('格局方案 v3');
-    await main.locator('.plan[data-open-kitchen="false"]').waitFor();
-    await link('法規 1').waitFor();
-  });
-
-  await step('精修格局：說一句話', async () => {
-    await main.getByLabel('還想怎麼改？說一句話').fill('廚房打開');
-    await button('套用格局調整').click();
-    await title('格局方案 v4');
-    await main.getByText('已加入「廚房打開，做中島」，這是 v4。').waitFor();
+    await button('採納，回編輯套用：不動天花板，就不用申請').click();
+    assert.equal(await route(), 'edit');
+    await main.locator('.edited-rows').getByText('不動天花板').waitFor();
+    await link('法規 沒問題').waitFor();
   });
 
   await step('加值 風水評估：採納、不處理、可整個關掉', async () => {
     await link('風水 2').click();
     await title('逐項檢查與建議');
-    await main.getByText('檢核對象：格局方案 v4').waitFor();
-    await button('採納，回精修套用：玄關加屏風櫃').click();
-    await title('格局方案 v5');
-    assert.equal(await main.locator('.change-list li').count(), 2);
+    await main.getByText('檢核對象：目前的設計').waitFor();
+    await button('採納，回編輯套用：玄關加屏風櫃').click();
+    assert.equal(await route(), 'edit');
+    await main.locator('.edited-rows').getByText('玄關加屏風櫃').waitFor();
     await link('風水 1').click();
     await button('不處理：床頭靠窗').click();
     await main.getByText('要處理 0・待補 1・沒問題 2').waitFor();
     await button('納入風水').click();
     await main.getByText('已略過風水，這一版不檢查。').waitFor();
-    await link('回精修格局').click();
-    await title('格局方案 v5');
+    await link('回編輯').click();
     await link('風水 未納入').click();
     await button('納入風水').click();
-    await link('回精修格局').click();
-    await link('風水 0').waitFor();
+    await link('回編輯').click();
+    await link('風水 沒問題').waitFor();
   });
 
-  await step('加值 生活測驗：只問生活、不動格局', async () => {
-    await link('生活測驗 未做').click();
+  await step('加值 生活測驗：只問生活、不動設計', async () => {
+    const rows = await rowsChanged();
+    await link('回這個家').click();
+    await link(/^生活測驗/).click();
     await title('回到家第一件事？');
     await button(/^東西先放好/).click();
-    await main.getByText('記下來了。測驗只問你怎麼生活，不會動格局；五關答完再一起交給精修。').waitFor();
+    await main.getByText('記下來了。測驗只問你怎麼生活，不會動你的設計；五關答完再一起帶去編輯。').waitFor();
     await button('下一關：怎麼煮').click();
     await title('平常在家煮飯嗎？');
     assert.equal(await page.evaluate(() => document.activeElement.id), 'layout-question');
@@ -252,42 +306,82 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await button('下一關：怎麼收').click();
     await button(/^都藏起來/).click();
     await button('下一關：怎麼睡').click();
-    await button(/^喜歡自然醒/).click();
+    await button(/^怕光也怕吵/).click();
     await button('下一關：誰會來').click();
     await button(/^以家人為主/).click();
     await link('看測驗結果').click();
     await title('你的居家人格');
     await main.getByRole('heading', {name:'窩居料理派'}).waitFor();
     await main.getByText('測驗完成・5／5 關・格局還沒動').waitFor();
-    await button('把偏好帶去精修').click();
-    await title('格局方案 v5');
-    await button('＋ 玄關加一整面收納（生活測驗）').waitFor();
-    await link('生活測驗 已完成').waitFor();
+    await button('把偏好帶去編輯').click();
+    assert.equal(await route(), 'edit');
+    assert.equal(await rowsChanged(), rows, '測驗不該自己改設計');
+    await button('＋ 玄關收納櫃（生活測驗）').waitFor();
+    await button('＋ 主臥床轉 90 度靠牆（生活測驗）').waitFor();
   });
 
-  await step('11 真實施工圖', async () => {
-    await link('這一版定案，出施工圖').click();
+  await step('12 真實施工圖', async () => {
+    await link('改好了，出施工圖').click();
     await title('你家的施工圖包');
     await main.locator('img.drawing').waitFor();
-    await main.getByText('格局方案 v5', {exact:false}).first().waitFor();
     assert.equal(await main.locator('.review-stages li[aria-current]').textContent(), 'AI 初稿');
+    await main.getByText('屋主自備家具').waitFor();
+    await link('回編輯').waitFor();
     await button('下載 PDF').waitFor();
   });
 
-  await step('12 交給團隊', async () => {
+  await step('13 交給團隊（最多 3 組）', async () => {
     await link('交給團隊做出來').click();
     await title('找人把它做出來');
-    await main.getByText('已選 1 組', {exact:true}).waitFor();
+    await main.getByText('最多選 3 組，只有你選的會聯絡你。', {exact:false}).waitFor();
+    await main.getByText('已選 1／3 組', {exact:true}).waitFor();
     await button(/^示意團隊 B/).click();
-    await main.getByText('已選 2 組', {exact:true}).waitFor();
-    await button('送出交接包，約現場丈量').click();
-    await main.getByText('示意已送出交接包給 2 組，接下來約現場丈量。').waitFor();
-    assert.equal(await main.locator('.review-stages li[aria-current]').textContent(), '2 現場丈量');
+    await main.getByText('已選 2／3 組', {exact:true}).waitFor();
   });
 
-  await step('範例的家', async () => {
+  await step('14 送出完成', async () => {
+    await button('送出交接包，約現場丈量').click();
+    await title('送出了。接下來等團隊回覆。');
+    assert.equal(await route(), 'sent');
+    await main.getByText('示意團隊 A、示意團隊 B 已收到 3D、施工圖和報價清單').waitFor();
+    await main.getByText('示意送件・沒有發送任何資料').waitFor();
+  });
+
+  await step('14b LINE 通知示意', async () => {
+    await link('看 LINE 通知長什麼樣').click();
+    await title('LINE 通知長這樣');
+    assert.equal(await main.locator('.notice-list li').count(), 3);
+    await link('回送出完成').waitFor();
+  });
+
+  await step('03b 空間條件（掃描檔）', async () => {
+    await page.goto(base + '#entry');
+    await page.locator('#entry-title').waitFor();
+    await upload('living-room.usdz');
+    await title('正在讀你的掃描檔');
+    await link('看我讀到什麼').click();
+    await title('量好的，直接用');
+    await main.getByText('空間條件 96%').waitFor();
+    assert.equal(await main.getByLabel('客廳 長（公分）').inputValue(), '562');
+    await button('半窗').click();
+    assert.equal(await button('半窗').getAttribute('aria-pressed'), 'true');
+    await link('對，看推薦的風格').click();
+    await title('我先推薦三個方向');
+  });
+
+  await step('側門 免費小工具', async () => {
+    await page.goto(base + '#tool');
+    await title('拍一張空房間，看它裝好的樣子。');
+    await main.locator('.picker input[type=file]').setInputFiles({name:'empty-room.jpg', mimeType:'image/jpeg', buffer:Buffer.from('demo')});
+    await main.getByText('收到「empty-room.jpg」', {exact:false}).waitFor();
+    await main.locator('.media.compare').waitFor();
+    await link('想看整個家和報價？上傳平面圖').click();
+    await page.locator('#entry-title').waitFor();
+  });
+
+  await step('範例的家：等角 3D', async () => {
     await page.goto(base + '#result?project=example');
-    await title('客廳・靜謐橡木');
+    await title(/^.+・.+$/);
     await main.getByText('範例的家 · 示意').waitFor();
     await button('等角').click();
     await main.locator('.room-preview.model, .room-preview .model').first().waitFor();

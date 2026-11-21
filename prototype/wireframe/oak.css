@@ -40,7 +40,7 @@ button,.button{
   border:1px solid var(--oak);border-radius:8px;cursor:pointer;
 }
 :where(button,.button):hover{box-shadow:0 0 0 1px var(--oak)}
-button[aria-pressed=true],.primary{background:var(--oak);border-color:var(--oak);color:white}
+button[aria-pressed=true],.primary{background:var(--ink);border-color:var(--ink);color:white}
 .primary{padding-inline:1.5rem}
 .premium-action{background:var(--oak-dark);border-color:var(--oak-dark);color:white}
 .premium-action::before{
@@ -548,3 +548,34 @@ button[aria-pressed=true] small{color:inherit}
 /* On a phone the smallest room of the editable plan needs a 44px touch target. */
 @media (max-width:600px){.plan:has(button.plan-room){aspect-ratio:1.28}}
 .result-next small{margin-inline-start:.75rem}
+
+/* Second design pass: editing the home, own furniture, browsing, the free tool, notices. */
+.edit-spot{position:absolute;display:grid;width:44px;height:44px;min-height:0;padding:0;border:0;border-radius:50%;background:transparent;transform:translate(-50%,-50%)}
+.edit-spot::before{content:"";margin:auto;width:18px;height:18px;border-radius:50%;background:var(--ink);border:3px solid #fff;box-shadow:0 2px 10px #1f1d1a40}
+.edit-spot:hover{box-shadow:none}
+.edit-spot[aria-pressed=true]{background:#ffffff80}
+.edit-spot[aria-pressed=true]::before{background:#fff;border-color:var(--ink)}
+.edit-hint{top:1rem;bottom:auto;margin:0;padding:.5rem .9rem;font-size:.875rem;font-weight:600}
+.edit-price{position:absolute;right:1rem;bottom:1rem;display:grid;padding:.5rem .9rem;border-radius:16px;background:#fff;box-shadow:0 4px 25px #1f1d1a24;text-align:end}
+.edit-price strong{font-size:1.5rem;line-height:1.2}
+.option-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem}
+.option-cards button,.own-card{display:grid;gap:.25rem;justify-items:start;align-content:start;height:auto;padding:.5rem;border-radius:16px;text-align:start}
+.option-cards .furniture-thumb{width:100%;height:auto;aspect-ratio:4/3;border-radius:12px}
+.option-cards button[aria-pressed=true]{background:#fff;color:var(--ink);border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+.own-card{border:1px dashed var(--oak);background:#fff;color:var(--ink);text-decoration:none}
+.own-icon{display:grid;place-items:center;width:100%;aspect-ratio:4/3;border-radius:12px;background:var(--linen);font-size:1.25rem}
+.edited-rows li{align-items:center}
+.edited-rows li>span:first-child{flex:1;min-width:0}
+.add-menu summary{display:flex;align-items:center;min-height:44px;font-weight:600;cursor:pointer}
+.browse-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(13rem,1fr));gap:.75rem}
+.browse-card{display:grid;gap:.125rem;padding:.5rem .5rem .75rem;border:1px solid var(--line);border-radius:16px;background:#fff;color:var(--ink);text-decoration:none}
+.browse-card img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:12px;margin-bottom:.375rem}
+.browse-card:hover{border-color:var(--oak)}
+.locked-drawing img,.unlocked-drawing img{width:100%;height:100%;padding:1rem;object-fit:contain;background:#fff}
+.locked-drawing img{filter:blur(7px);opacity:.75}
+.notice-list{display:grid;gap:.75rem;margin:0;padding:0;list-style:none}
+.notice-list li{display:grid;gap:.125rem;justify-items:start;padding:.75rem 1rem;border-radius:16px;background:var(--linen)}
+.notice-list p{margin:0}
+.age-choices{grid-template-columns:repeat(3,minmax(0,1fr))}
+.tool-page .media{max-width:720px}
+.own-fit{font-weight:600}
