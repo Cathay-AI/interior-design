@@ -287,16 +287,16 @@ export function wireframeDrawingSet(cond, look, est, date, appliedLayout = false
   const plumbing = outline + `<g class="blue"><path class="dash" d="M${px(-ROOM.w / 3)} ${pz(-ROOM.d / 4)}H${px(ROOM.w / 3)}V${pz(ROOM.d / 4)}"/>`
     + text(px(0), pz(0), '給排水路徑示意・待現場丈量') + '</g>';
   const specs = [
-    ['平面', 'A-01', '平面配置圖', drawPlan, '示意已覆核'],
-    ['平面', 'A-03', '地坪材料計畫圖', floorSheet, '示意已覆核'],
-    ['平面', 'A-02', '尺寸平面圖', label => sheet(label, outline), '覆核中'],
-    ['立面', 'E-01', '窗牆與收納立面圖', elevationSheet, '示意已覆核'],
-    ['立面', 'E-02', '主臥衣櫃立面', label => sheet(label, elevation('衣櫃', 260, 120)), '覆核中'],
-    ['立面', 'E-03', '玄關櫃立面', label => sheet(label, elevation('玄關收納', 180, 180)), '覆核中'],
-    ['立面', 'E-04', '電視牆立面', label => sheet(label, elevation('電視牆', 330, 110)), '覆核中'],
-    ['水電', 'M-01', '插座與弱電配置圖', powerSheet, '覆核中'],
+    ['平面', 'A-01', '平面配置圖', drawPlan, '示意初稿・待覆核'],
+    ['平面', 'A-02', '尺寸平面圖', label => sheet(label, outline), '示意初稿・待覆核'],
+    ['平面', 'A-03', '地坪材料計畫圖', floorSheet, '示意初稿・待覆核'],
+    ['立面', 'E-01', '窗牆與收納立面圖', elevationSheet, '示意初稿・待覆核'],
+    ['立面', 'E-02', '主臥衣櫃立面', label => sheet(label, elevation('衣櫃', 260, 120)), '示意初稿・待覆核'],
+    ['立面', 'E-03', '玄關櫃立面', label => sheet(label, elevation('玄關收納', 180, 180)), '示意初稿・待覆核'],
+    ['立面', 'E-04', '電視牆立面', label => sheet(label, elevation('電視牆', 330, 110)), '示意初稿・待覆核'],
+    ['水電', 'M-01', '插座與弱電配置圖', powerSheet, '待現場丈量'],
     ['水電', 'M-02', '給排水配置圖', label => sheet(label, plumbing), '待現場丈量'],
-    ['水電', 'M-03', '天花板燈具配置圖', lightingSheet, '覆核中'],
+    ['水電', 'M-03', '天花板燈具配置圖', lightingSheet, '待現場丈量'],
   ];
   return specs.map(([type, no, title, draw, status]) => ({
     type, no, title, status, svg: draw({ ...meta, no, title, label: {no, title} }, dm),
