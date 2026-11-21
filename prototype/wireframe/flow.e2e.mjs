@@ -269,6 +269,7 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await main.getByText('要處理 2・待補 0・沒問題 1').waitFor();
     await button('採納，回編輯套用：不動天花板，就不用申請').click();
     assert.equal(await route(), 'edit');
+    await main.getByText('已採納「不動天花板，就不用申請」。').waitFor();
     await main.locator('.edited-rows').getByText('不動天花板').waitFor();
     await link('法規 沒問題').waitFor();
   });
@@ -316,6 +317,7 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await button('把偏好帶去編輯').click();
     assert.equal(await route(), 'edit');
     assert.equal(await rowsChanged(), rows, '測驗不該自己改設計');
+    await main.getByText('已帶入生活測驗的 5 項偏好。有 2 個可套用的建議', {exact:false}).waitFor();
     await button('＋ 玄關收納櫃（生活測驗）').waitFor();
     await button('＋ 主臥床轉 90 度靠牆（生活測驗）').waitFor();
   });
@@ -326,6 +328,8 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await main.locator('img.drawing').waitFor();
     assert.equal(await main.locator('.review-stages li[aria-current]').textContent(), 'AI 初稿');
     await main.getByText('屋主自備家具').waitFor();
+    await main.getByText('客廳初步報價').waitFor();
+    await main.getByText('整戶初步報價').waitFor();
     await link('回編輯').waitFor();
     await button('下載 PDF').waitFor();
   });

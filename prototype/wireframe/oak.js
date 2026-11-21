@@ -595,7 +595,7 @@ function findingList(findings, prefix) {
       el('h3', {}, (index + 1) + ' ' + item.name),
       el('span', {class:'badge' + (open || item.status === '待補資料' ? ' paid' : '')}, dismissed ? '不處理' : item.status),
       el('small', {}, item.where), el('p', {}, item.detail),
-      open && item.advice && el('p', {}, el('strong', {}, '建議：'), item.advice),
+      open && item.advice && el('p', {}, el('strong', {}, '建議：'), item.advice, el('small', {}, '（示意建議，是否需要申請由專業人員確認）')),
       el('small', {}, '來源：' + item.source + '・條號待專業確認'),
       open && actions(item.adopt && el('button', {type:'button',class:'primary','aria-label':'採納，回編輯套用：' + item.advice,
         onclick:() => { item.adopt(); draft.editMessage = '已採納「' + item.advice + '」。'; go('edit'); }}, '採納，回編輯套用'),
@@ -708,7 +708,16 @@ function profilePage() {
           draft.shareMessage = '無法複製，請手動選取文字。';
         }
         render(false);
-      }), button('把偏好帶去編輯', () => { draft.prefsShared = true; draft.addOpen = true; go('edit'); }, null, 'primary'))), 'profile-grid');
+      }), button('把偏好帶去編輯', () => {
+        draft.prefsShared = true;
+        draft.addOpen = true;
+        const count = prefSuggestions().filter(key => !draft.changes.includes(key)).length;
+        go('edit');
+        draft.editMessage = '已帶入生活測驗的 ' + preferences.length + ' 項偏好。' + (count
+          ? '有 ' + count + ' 個可套用的建議，在「加一樣東西」裡標了（生活測驗），套不套用由你決定。'
+          : '這次的偏好沒有對應的示意調整。');
+        render(false);
+      }, null, 'primary'))), 'profile-grid');
 }
 
 const range = ([low, high]) => low === high ? low + ' 萬' : price([low, high]);
@@ -886,7 +895,7 @@ function projectPage() {
     el('h1', {}, '你家・' + rooms[draft.room]),
     el('p', {class:'muted'}, looks[draft.style] + '・' + roomArea() + ' 坪' + (locked ? '' : '・已解鎖')),
     roomButtons(),
-    el('p', {class:'quote-line'}, el('strong', {class:'price'}, estimate()), el('small', {}, '初步報價'), link('看整戶', 'whole', 'text-link')),
+    el('p', {class:'quote-line'}, el('strong', {class:'price'}, estimate()), el('small', {}, '初步報價・示意金額'), link('看整戶', 'whole', 'text-link')),
     draft.room === 0 && tuneForm(),
     el('section', {class:'stack'}, el('h2', {}, '加值：想看的時候再進去'),
       el('div', {class:'addon-grid'},
@@ -1000,6 +1009,7 @@ const pages = {
     return grid(plan(true),
       card(eyebrow('01', '空間解析'), ...heading('我讀懂的你家'),
         el('p', {class:'panel-note'}, '示意平面圖讀到 8 間和尺寸。有 2 項圖上沒有、1 項我不確定，先標起來，不補也能往下走。有掃描檔的話會更準。'),
+        link('不補了，先看推薦的風格', 'style', 'text-link'),
         el('details', {class:'room-size-panel', ...(draft.editRoomSize ? {open:''} : {}),
           ontoggle:event => {if (event.currentTarget.isConnected) draft.editRoomSize = event.currentTarget.open;}},
           el('summary', {}, '修改' + rooms[draft.room] + '尺寸'), roomSizeForm()),
@@ -1049,7 +1059,7 @@ const pages = {
     const costs = roomCostItems();
     return grid(preview(), el('section', {class:'card stack result-quote'},
       eyebrow('02', '你家的樣子'), el('h1', {}, rooms[draft.room] + '・' + looks[draft.style]),
-      el('p', {class:'quote-line'}, el('strong', {class:'price'}, price(sumCosts(costs))), el('small', {}, '初步報價・免費')),
+      el('p', {class:'quote-line'}, el('strong', {class:'price'}, price(sumCosts(costs))), el('small', {}, '初步報價・免費・示意金額')),
       draft.room === 0 && tuneForm(),
       el('p', {class:'panel-note'}, '法規已初檢・家具為真實尺寸・報價用在地行情（皆為示意資料）'),
       costDetails('看單室費用明細', costs),
@@ -1201,7 +1211,7 @@ const pages = {
         el('ul', {class:'rows'}, current.map(sheet => el('li', {},
           button(label(sheet), refresh(() => {draft.drawing = sheet.no;}), sheet.no === selected.no),
           el('span', {class:'badge'}, sheet.status)))),
-        rows([['初步報價', estimate()], ['消防與裝修法規', openFindings(complianceFindings(), 'c:') + ' 項要處理'],
+        rows([[rooms[draft.room] + '初步報價', estimate()], ['整戶初步報價', price(sumCosts(homeCosts().wholeHome))], ['消防與裝修法規', openFindings(complianceFindings(), 'c:') + ' 項要處理'],
           ...(draft.own.length ? [['屋主自備家具', draft.own.length + ' 件・不計入報價']] : [])]),
         actions(link('看法規細節', 'compliance'), link('回編輯', 'edit'), button('下載 PDF', () => window.print())),
         actions(link('交給團隊做出來', 'team', 'button primary'))));
@@ -1291,6 +1301,7 @@ const projectProgress = {
   project:'初步報價', result:'初步報價', unlocked:'編輯中', edit:'編輯中', own:'編輯中', quiz:'編輯中', profile:'編輯中',
   compliance:'法規細評', feng:'編輯中', drawings:'施工圖', team:'團隊對接', sent:'團隊對接',
 };
+let lastPage;
 function render(focus = true) {
   clearInterval(ticker);
   scene?.dispose();
@@ -1309,6 +1320,8 @@ function render(focus = true) {
   if (page !== 'entry' && page !== 'scanning' && Object.hasOwn(projectProgress, page)) {
     project.page = page;
   }
+  if (lastPage === 'edit' && page !== 'edit') draft.editMessage = '';
+  lastPage = page;
   updateNavigation(page);
   const layout = pages[page](projects.has(id));
   const workGrid = layout.matches('.grid') ? layout : layout.querySelector('.grid');
