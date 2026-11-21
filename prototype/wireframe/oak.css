@@ -516,3 +516,35 @@ body[data-page="entry"] footer{display:none}
   .profile-plan,.scan-plan{gap:1rem}
   .scan-step{gap:.4rem}
 }
+
+/* Design-flow pages: section labels, the home hub, layout versions, checks, quiz and teams. */
+.eyebrow{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin:0;font-size:.8125rem;letter-spacing:.04em;color:var(--oak-dark)}
+.back-link{display:inline-flex;align-items:center;min-height:44px;padding-inline-end:.25rem;color:inherit;text-decoration:none}
+.back-link:hover{text-decoration:underline}
+.detail-rows li>span:first-child{display:grid;gap:.125rem;min-width:0}
+.detail-rows small{display:block}
+.quote-line{display:flex;flex-wrap:wrap;align-items:baseline;gap:.25rem .75rem;margin:0}
+.addon-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.5rem}
+.addon-card{display:grid;gap:.125rem;align-content:start;min-height:76px;padding:.75rem 1rem;border:1px solid var(--line);border-radius:16px;background:#fff;color:var(--ink);text-decoration:none}
+.addon-card:hover{border-color:var(--oak)}
+.addon-card .badge{justify-self:start}
+.drawings-teaser{display:grid;gap:.125rem;padding:.75rem 1rem;border-radius:16px;background:var(--linen)}
+.change-list{display:grid;gap:.5rem;margin:0;padding:0;list-style:none;counter-reset:change}
+.change-list li{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:.75rem;padding:.5rem .5rem .5rem 1rem;border:1px solid var(--line);border-radius:16px;counter-increment:change}
+.change-list li::before{content:counter(change);display:grid;place-items:center;width:1.75rem;height:1.75rem;border-radius:50%;background:var(--ink);color:#fff;font-size:.8125rem}
+.change-list li>span:first-of-type{display:grid}
+.review-stages{display:flex;flex-wrap:wrap;gap:.375rem;margin:0;padding:0;list-style:none;font-size:.8125rem}
+.review-stages li{padding:.25rem .75rem;border-radius:999px;background:var(--linen);color:var(--oak-dark)}
+.review-stages li[aria-current]{background:var(--ink);color:#fff}
+.quiz-choices,.team-list{display:grid;gap:.5rem}
+.quiz-choices button,.team-list button{display:grid;gap:.125rem;justify-items:start;height:auto;padding:.75rem 1rem;border-radius:16px;text-align:start}
+button[aria-pressed=true] small{color:inherit}
+.style-options button>span:not(.style-check){display:grid;justify-items:start;text-align:start}
+.plan-mark{display:block;color:var(--red);font-weight:600}
+.condition-progress{display:grid;gap:.25rem}
+.check-result{position:relative}
+.check-result>small{display:block}
+.check-result .actions{margin-top:.5rem}
+/* On a phone the smallest room of the editable plan needs a 44px touch target. */
+@media (max-width:600px){.plan:has(button.plan-room){aspect-ratio:1.28}}
+.result-next small{margin-inline-start:.75rem}
