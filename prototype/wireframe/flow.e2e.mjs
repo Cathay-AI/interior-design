@@ -78,10 +78,12 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await title(/先逛幾個家/);
     await snap('page-browse');
     assert.deepEqual(await main.locator('.browse-card strong').allTextContents(), ['靜謐橡木', '霧灰', '暖光木質', '床頭木牆', '整面書牆']);
-    await main.locator('.browse-card').nth(1).click();
-    await title('客廳・霧灰');
-    await main.getByText('範例的家 · 示意').waitFor();
-    await page.goto(base + '#browse');
+    for (const [index, sampleTitle] of ['客廳・靜謐橡木', '客廳・霧灰', '餐廳・暖光木質', '主臥・床頭木牆', '書房・整面書牆'].entries()) {
+      await main.locator('.browse-card').nth(index).click();
+      await title(sampleTitle);
+      await main.getByText('範例的家 · 示意').waitFor();
+      await page.goto(base + '#browse');
+    }
     await link('‹ 回首頁').click();
     await page.locator('#entry-title').waitFor();
   });
@@ -129,8 +131,13 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await main.locator('.camera-shutter').click();
     await main.locator('.camera-shutter').click();
     await main.getByText('手機往上抬一點，把天花板和樑拍進來。').waitFor();
-    await main.getByRole('link', {name:'關閉拍照引導'}).click();
+    await link('拍完了').click();
+    await title('準備範例空間條件');
+    await link('確認範例空間').click();
     await title('確認範例空間條件');
+    await main.getByText(/補充照片（僅記錄檔名）/).waitFor();
+    await main.locator('details.cost-details summary').click();
+    await main.getByText('目前來源：平面圖（建商平面圖.pdf）').waitFor();
   });
 
   await step('04 推薦風格', async () => {
@@ -193,6 +200,7 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
   await step('07 這個家（未解鎖）', async () => {
     await link('進到這個家').click();
     await title('你家・客廳');
+    await firstScreen('解鎖施工圖');
     const cards = main.locator('.addon-card');
     assert.deepEqual((await cards.locator('strong').allTextContents()), ['家具與材質', '毛胚到完成', '法規細評', '風水評估', '生活測驗', '解鎖施工圖']);
     const targets = await cards.evaluateAll(nodes => nodes.map(node => new URL(node.href).hash.slice(1).split('?')[0]));
@@ -206,13 +214,19 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await snap('page-materials');
     const before = await main.locator('.price').first().textContent();
     const chair = await main.locator('.spot-meta b').textContent();
-    const base = before.match(/\d+/g).map(Number);
+    const baselineQuote = before.match(/\d+/g).map(Number);
     await button(/^省一點/).click();
-    assert.deepEqual((await main.locator('.price').first().textContent()).match(/\d+/g).map(Number), base.map(value => value - 1));
+    assert.deepEqual((await main.locator('.price').first().textContent()).match(/\d+/g).map(Number), baselineQuote.map(value => value - 1));
     await button(/^好一點/).click();
-    assert.deepEqual((await main.locator('.price').first().textContent()).match(/\d+/g).map(Number), base.map(value => value + 2));
+    assert.deepEqual((await main.locator('.price').first().textContent()).match(/\d+/g).map(Number), baselineQuote.map(value => value + 2));
     assert.equal(await main.locator('.spot-meta b').textContent(), chair, '切換預算不得更換單椅顏色');
     await button(/^現在這款/).click();
+    await button('收藏這件家具').click();
+    assert.equal(await button('收藏這件家具').getAttribute('aria-pressed'), 'true');
+    await page.goto(base + '#homes?section=favorites');
+    await main.locator('#dash-favorites').getByText(chair, {exact:true}).waitFor();
+    await page.goBack();
+    await title('單椅的規格示例');
     await link('‹ 回這個家').click();
     await title('你家・客廳');
   });
@@ -270,6 +284,7 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     assert.equal(await main.locator('.addon-card .new-dot').count(), 3);
     assert.equal(await link(/^解鎖施工圖/).count(), 0);
     await link(/^繼續編輯/).waitFor();
+    await firstScreen('繼續編輯');
   });
 
   await step('10 編輯你的家：換、加、拿掉、復原', async () => {
@@ -392,7 +407,17 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
 
   await step('13 交給團隊', async () => {
     await link('交給團隊做出來').click();
-    await title('找人把它做出來');
+    await title('選擇要交接的團隊');
+    if (mobile) {
+      const firstTeam = await button(/^示意團隊 A/).boundingBox();
+      assert.ok(firstTeam && firstTeam.y + firstTeam.height <= viewport.height, '選團隊須在首屏');
+      const send = await button('送出交接包，約現場丈量').boundingBox();
+      assert.ok(send && send.y + send.height <= viewport.height, '送件須在首屏');
+      const preview = button(/交接包預覽/);
+      await preview.click();
+      await main.locator('.handover-card').first().waitFor();
+      await preview.click();
+    }
     assert.equal(await main.locator('.handover-card').count(), 4);
     await main.getByText('已選 0／3 組', {exact:true}).waitFor();
     assert.equal(await button('送出交接包，約現場丈量').isDisabled(), true);
