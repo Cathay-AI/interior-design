@@ -53,17 +53,18 @@ const shotTips = [
   ['近拍牆面的插座、開關', '和冷氣孔位置。'],
 ];
 const stageNotes = [
-  '你現在的房子',
+  '範例毛胚空間',
   '淺橡木地板、白牆、柔光捲簾',
   '橡木牆板、懸浮櫃、白色高櫃',
   '模組沙發、黑鐵茶几、紅絨單椅',
   '嵌燈與日光一起看',
 ];
+const genericStageNotes = ['範例毛胚空間', '鋪設地坪並整理牆面', '安裝固定設備或收納', '放入用品與軟裝', '查看完成後的照明'];
 const fields = [
-  ['格局：三房兩廳兩衛', '來源：建商平面圖・讀圖', '讀到了'],
-  ['各間尺寸與坪數', '8 間都有標註・點平面圖可改', '讀到了'],
-  ['門窗與採光面', '窗 6 扇・主要採光朝南（照片比對）', '讀到了'],
-  ['樑位：主臥床頭上方疑似有樑', '來源：現場照片・我不確定', '請確認'],
+  ['格局：三房兩廳兩衛', '範例格局・固定資料', '範例'],
+  ['各間尺寸與坪數', '8 個範例空間・點平面圖可改', '範例'],
+  ['門窗與採光面', '範例為 6 扇窗、主要採光朝南', '範例'],
+  ['範例樑位：主臥床頭上方', '確認你家的實際樑位', '請確認'],
   ['天花板高度', '拍一張地板到天花板的照片，或直接填', '待補'],
   ['給排水與瓦斯位置', '廚房、主衛、客衛・上傳機電圖最準', '待補'],
 ];
@@ -100,24 +101,24 @@ const teams = [
 ];
 const briefTags = ['靜謐橡木', '收納都藏起來', '米白為主', '一個重點色', '淺色地板'];
 const scanSteps = [
-  ['找出牆和房間', '讀到 8 間：三房兩廳兩衛'],
-  ['讀尺寸標註', '換算成公尺和坪數'],
-  ['比對門窗與採光', '跟你拍的照片對一下'],
-  ['找樑、柱、管線', '圖上沒有的會請你補'],
+  ['載入範例平面', '三房兩廳兩衛，共 8 個空間'],
+  ['載入範例尺寸', '公尺與坪數可在下頁調整'],
+  ['載入門窗與採光示例', '以下欄位都來自同一個範例'],
+  ['標出可補充欄位', '樑位、天花板與管線可自行確認'],
   ['整理成空間條件', '缺的標待補'],
 ];
 const buildSteps = [
-  ['對照消防與建築法規', '先排除不能做的配置'],
-  ['放進真實尺寸的家具', '每一件都量得到、買得到'],
-  ['查在地行情算報價', '用你這一區的材料與工資'],
-  ['打上你家的採光', '落地窗朝南，上午的光'],
+  ['載入法規檢核示例', '示範警報器與逃生動線的檢查項目'],
+  ['載入家具配置', '示例家具附尺寸與材質'],
+  ['整理示意報價', '列出家具、材料與工項的範例金額'],
+  ['準備完工示意圖', '套用所選的客廳風格'],
 ];
 
 const newDraft = () => ({
   room: 0, style: 0, shot: 0, roomSizes: new Map(), zoomIndex: 1, editRoomSize: false,
   filter: '', regFilter: 'all', fengFilter: 'all', view: '實景', wholeView: '等角',
   changedRooms: new Set(), chairChanged: false, materialTier: 'base', libItem: 'chair',
-  tuneMessage: '', photos: [], source: null, pendingSource: null,
+  tuneMessage: '', photos: [], source: null, pendingSource: null, mepFile: '',
   houseAge: null, windowType: '落地窗', scan: {len:562, wid:471, ceil:285, beam:242},
   appliedLayout: false, changes: [], layoutVersion: 1, removed: new Set(), own: [],
   ownDraft: {w:68, d:72, h:76, link:'', photo:''},
@@ -132,7 +133,8 @@ const projects = new Map([
   ['oak', {name:'新家・客廳', page:'project', draft:newDraft()}],
   ['family', {name:'新家・等角', page:'whole', draft:newDraft()}],
   ['floorplan', {name:'新家・平面', page:'read', draft:newDraft()}],
-  ['upload', {name:'爸媽家・客廳', page:'scanning', draft:newDraft()}],
+  ['upload', {name:'爸媽家・客廳', page:'scanning', draft:{...newDraft(),
+    pendingSource:{label:'現場照片', files:['爸媽家客廳.jpg']}}}],
   ['example', {name:'範例的家', page:'project', draft:newDraft(), isExample:true}],
 ]);
 
@@ -228,13 +230,13 @@ const setRoom = i => {
   if (i !== draft.room) draft.zoomIndex = 1;
   draft.room = i;
 };
-const roomLook = () => ({
+const roomLook = (projectDraft = draft) => ({
   ...STYLES.muji,
-  name: looks[draft.style],
-  sofa: livingFurniture[1].colors[Number(draft.changedRooms.has(0))],
-  chairFabric: livingFurniture[0].colors[Number(draft.chairChanged)],
+  name: looks[projectDraft.style],
+  sofa: livingFurniture[1].colors[Number(projectDraft.changedRooms.has(0))],
+  chairFabric: livingFurniture[0].colors[Number(projectDraft.chairChanged)],
 });
-const houseAge = () => draft.houseAge === '中古屋' ? '中古屋' : '新成屋';
+const houseAge = (projectDraft = draft) => projectDraft.houseAge === '中古屋' ? '中古屋' : '新成屋';
 const roomCondition = () => {
   const size = draft.roomSizes.get(draft.room);
   return {space:roomKind(), ping:roomArea(), age:houseAge(), len:size?.w, wid:size?.d};
@@ -308,22 +310,22 @@ function modelControls(container) {
 const addPrices = ([low, high], [extraLow, extraHigh]) => [low + extraLow, high + extraHigh];
 const sumCosts = items => items.reduce((total, item) => addPrices(total, item.values), [0,0]);
 
-function roomCostItems(index = draft.room, changeKeys = draft.changes) {
+function roomCostItems(index = draft.room, changeKeys = draft.changes, projectDraft = draft) {
   const space = roomKind(index);
   const baseline = baseRoomCosts[index];
-  const cond = {space, ping:roomArea(index), age:houseAge()};
-  const look = roomLook();
+  const cond = {space, ping:roomArea(index, projectDraft), age:houseAge(projectDraft)};
+  const look = roomLook(projectDraft);
   const defaultTerms = designEstimate({...cond, ping:areas[index]}, look).items;
   const adjustments = new Map();
   const add = (key, values) => adjustments.set(key, addPrices(adjustments.get(key) ?? [0,0], values));
 
-  if (draft.changedRooms.has(index)) {
+  if (projectDraft.changedRooms.has(index)) {
     const materialExtra = index === 0 ? livingFurniture[1].extra : [1,2];
     add(baseline.furniture ? 'furniture' : 'cabinet', materialExtra);
   }
-  if (index === 0 && draft.chairChanged) add('furniture', livingFurniture[0].extra);
-  if (index === 0 && draft.materialTier !== 'base') {
-    const t = tierOptions.find(x => x.key === draft.materialTier);
+  if (index === 0 && projectDraft.chairChanged) add('furniture', livingFurniture[0].extra);
+  if (index === 0 && projectDraft.materialTier !== 'base') {
+    const t = tierOptions.find(x => x.key === projectDraft.materialTier);
     if (t) add('furniture', t.adjust);
   }
   for (const key of changeKeys) {
@@ -331,7 +333,7 @@ function roomCostItems(index = draft.room, changeKeys = draft.changes) {
     if (change.room === index) add(change.item, change.extra);
   }
   if (index === 0) for (const item of livingFurniture) {
-    if (draft.removed.has(item.key)) add('furniture', item.cut.map(value => -value));
+    if (projectDraft.removed.has(item.key)) add('furniture', item.cut.map(value => -value));
   }
 
   return designEstimate(cond, look).items.map(({key, name, basis, low, high}, i) => {
@@ -384,9 +386,6 @@ const hqLivingVariants = {
 };
 function projectPhoto(stage = stages.length - 1, projectDraft = draft) {
   if (projectDraft.room === 0 && stage === stages.length - 1) {
-    if (projectDraft.materialTier === 'plus' && !projectDraft.changedRooms.has(0) && !projectDraft.chairChanged) {
-      return './imagery/hq-living-green.jpg';
-    }
     const variant = ['sofa', 'chair'].filter(key => itemChanged(key, projectDraft)).join('-');
     if (variant && hqLivingVariants[variant]) return hqLivingVariants[variant];
   }
@@ -395,9 +394,9 @@ function projectPhoto(stage = stages.length - 1, projectDraft = draft) {
 
 // Navigation phase bar (exact 3-step bar from N* artboards)
 const phaseDefs = [
-  ['你給房子', '免費', 'read', ['entry','camera','scanning','conditions','read']],
+  ['確認空間條件', '免費', 'read', ['entry','camera','scanning','conditions','read']],
   ['看成品與報價', '免費', 'style', ['brief','style','generating','result','project','whole','materials','compare']],
-  ['拿到施工圖', '付費', 'unlock', ['unlock', ...premium]],
+  ['編輯與圖面', '付費', 'unlock', ['unlock', ...premium]],
 ];
 function phaseNav(page, compact = false) {
   const activeIdx = phaseDefs.findIndex(([,,,ids]) => ids.includes(page));
@@ -414,6 +413,7 @@ function phaseNav(page, compact = false) {
       ...(isDone ? {'data-done':'true'} : {}),
     },
     !compact && el('span', {class:'bar','aria-hidden':'true'}),
+    compact && el('span', {}, ['空間條件', '風格與報價', '編輯與圖面'][i]),
     !compact && el('span', {class:'phase-row'},
       el('span', {}, name),
       el('span', {class:'phase-tag' + (label === '付費' ? ' paid' : '')}, label)));
@@ -421,7 +421,7 @@ function phaseNav(page, compact = false) {
 }
 
 function workPanel({page, addon = false, eyebrowText, titleText, titleId, headerRight, body = [], footer = [], extraClass = ''}) {
-  return el('section', {class:'work-panel ' + extraClass},
+  return el('section', {class:'work-panel ' + extraClass, 'data-panel':page},
     addon
       ? el('div', {class:'addon-bar'},
           el('a', {href:href('project'), class:'back-link'}, '‹ 回這個家'),
@@ -461,7 +461,7 @@ function tuneForm(hub = false) {
     type:'text', 'aria-label':'想改什麼？說一句話', required:'',
     placeholder: hub ? '想改什麼？說一句話，例如「沙發換霧灰」' : '想改什麼？說一句話（例：沙發換霧灰）',
   }),
-  el('button', {type:'submit', class:'primary', 'aria-label':'套用微調'}, IC.mic()));
+  el('button', {type:'submit', class:'primary', 'aria-label':'套用微調'}, '套用'));
   return [form, draft.tuneMessage && el('p', {role:'status', class:'muted', style:'font-size:13px'}, draft.tuneMessage)];
 }
 
@@ -506,7 +506,7 @@ function planStage({topPill, pins = [], legend = false, scanLine = false, editab
     topPill && el('div', {class:'stage-pill'}, topPill),
     wrap,
     legend && el('div', {class:'plan-legend'},
-      el('span', {}, pill('✓', 'green'), '讀到了'),
+      el('span', {}, pill('✓', 'green'), '範例'),
       el('span', {}, pill('?', 'linen'), '待補'),
       el('span', {}, pill('!', 'ink'), '請確認')));
 }
@@ -563,7 +563,14 @@ function stageSource(label, file, newProject = false) {
 function upload(event, isPlan = true) {
   const file = event.target.files[0];
   const scan = file && /\.(?:usdz|ply|obj|e57|las|glb)$/i.test(file.name);
-  if (file) stageSource(!isPlan ? '機電圖' : scan ? 'LiDAR 掃描檔' : '平面圖', file);
+  if (!file) return;
+  if (isPlan) {
+    stageSource(scan ? 'LiDAR 掃描檔' : '平面圖', file);
+  } else {
+    draft.mepFile = file.name;
+    render(false);
+    screen.querySelector('[data-mep-file]')?.focus({preventScroll:true});
+  }
 }
 function usePhotos() {
   draft.pendingSource = {label:'現場照片', files:draft.photos.filter(Boolean)};
@@ -573,6 +580,7 @@ function usePhotos() {
 function confirmSource() {
   if (!draft.pendingSource) return;
   draft.source = draft.pendingSource;
+  draft.mepFile = '';
   draft.pendingSource = null;
 }
 
@@ -620,6 +628,7 @@ function startUpload(newProject) {
         el('small', {id:'upload-hint'}, '建商平面圖、現場照片、LiDAR 掃描檔都可以')),
       el('span', {class:'upload-icon upload-desktop', 'aria-hidden':'true'}, IC.upload()),
       el('span', {class:'upload-icon upload-mobile', 'aria-hidden':'true'}, IC.camera())),
+    el('small', {class:'upload-demo-note'}, '試玩使用固定格局與圖片。選檔只記錄檔名。'),
     error);
 }
 
@@ -650,7 +659,9 @@ function stylePrice(style) {
 }
 
 let ticker;
-function stepList(steps, label) {
+function stagedProgress(steps, label, onProgress) {
+  const fill = el('span');
+  const progress = el('div', {class:'anim-bar', role:'progressbar', 'aria-label':label, 'aria-valuemin':0, 'aria-valuemax':100}, fill);
   const items = steps.map(([title, detail]) => el('li', {class:'scan-step'},
     el('span', {class:'scan-mark','aria-hidden':'true'}),
     el('span', {}, el('strong', {}, title), el('small', {}, detail)),
@@ -668,7 +679,11 @@ function stepList(steps, label) {
       if (index === done) item.setAttribute('aria-current', 'step');
       else item.removeAttribute('aria-current');
     });
-    status.textContent = done >= steps.length ? '都好了。' : '';
+    const percent = Math.round(100 * done / steps.length);
+    fill.style.width = percent + '%';
+    progress.setAttribute('aria-valuenow', percent);
+    status.textContent = percent === 100 ? '都好了。' : '';
+    onProgress(percent, done);
   };
   paint();
   if (done < steps.length) ticker = setInterval(() => {
@@ -676,7 +691,7 @@ function stepList(steps, label) {
     paint();
     if (done >= steps.length) clearInterval(ticker);
   }, 900);
-  return [el('ol', {class:'scan-steps', 'aria-label':label}, items), status];
+  return [progress, el('ol', {class:'scan-steps', 'aria-label':label}, items), status];
 }
 
 function setChange(key, on) {
@@ -834,8 +849,6 @@ const projectProgress = {
 
 function homesPage() {
   const entries = [...projects].filter(([, p]) => !p.isExample);
-  const query = dashSearch.trim().toLowerCase();
-  const visible = entries.filter(([, p]) => !query || p.name.toLowerCase().includes(query) || rooms[p.draft.room].includes(query));
   const cardThumbs = {
     oak: './imagery/living-4.webp',
     family: './imagery/iso-living.jpg',
@@ -848,7 +861,7 @@ function homesPage() {
     const stage = projectProgress[page] ?? '進行中';
     const thumb = cardThumbs[id] ?? projectPhoto(stages.length - 1, state);
     const status = stage === '團隊對接' && state.sent ? '示意已送件' : stage;
-    const sub = id === 'oak' ? '靜謐橡木・' + price(sumCosts(roomCostItems(0)))
+    const sub = id === 'oak' ? '靜謐橡木・' + price(sumCosts(roomCostItems(0, state.changes, state)))
       : id === 'family' ? '三房兩廳・整戶估價'
       : id === 'floorplan' ? '待補 2 項'
       : state.pendingSource?.files[0] ?? '剛上傳照片';
@@ -860,6 +873,15 @@ function homesPage() {
           el('small', {}, sub)),
         pill(status, 'linen')));
   };
+  const recent = el('div', {class:'recent-homes'});
+  const filterProjects = () => {
+    const query = dashSearch.trim().toLowerCase();
+    const visible = entries.filter(([, project]) =>
+      project.name.toLowerCase().includes(query) || rooms[project.draft.room].includes(query));
+    recent.replaceChildren(...(visible.length ? visible.map(projectCard)
+      : [el('p', {class:'muted'}, '找不到符合「' + dashSearch + '」的專案。')]));
+  };
+  filterProjects();
   const quickCard = (icon, title, sub, target, isUpload = false) => {
     if (isUpload) {
       return el('label', {class:'dash-quick-card'},
@@ -886,28 +908,26 @@ function homesPage() {
       el('a', {href:href('notices', 'oak'), class:'dash-nav-item'}, IC.bell(), '通知'),
       el('span', {class:'dash-aside-sec'}, '空間'),
       el('a', {href:href('project', 'oak'), class:'dash-nav-item'}, IC.folder(), '新家・三房兩廳'),
-      el('a', {href:href('read', 'floorplan'), class:'dash-nav-item'}, IC.folder(), '爸媽家・客廳'),
+      el('a', {href:href(resumePage(projects.get('upload')), 'upload'), class:'dash-nav-item'}, IC.folder(), '爸媽家・客廳'),
       el('span', {style:'flex:1'}),
       el('a', {href:'#tool', class:'dash-nav-item'}, IC.help(), '免費小工具')),
     el('div', {class:'dash-main'},
       el('div', {class:'dash-topbar'},
         el('h1', {}, '歡迎回家'),
-        el('input', {type:'text', class:'dash-search', 'aria-label':'搜尋房間、家具、材質', placeholder:'搜尋房間、家具、材質',
-          value:dashSearch, oninput:event => { dashSearch = event.target.value; render(false); }}),
+        el('input', {type:'text', class:'dash-search', 'aria-label':'搜尋專案或房間', placeholder:'搜尋專案或房間',
+          value:dashSearch, oninput:event => { dashSearch = event.target.value; filterProjects(); }}),
         el('a', {href:'#entry', class:'dash-new-btn'}, '＋ 新的家')),
       el('section', {class:'stack'},
         el('b', {style:'font-size:14px'}, '從哪裡開始'),
         el('div', {class:'dash-quick-grid'},
-          quickCard(IC.upload(), '上傳平面圖', '建商圖、手繪都能讀', '#entry', true),
+          quickCard(IC.upload(), '上傳平面圖', '以範例體驗空間條件', '#entry', true),
           quickCard(IC.camera(), '現場拍照', '跟著引導拍幾張', href('camera', 'oak')),
           quickCard(IC.chat(), '說一句話', '描述你想要的家', href('brief', 'oak')),
           quickCard(IC.cube(), '逛風格範本', '先看感覺挑方向', '#browse'),
           quickCard(IC.heart(), '家具與材質', '每一件都有尺寸', href('materials', 'oak')))),
       el('section', {class:'stack'},
         el('b', {style:'font-size:14px'}, '最近的家'),
-        visible.length
-          ? el('div', {class:'recent-homes'}, visible.map(projectCard))
-          : el('p', {class:'muted'}, '找不到符合「' + dashSearch + '」的專案。')),
+        recent),
       el('div', {class:'dash-bottom'},
         el('section', {class:'dash-panel'},
           el('div', {class:'dash-panel-head'},
@@ -937,20 +957,23 @@ function scanningPage() {
   };
   const kind = draft.pendingSource?.label;
   const fileName = draft.pendingSource?.files?.[0] ?? '建商平面圖.pdf';
-  const title = kind === '現場照片' ? '正在讀你的照片' : kind === 'LiDAR 掃描檔' ? '正在讀你的掃描檔' : '正在讀你的平面圖';
+  const title = '準備範例空間條件';
+  const scanStage = planStage({topPill:'已選' + (kind ?? '檔案') + '：' + fileName, scanLine:true});
+  const progress = stagedProgress(scanSteps, '示意解析進度', (_, done) => {
+    scanStage.classList.toggle('scan-complete', done === scanSteps.length);
+  });
   const ages = [['預售屋', '還沒交屋'], ['新成屋', '剛交屋'], ['中古屋', '住過、要翻新']].map(([name, note]) =>
     el('button', {type:'button', class:'choice-card', 'aria-pressed':String(draft.houseAge === name), onclick:event => {
       draft.houseAge = name;
       for (const node of event.currentTarget.parentElement.children) node.setAttribute('aria-pressed', String(node === event.currentTarget));
     }}, el('strong', {}, name), el('small', {}, note)));
   return workspaceGrid(
-    planStage({topPill:'正在讀：' + fileName, scanLine:true}),
+    scanStage,
     workPanel({
       page:'scanning', eyebrowText:'01 空間解析', titleText:title,
       body:[
-        el('div', {class:'anim-bar'}, el('span')),
-        ...stepList(scanSteps, '解析步驟'),
-        el('small', {}, '示意解析，使用範例平面。讀不到的地方會標「待補」，不會卡住你。'),
+        el('p', {class:'muted'}, '這是解析流程示意。下頁會顯示固定範例平面與尺寸。'),
+        ...progress,
         el('div', {class:'stack', style:'margin-top:auto'},
           el('b', {id:'age-question', style:'font-size:15px'}, '等的時候問你一題：這間房子是？'),
           el('div', {class:'age-choices', role:'group', 'aria-labelledby':'age-question'}, ages),
@@ -958,7 +981,7 @@ function scanningPage() {
       ],
       footer:[
         el('a', {href:href(cancelPage), class:'button secondary', onclick:cancel}, '取消'),
-        el('a', {href:href('read'), class:'button primary', onclick:confirmSource}, '看我讀到什麼'),
+        el('a', {href:href('read'), class:'button primary', onclick:confirmSource}, '確認範例空間'),
       ],
     }));
 }
@@ -1026,7 +1049,7 @@ function editPage() {
     syncParts.length > 0 && el('div', {class:'edit-sync-note', role:'status'}, syncParts.join('・') + '（照片示意未更新）'),
     spot(livingFurniture[1], '47%', '80%'),
     decorSpot('橡木收納櫃', '收納櫃', '13%', '62%'),
-    decorSpot('茶几與地毯', '茶几', '30%', '92%'),
+    decorSpot('茶几與地毯', '茶几', '30%', '86%'),
     spot(livingFurniture[0], '82%', '65%', true),
     el('div', {class:'edit-stage-actions'},
       el('button', {type:'button', class:'edit-stage-add', onclick:() => {
@@ -1034,7 +1057,7 @@ function editPage() {
         rerender('.add-drawer summary');
       }}, IC.plus(), '加一樣東西')),
     el('div', {class:'stage-quote', role:'status', 'aria-label':'改完的報價'},
-      el('small', {}, '改完的報價'),
+      el('small', {}, '改完的報價・示意'),
       el('strong', {}, price(sumCosts(roomCostItems(0))))));
 
   const bodyTab = draft.editTab === '拿掉'
@@ -1099,7 +1122,7 @@ function editPage() {
     rerender('.edit-form input');
   }},
   el('input', {type:'text', 'aria-label':'或說一句話', required:'', placeholder:'或說一句話：單椅換墨綠'}),
-  el('button', {type:'submit', class:'primary', 'aria-label':'套用這句話'}, IC.mic()));
+  el('button', {type:'submit', class:'primary', 'aria-label':'套用這句話'}, '套用'));
 
   const changed = editedRows();
   const suggested = prefSuggestions();
@@ -1369,15 +1392,15 @@ const pages = {
       el('a', {href:'#homes', class:'home-link'}, '我的家')),
     el('div', {class:'hero-copy'},
       el('h1', {id:'entry-title'}, '把家的想像，', el('br'), '變成真的。'),
-      el('p', {}, '給我們你的房子，', el('br', {class:'promise-break'}), '還你成品、報價與施工圖。')),
+      el('p', {}, '用範例體驗空間設計、裝修估價與圖面交接。')),
     el('div', {class:'hero-start'},
       startUpload(!hasProject),
       el('a', {href:'#browse', class:'hero-example'}, '還沒想法？先逛幾個家'),
-      el('p', {class:'hero-steps-mobile'}, '免費看成品與報價，喜歡再解鎖施工圖')),
+      el('p', {class:'hero-steps-mobile'}, '先看風格與示意報價，再試用編輯與圖面')),
     el('ol', {class:'hero-steps', 'aria-label':'接下來'},
-      el('li', {}, el('b', {}, '1'), '你給房子'),
+      el('li', {}, el('b', {}, '1'), '確認空間條件'),
       el('li', {}, el('b', {}, '2'), '看成品與報價・免費'),
-      el('li', {}, el('b', {}, '3'), '拿到施工圖・付費'))),
+      el('li', {}, el('b', {}, '3'), '試用編輯與示意施工圖'))),
 
   homes: homesPage,
 
@@ -1403,7 +1426,7 @@ const pages = {
         draft = mine;
       }}, el('img', {src:thumb, alt:'', loading:'lazy'}),
       el('span', {}, areaLabel), el('strong', {}, lookLabel)))),
-    el('small', {}, '點一個進去看它的 3D、報價和每一樣家具。喜歡的話，上傳你家的平面圖，我照這個感覺做。')),
+    el('small', {}, '選一張卡片，查看範例空間、家具與示意報價。選檔可體驗空間條件流程，只記錄檔名。')),
 
   tool: () => {
     const cmp = compareWidget(roomScene(0, 0), roomScene(0), '裝好', 46);
@@ -1411,8 +1434,8 @@ const pages = {
       el('div', {class:'tool-left'},
         el('a', {href:'#entry', 'aria-label':'回首頁'}, brandMark(30)),
         el('span', {class:'eyebrow', style:'margin-top:24px;color:var(--muted)'}, '免費小工具'),
-        el('h1', {}, '拍一張空房間，', el('br'), '看它裝好的樣子。'),
-        el('p', {class:'tool-sub'}, '30 秒。不用登入，不用平面圖。'),
+        el('h1', {}, '拖一下，', el('br'), '比較毛胚和完工。'),
+        el('p', {class:'tool-sub'}, '使用固定範例，選照片只記錄檔名。'),
         el('label', {class:'tool-upload-btn picker'},
           el('input', {type:'file', accept:'image/*', 'aria-label':'上傳一張照片', onchange:event => {
             const file = event.target.files[0];
@@ -1421,7 +1444,7 @@ const pages = {
             render(false);
           }}),
           '上傳一張照片', el('span', {class:'cta-icon', 'aria-hidden':'true'}, IC.camera())),
-        toolPhoto && el('p', {role:'status', style:'font-size:14px;font-weight:600'}, '收到「' + toolPhoto + '」。示意版不會上傳照片，右側拉中間把手即可對比範例房間。'),
+        toolPhoto && el('p', {role:'status', style:'font-size:14px;font-weight:600'}, '已選「' + toolPhoto + '」。拖曳圖片上的把手，即可比較範例房間。'),
         el('p', {class:'tool-foot'}, '做完之後：', el('a', {href:'#entry', class:'text-link'}, '想看整個家和報價？上傳平面圖'))),
       el('div', {class:'tool-right'}, cmp.stage));
   },
@@ -1469,28 +1492,37 @@ const pages = {
   scanning: scanningPage,
 
   read: () => {
+    const mepNote = () => draft.mepFile && el('small', {role:'status', tabindex:'-1', 'data-mep-file':''}, '已選機電圖：' + draft.mepFile + '（僅記錄檔名）');
     const ageGroup = () => el('div', {class:'actions', role:'group', 'aria-label':'屋型（影響報價）'},
       ['預售屋', '新成屋', '中古屋'].map(name => button(name, refresh(() => { draft.houseAge = name; }), draft.houseAge === name, 'pill-btn')));
 
     if (draft.source?.label === 'LiDAR 掃描檔') {
       const scan = draft.scan;
+      const plan = planStage({topPill:'範例平面與尺寸・8 個空間', highlightRoom:0, pins:[[40, 11, '✓', 'green'], [4, 30, '窗', 'ink']]});
       const scanRow = (name, key, room) => el('div', {class:'scan-edit-row'},
         el('span', {}, name),
         el('span', {class:'num-wrap'},
           el('input', {type:'number', 'aria-label':name + '（公分）', min:'100', max:'6000', step:'1', required:'', value:String(scan[key]),
             onchange:event => {
               const value = event.target.valueAsNumber;
-              if (!(value > 0)) return;
+              if (!event.target.validity.valid || !Number.isFinite(value)) {
+                event.target.value = scan[key];
+                return;
+              }
               scan[key] = value;
-              if (room) draft.roomSizes.set(0, {w:scan.len / 100, d:scan.wid / 100});
-              render(false);
+              if (room) {
+                draft.roomSizes.set(0, {w:scan.len / 100, d:scan.wid / 100});
+                const roomButton = plan.querySelector('.plan-room');
+                roomButton.querySelector('small').textContent = roomArea(0) + ' 坪';
+                roomButton.setAttribute('aria-label', rooms[0] + ' ' + roomArea(0) + ' 坪');
+              }
             }}),
           el('small', {}, '公分')),
         pill('範例尺寸', 'green'));
       return workspaceGrid(
-        planStage({topPill:'來源：LiDAR 掃描檔・8 間・範例尺寸', highlightRoom:0, pins:[[40, 11, '✓', 'green'], [4, 30, '窗', 'ink']]}),
+        plan,
         workPanel({
-          page:'read', eyebrowText:'01 空間條件', titleText:'量好的，直接用',
+          page:'read', eyebrowText:'01 空間條件', titleText:'確認範例掃描尺寸',
           body:[
             liangBubble('示意：掃描檔還不會真的解析，以下先帶入範例尺寸。點數字就能改，門窗點一下可以換。'),
             draft.source?.files?.[0] && el('small', {role:'status'}, '檔案：' + draft.source.files[0]),
@@ -1500,6 +1532,7 @@ const pages = {
               scanRow('天花板高度', 'ceil'),
               scanRow('樑下淨高', 'beam'),
               el('div', {class:'scan-edit-row'}, el('span', {}, '給排水位置'), el('strong', {}, '待補'), pill('待補', 'linen'))),
+            mepNote(),
             el('div', {class:'stack', style:'gap:6px'},
               el('b', {id:'window-title', style:'font-size:13px'}, '客廳這面窗'),
               el('div', {class:'segmented', role:'group', 'aria-labelledby':'window-title'},
@@ -1510,27 +1543,28 @@ const pages = {
           ],
           footer:[
             el('div', {class:'footer-progress'}, el('b', {}, '空間條件 96%'), el('span', {class:'track'}, el('span', {style:'width:96%'}))),
-            link('對，看推薦的風格', 'style', 'button primary'),
+            link('下一步：選風格', 'style', 'button primary'),
           ],
         }));
     }
 
-    const progress = 72 + (draft.conditions ? 14 : 0) + (draft.source?.label === '機電圖' ? 14 : 0);
+    const progress = 72 + (draft.conditions ? 14 : 0) + (draft.mepFile ? 14 : 0);
     return workspaceGrid(
       planStage({
-        topPill:'空間解析完成・讀到 8 間・室內約 28 坪',
+        topPill:'範例平面・8 個空間・約 ' + areas.reduce((total, area) => total + area, 0) + ' 坪',
         pins:[[40, 11, '✓', 'green'], [92, 11, '?', 'linen'], [48, 77, '?', 'linen'], [32, 60, '!', 'ink']],
         legend:true, editable:true,
       }),
       workPanel({
-        page:'read', eyebrowText:'01 空間解析', titleText:'我讀懂的你家',
+        page:'read', eyebrowText:'01 空間解析', titleText:'確認範例空間條件',
         body:[
-          liangBubble('平面圖讀到 8 間和尺寸。有 2 項圖上沒有、1 項我不確定，先標起來，不補也能往下走。有掃描檔的話會更準。'),
+          liangBubble('格局、採光與樑位均為固定範例。可修改尺寸或填入補充資料，也可以直接選風格。'),
           el('div', {class:'segmented', role:'group', 'aria-label':'篩選空間條件'},
             [['','全部 6'],['待補','待補 2'],['請確認','請確認 1']].map(([key, text]) =>
               button(text, refresh(() => { draft.filter = key; }), draft.filter === key, 'seg-btn'))),
           detailRows(fields.filter(([,, state]) => !draft.filter || state === draft.filter)),
           draft.conditions && el('small', {}, '已補備註：' + draft.conditions),
+          mepNote(),
           actions(
             link('＋ 再拍幾張', 'camera', 'button pill-btn'),
             picker('＋ 上傳機電圖', {accept:'image/*,.pdf'}, event => upload(event, false)),
@@ -1546,7 +1580,7 @@ const pages = {
         ],
         footer:[
           el('div', {class:'footer-progress'}, el('b', {}, '空間條件 ' + progress + '%'), el('span', {class:'track'}, el('span', {style:`width:${progress}%`}))),
-          link('對，看推薦的風格', 'style', 'button primary'),
+          link('下一步：選風格', 'style', 'button primary'),
         ],
       }));
   },
@@ -1570,7 +1604,7 @@ const pages = {
     workPanel({
       page:'style', eyebrowText:'02 初步推薦', titleText:'我先推薦三個方向',
       body:[
-        liangBubble('我看過你家的格局、採光和坪數，先收斂成這三個。點一個，左邊馬上換。'),
+        liangBubble('以同一個範例客廳比較三種風格。選一張卡片會切換預覽，各卡金額為初步估價示例。'),
         el('div', {class:'style-options', role:'group', 'aria-label':'風格方向'}, looks.map((name, i) =>
           el('button', {type:'button', class:'style-card', 'aria-pressed':String(draft.style === i), onclick:refresh(() => setStyle(i))},
             el('img', {src:image(i), alt:'', loading:'lazy'}),
@@ -1580,7 +1614,7 @@ const pages = {
       ],
       footer:[
         link('都不像', 'brief', 'button secondary'),
-        link('用 ' + 'ABC'[draft.style] + ' 生成我家的 3D', 'generating', 'button primary'),
+        link('用 ' + 'ABC'[draft.style] + ' 預覽成品與報價', 'generating', 'button primary'),
       ],
     })),
 
@@ -1616,29 +1650,49 @@ const pages = {
           }), draft.tags.includes(tag), 'pill-btn'))),
         link('回到三個推薦', 'style', 'text-link'),
       ],
-      footer:[link('照這樣生成，看實景與報價', 'generating', 'button primary')],
+      footer:[link('看成品與示意報價', 'generating', 'button primary')],
     })),
 
-  generating: () => workspaceGrid(
-    el('div', {class:'gen-stage'},
+  generating: () => {
+    const heading = '正在準備範例預覽';
+    const doneHeading = '範例預覽已準備好';
+    const caption = el('span', {class:'eyebrow'}, '02 生成示意');
+    const cards = [
+      [IC.shield(), '法規檢核示例', '警報器、逃生動線'],
+      [IC.grid(), '家具尺寸示例', '沙發 240 × 95 公分'],
+      [IC.list(), '報價試算示例', '木地板、木作、燈具'],
+    ].map(([icon, name, detail], index) =>
+      el('div', {class:'gen-pop p' + (index + 1)}, el('span', {class:'icon-sq'}, icon),
+        el('span', {}, el('b', {}, name), el('small', {}, detail))));
+    const stage = el('div', {class:'gen-stage'},
       el('img', {class:'gen-before', src:roomScene(0, 0), alt:'毛胚示意'}),
       el('img', {class:'gen-after', src:image(), alt:looks[draft.style] + '完工示意'}),
       el('span', {class:'gen-beam', 'aria-hidden':'true'}),
-      el('div', {class:'gen-pop p1'}, el('span', {class:'icon-sq'}, IC.shield()), el('span', {}, el('b', {}, '消防法規已對照'), el('small', {}, '警報器、逃生動線'))),
-      el('div', {class:'gen-pop p2'}, el('span', {class:'icon-sq'}, IC.grid()), el('span', {}, el('b', {}, '家具用真實尺寸'), el('small', {}, '沙發 240 × 95 公分'))),
-      el('div', {class:'gen-pop p3'}, el('span', {class:'icon-sq'}, IC.list()), el('span', {}, el('b', {}, '在地行情算報價'), el('small', {}, '木地板、木作、燈具')))),
-    workPanel({
-      page:'generating', eyebrowText:'02 生成中', titleText:'正在把你家蓋出來',
+      cards);
+    let title = heading;
+    let panel;
+    const progress = stagedProgress(buildSteps, '範例預覽進度', (percent, done) => {
+      stage.style.setProperty('--reveal', percent + '%');
+      stage.classList.toggle('gen-complete', percent === 100);
+      cards.forEach((card, index) => { card.hidden = done <= index; });
+      title = percent === 100 ? doneHeading : heading;
+      if (panel) panel.querySelector('h1').textContent = title;
+      caption.textContent = percent === 100 ? '02 預覽就緒' : '02 生成示意';
+    });
+    panel = workPanel({
+      page:'generating', titleText:title,
       body:[
-        el('div', {class:'anim-bar'}, el('span')),
-        ...stepList(buildSteps, '生成步驟'),
-        el('small', {}, '不想等可以先離開，好了會用 LINE 通知你（示意：通知尚未串接）。'),
+        el('p', {class:'muted'}, '呈現所選風格的固定範例、家具與示意報價。'),
+        ...progress,
       ],
       footer:[
         link('回推薦風格', 'style', 'button secondary'),
         link('看成品與報價', 'result', 'button primary'),
       ],
-    })),
+    });
+    panel.querySelector('h1').before(caption);
+    return workspaceGrid(stage, panel);
+  },
 
   result: () => {
     const costs = roomCostItems();
@@ -1649,7 +1703,7 @@ const pages = {
       ['水電', './imagery/top-living.jpg'],
     ];
     return workspaceGrid(
-      preview({topPill:looks[draft.style], hotspots:true}),
+      preview({topPill:looks[draft.style], hotspots:draft.room === 0}),
       workPanel({
         page:'result', eyebrowText:'02 你家的樣子', titleText:rooms[draft.room] + '・' + looks[draft.style],
         body:[
@@ -1658,12 +1712,12 @@ const pages = {
             el('span', {style:'flex:1'}),
             pill('初步報價・示意', 'linen')),
           ...(draft.room === 0 ? tuneForm(false) : []),
-          el('span', {class:'shield-line'}, IC.shield(), '法規已初檢・家具為真實尺寸・報價用在地行情（皆為示意）'),
+          el('span', {class:'shield-line'}, IC.shield(), '法規檢核、家具尺寸與報價均為範例'),
           costDetails('看單室費用明細', costs),
           el('section', {class:'drawings-teaser'},
             el('div', {class:'drawings-teaser-head'},
               el('b', {}, '施工圖 ' + sheets.length + ' 張'),
-              el('span', {}, draft.unlocked ? '已解鎖・可檢視下載' : '解鎖後清晰可下載')),
+              el('span', {}, draft.unlocked ? '已解鎖・可檢視下載' : '模擬解鎖後可查看示意圖')),
             el('div', {class:'drawings-thumbs'}, thumbMeta.map(([name, src]) =>
               el('span', {class:'drawings-thumb' + (draft.unlocked ? ' unlocked' : '')},
                 el('img', {src, alt:name + '施工圖示意'}),
@@ -1671,8 +1725,8 @@ const pages = {
                 el('span', {class:'thumb-label'}, name))))),
         ],
         footer:[
-          link('進到這個家', 'project', 'button secondary'),
-          draft.unlocked ? link('繼續編輯', 'edit', 'button primary') : link('解鎖施工圖', 'unlock', 'button premium-action'),
+          draft.unlocked ? link('繼續編輯', 'edit', 'button secondary') : link('解鎖施工圖', 'unlock', 'button secondary'),
+          link('進到這個家', 'project', 'button primary'),
         ],
       }));
   },
@@ -1733,7 +1787,7 @@ const pages = {
       }),
       workPanel({
         page:'materials', addon:true, eyebrowText:'素材行情資料庫',
-        titleText: isLiving ? ('這張' + activeItem.label + '，是真的買得到的') : (rooms[draft.room] + '用到的'),
+        titleText: isLiving ? (activeItem.label + '的規格示例') : (rooms[draft.room] + '用到的'),
         body:[
           isLiving && el('div', {class:'segmented', role:'group', 'aria-label':'選擇客廳家具'},
             livingFurniture.map(f => button(f.label, refresh(() => { draft.libItem = f.key; }), draft.libItem === f.key, 'seg-btn'))),
@@ -1754,10 +1808,9 @@ const pages = {
                   })}, '換色：' + activeItem.materials[Number(!changed)])),
                 el('div', {class:'tier-grid', role:'group', 'aria-label':'預算等級'}, tierOptions.map(t =>
                   el('button', {type:'button', class:'tier-card', 'aria-pressed':String(draft.materialTier === t.key), onclick:refresh(() => {
+                    if (draft.materialTier === t.key) return;
                     draft.materialTier = t.key;
-                    if (t.key === 'save') { draft.chairChanged = true; }
-                    else if (t.key === 'base') { draft.chairChanged = false; }
-                    draft.view = '實景';
+                    draft.layoutVersion++;
                   })},
                   el('span', {class:'tier-img'}, el('img', {src:t.photo, alt:''})),
                   el('b', {}, t.label), el('small', {}, t.delta)))),
@@ -1766,7 +1819,7 @@ const pages = {
                 if (changedRoom()) draft.changedRooms.delete(draft.room);
                 else draft.changedRooms.add(draft.room);
               }), changedRoom())),
-          el('b', {style:'font-size:13px'}, rooms[draft.room] + '用到的・同一份資料建 3D、算報價、列施工清單'),
+          el('b', {style:'font-size:13px'}, rooms[draft.room] + '・家具與材料示例'),
           el('div', {class:'spec-table'}, specRows.map(([n, qty, spec]) =>
             el('div', {class:'spec-row'}, el('b', {}, n), el('span', {}, qty), el('span', {}, spec)))),
           el('p', {class:'muted', style:'font-size:12px'}, '目前' + rooms[draft.room] + '初步報價（示意）：', el('strong', {class:'price', style:'font-size:15px'}, estimate())),
@@ -1792,13 +1845,13 @@ const pages = {
     return workspaceGrid(
       cmp.stage,
       workPanel({
-        page:'compare', addon:true, eyebrowText:'02 從毛胚到完成', titleText:'往下捲，家一步一步長出來',
+        page:'compare', addon:true, eyebrowText:'02 從毛胚到完成', titleText:'從毛胚到完成',
         body:[
-          liangBubble(room + '・同一個鏡位、同一道日光。拉左邊中間的把手，或點下方施工階段。'),
+          liangBubble(room + '・拖曳圖片上的把手，或點選施工階段。'),
           el('ol', {class:'stage-steps', role:'group', 'aria-label':'施工階段'}, stages.map((name, i) =>
             el('li', {}, el('button', {type:'button', class:'stage-step-btn', 'aria-pressed':String(i === stageIdx), onclick:refresh(() => { draft.comparisonStage = i; })},
               el('span', {class:'stage-step-num'}, String(i + 1)),
-              el('span', {style:'display:flex;flex-direction:column;line-height:1.4'}, el('b', {}, name), el('small', {}, stageNotes[i])))))),
+              el('span', {style:'display:flex;flex-direction:column;line-height:1.4'}, el('b', {}, name), el('small', {}, (draft.room === 0 ? stageNotes : genericStageNotes)[i])))))),
           actions(button('存成對比圖', async () => {
             try { await saveComparison(cmp.before, cmp.after, cmp.getSplit(), 'none'); }
             catch { notice.textContent = '圖檔載入失敗，請再試一次。'; }
@@ -1823,21 +1876,21 @@ const pages = {
           el('b', {}, '施工圖 ' + sheets.length + ' 張，還鎖著'),
           el('span', {}, '平面・立面・水電'))),
       workPanel({
-        page:'unlock', eyebrowText:'03 解鎖', titleText:'喜歡的話，把它變成你的',
+        page:'unlock', eyebrowText:'03 解鎖', titleText:'解鎖編輯與示意施工圖',
         body:[
           el('div', {class:'price-hero'},
-            el('strong', {class:'price', style:'font-size:38px'}, 'NT$ 價格待定'),
-            el('small', {}, '整戶・一次')),
+            el('strong', {class:'price', style:'font-size:38px'}, '模擬解鎖'),
+            el('small', {}, '試玩不收費')),
           el('ol', {class:'feature-list'},
             el('li', {}, el('span', {class:'feature-ic'}, IC.pen()),
               el('span', {}, el('b', {style:'display:block;font-size:16px'}, '編輯你的家'), el('small', {}, '換家具、換材質、加東西，或放進你自己的家具')),
               pill('含', 'green')),
             el('li', {}, el('span', {class:'feature-ic'}, IC.folder()),
-              el('span', {}, el('b', {style:'display:block;font-size:16px'}, '真實施工圖 ' + sheets.length + ' 張'), el('small', {}, '平面、立面、水電，設計師覆核，可下載')),
+              el('span', {}, el('b', {style:'display:block;font-size:16px'}, '示意施工圖 ' + sheets.length + ' 張'), el('small', {}, '範例客廳的平面、立面和水電圖，可列印或存成 PDF')),
               pill('含', 'green'))),
           el('small', {style:'line-height:1.65'},
             '另外會開啟：法規細評、風水評估、生活測驗。想看的時候再進去。', el('br'),
-            '初步報價不是正式報價；施工圖在現場丈量後定稿。', el('br'),
+            '報價為示意。圖面未經覆核，僅供了解流程。', el('br'),
             '示意解鎖，不會收費。'),
         ],
         footer:[
@@ -1863,7 +1916,7 @@ const pages = {
               el('span', {}, el('b', {style:'display:block;font-size:16px'}, '編輯你的家'), el('small', {}, '從這裡開始')),
               pill('已開啟', 'red')),
             el('li', {}, el('span', {class:'feature-ic ink'}, IC.folder()),
-              el('span', {}, el('b', {style:'display:block;font-size:16px'}, '真實施工圖 ' + sheets.length + ' 張'), el('small', {}, '編輯完成後產出')),
+              el('span', {}, el('b', {style:'display:block;font-size:16px'}, '示意施工圖 ' + sheets.length + ' 張'), el('small', {}, '固定的客廳圖面示例，編輯不會改變圖面')),
               pill('已開啟', 'red'))),
           el('div', {class:'addon-chips anim-unlock'},
             el('span', {class:'addon-chip'}, IC.shield(), '法規細評'),
@@ -1999,12 +2052,12 @@ const pages = {
         : cadFrame(selected, {stamp:'AI 初稿・待設計師覆核'}));
 
     return workspaceGrid(leftStage, workPanel({
-      page:'drawings', extraClass:'drawing-controls', eyebrowText:'03 示意施工圖／待覆核', titleText:'你家的施工圖包',
+      page:'drawings', extraClass:'drawing-controls', eyebrowText:'03 示意施工圖／待覆核', titleText:'客廳示意施工圖',
       body:[
         el('ol', {class:'review-bars review-stages', 'aria-label':'圖面進度'},
           ['AI 初稿', '設計師覆核', '現場丈量', '定稿可施工'].map((name, i) =>
             el('li', i === 0 ? {'aria-current':'step'} : {}, el('span', {class:'seg'}), name))),
-        liangBubble('目前產出 ' + sheets.length + ' 張示意初稿，尚未經設計師覆核。水電圖須等現場丈量才能定稿。（客廳示意初稿，還不會畫出編輯頁修改）'),
+        liangBubble('這 ' + sheets.length + ' 張固定圖面用來示範交接，尚未經設計師覆核，並不包含編輯頁的修改。'),
         !showQuote && el('ul', {class:'sheet-rows'}, current.map(sheet => el('li', {},
           el('button', {type:'button', class:'sheet-row-btn', 'aria-pressed':String(sheet.no === selected.no),
             onclick:refresh(() => { draft.drawing = sheet.no; })},
@@ -2108,7 +2161,7 @@ const pages = {
     const sentVer = snap.layoutVersion;
     const drifted = draft.layoutVersion !== sentVer;
     const steps = [
-      ['交接包送出了', names + ' 已收到第 ' + sentVer + ' 版的 3D、施工圖和報價清單（示意紀錄，已鎖定送出名單與報價）', '已完成'],
+      ['已建立示意送件紀錄', '模擬收件：' + names + '，第 ' + sentVer + ' 版的設計、圖面和報價。以送件當下選擇為準。', '已完成'],
       ['團隊回覆丈量時段', '回覆時間待確認；正式上線後會用 LINE 通知你（示意，這次不會傳訊息）', '下一步'],
       ['現場丈量', '施工圖依實際尺寸定稿', '待處理'],
       ['正式報價與簽約', '由你和團隊直接談', '待處理'],
@@ -2151,8 +2204,8 @@ const pages = {
       ? ['團隊回覆時', teams[snap.teams[0]][0] + ' 想約你丈量', '對應第 ' + ver + ' 版交接包，提了兩個現場丈量時段。（最多只會有 3 組團隊聯絡你）', '選時段', 'slot']
       : ['團隊回覆時', '送出後團隊會從這裡約丈量', '目前尚未送出交接包；送出後，你選的團隊會在此提現場丈量時段。', '去選團隊', 'team'];
     const notes = [
-      ['生成完成時', '你家的 3D 好了', '第 ' + ver + ' 版・' + (snap?.room ?? '客廳') + '・' + looks[draft.style] + '，初步報價 ' + estText + '。', openLabel, 'result'],
-      ['設計師覆核完成時', '施工圖 ' + drawingSheets().length + ' 張都覆核好了', '對應第 ' + ver + ' 版，可以下載或直接交給團隊。', drawLabel, 'drawings'],
+      ['生成完成時', '範例設計預覽已就緒', '第 ' + ver + ' 版・' + (snap?.room ?? '客廳') + '・' + looks[draft.style] + '，初步報價 ' + estText + '。', openLabel, 'result'],
+      ['圖面通知範例', '可查看 ' + drawingSheets().length + ' 張示意施工圖', '圖面為固定客廳範例，尚未覆核。', drawLabel, 'drawings'],
       thirdCard,
     ];
     return el('div', {class:'line-wrap'},

@@ -10,14 +10,14 @@ const hqFinished = [
   './imagery/hq-kitchen.jpg',
   './imagery/hq-bath.jpg',
   './imagery/hq-master.jpg',
-  './imagery/hq-bath.jpg',
+  './imagery/main-bath-4.webp',
   './imagery/hq-study.jpg',
-  './imagery/hq-study.jpg',
+  './imagery/guest-bedroom-4.webp',
 ];
 
 export function roomScene(room, stage = stages.length - 1, openKitchen = false) {
   if (room === 0 && stage === 0) return './imagery/hq-living-bare.jpg';
-  if (stage === stages.length - 1 && hqFinished[room]) return hqFinished[room];
+  if (stage === stages.length - 1 && !(room === 2 && openKitchen) && hqFinished[room]) return hqFinished[room];
   const name = room === 2 && openKitchen ? 'open-kitchen' : rooms[room];
   return './imagery/' + name + '-' + stage + '.webp';
 }
@@ -30,16 +30,26 @@ export function finishFilter(style, stage = stages.length - 1) {
 export async function saveComparison(before, after, split, filter) {
   await Promise.all([before.decode(), after.decode()]);
   const canvas = document.createElement('canvas');
-  canvas.width = before.naturalWidth;
-  canvas.height = before.naturalHeight;
+  const frame = before.getBoundingClientRect();
+  const aspect = frame.width / frame.height;
+  const width = Math.max(before.naturalWidth, after.naturalWidth, Math.ceil(frame.width));
+  const height = Math.max(before.naturalHeight, after.naturalHeight, Math.ceil(frame.height));
+  canvas.width = Math.max(width, Math.ceil(height * aspect));
+  canvas.height = Math.round(canvas.width / aspect);
   const context = canvas.getContext('2d');
-  context.drawImage(before, 0, 0);
+  const drawCover = img => {
+    const scale = Math.max(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight);
+    const imageWidth = img.naturalWidth * scale;
+    const imageHeight = img.naturalHeight * scale;
+    context.drawImage(img, (canvas.width - imageWidth) / 2, (canvas.height - imageHeight) / 2, imageWidth, imageHeight);
+  };
+  drawCover(before);
   const x = canvas.width * split / 100;
   context.beginPath();
   context.rect(x, 0, canvas.width - x, canvas.height);
   context.clip();
   context.filter = filter;
-  context.drawImage(after, 0, 0, canvas.width, canvas.height);
+  drawCover(after);
   const link = document.createElement('a');
   link.href = canvas.toDataURL('image/png');
   link.download = 'renovation-comparison.png';
