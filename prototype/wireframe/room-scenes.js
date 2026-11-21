@@ -10,6 +10,9 @@ export function roomScene(room, stage = stages.length - 1, openKitchen = false) 
   if (stage === stages.length - 1 && name !== 'open-kitchen') {
     return room === 0 ? './imagery/living-4.webp' : './imagery/hq-' + name + '-finished.jpg';
   }
+  if (name !== 'open-kitchen' && stage >= 1 && stage <= 3) {
+    return './imagery/hq-' + name + '-' + stage + '.jpg';
+  }
   return './imagery/' + name + '-' + stage + '.webp';
 }
 
