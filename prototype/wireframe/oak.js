@@ -836,11 +836,17 @@ function compareWidget(beforeSrc, afterSrc, rightLabel = '完成', initialSplit 
     oninput:event => apply(event.target.value),
   });
   apply(split);
+  const rightTag = el('span', {class:'compare-tag-r'}, rightLabel);
   const stage = el('div', {class:'compare-stage media compare'},
     before, after, divider, handle, range,
     el('span', {class:'compare-tag-l'}, '毛胚'),
-    el('span', {class:'compare-tag-r'}, rightLabel));
-  return {stage, before, after, getSplit: () => split};
+    rightTag);
+  const setAfter = (src, label) => {
+    after.src = src;
+    after.alt = label + '示意';
+    rightTag.textContent = label;
+  };
+  return {stage, before, after, getSplit: () => split, setAfter};
 }
 
 const drawingImage = (sheet, className = 'drawing') => el('img', {class:className,
@@ -1868,9 +1874,12 @@ const pages = {
     const room = rooms[draft.room];
     const stageIdx = draft.comparisonStage;
     const notice = el('small', {role:'status'});
+    const stagePhoto = index => draft.room === 0 && index === stages.length - 1
+      ? './imagery/hq-living-lighting.jpg'
+      : roomScene(draft.room, index, draft.appliedLayout);
     const cmp = compareWidget(
-      roomScene(draft.room, 0, draft.appliedLayout),
-      projectPhoto(stageIdx),
+      stagePhoto(0),
+      stagePhoto(stageIdx),
       stages[stageIdx],
       draft.compareSplit,
       val => { draft.compareSplit = val; },
@@ -1880,9 +1889,16 @@ const pages = {
       workPanel({
         page:'compare', addon:true, eyebrowText:'02 從毛胚到完成', titleText:'從毛胚到完成',
         body:[
-          liangBubble(room + '・拖曳圖片上的把手，或點選施工階段。'),
+          liangBubble(room + '・施工階段示意。拖曳圖片上的把手，或點選施工階段。'),
           el('ol', {class:'stage-steps', role:'group', 'aria-label':'施工階段'}, stages.map((name, i) =>
-            el('li', {}, el('button', {type:'button', class:'stage-step-btn', 'aria-pressed':String(i === stageIdx), onclick:refresh(() => { draft.comparisonStage = i; })},
+            el('li', {}, el('button', {type:'button', class:'stage-step-btn', 'aria-pressed':String(i === stageIdx), onclick:event => {
+              const selected = event.currentTarget;
+              selected.closest('ol').querySelector('[aria-pressed="true"]').setAttribute('aria-pressed', 'false');
+              selected.setAttribute('aria-pressed', 'true');
+              draft.comparisonStage = i;
+              notice.textContent = '';
+              cmp.setAfter(stagePhoto(i), name);
+            }},
               el('span', {class:'stage-step-num'}, String(i + 1)),
               el('span', {style:'display:flex;flex-direction:column;line-height:1.4'}, el('b', {}, name), el('small', {}, (draft.room === 0 ? stageNotes : genericStageNotes)[i])))))),
           actions(button('存成對比圖', async () => {

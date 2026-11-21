@@ -250,6 +250,64 @@ for (const viewport of [{width:1440,height:900}, {width:390,height:844}]) {
     await title('你家・客廳');
   });
 
+  await step('各房間五個施工階段與比較拖曳', async () => {
+    const roomNames = ['客廳', '餐廳', '廚房', '客衛', '主臥', '主衛', '次臥 1', '次臥 2'];
+    for (const room of roomNames) {
+      await main.getByRole('group', {name:'房間', exact:true}).getByRole('button', {name:room, exact:true}).click();
+      await link(/^毛胚到完成/).click();
+      const slider = main.getByRole('slider', {name:'毛胚與完成比較拉桿'});
+      const frame = main.locator('.compare-stage');
+      const stageButtons = main.getByRole('group', {name:'施工階段'}).getByRole('button');
+      const roomImages = new Set();
+      for (const [index, stageButton] of (await stageButtons.all()).entries()) {
+        await stageButton.click();
+        assert.equal(await stageButton.getAttribute('aria-pressed'), 'true');
+        assert.equal(await stageButton.evaluate(node => node === document.activeElement), true, '切換階段應保留按鈕焦點');
+        const image = await frame.locator('img').evaluateAll(async images => {
+          await Promise.all(images.map(image => image.decode()));
+          return images.map(({naturalWidth, naturalHeight, currentSrc}) => [naturalWidth, naturalHeight, currentSrc]);
+        });
+        for (const [width, height] of image) assert.ok(width >= 1250 && height >= 1024, room + ' 施工圖解析度不足');
+        if (index === 0) assert.equal(image[0][2], image[1][2], room + ' 毛胚應相同');
+        roomImages.add(image[1][2]);
+      }
+      assert.equal(roomImages.size, 5, room + ' 應有五個不同階段');
+      await slider.scrollIntoViewIfNeeded();
+      const box = await slider.boundingBox();
+      const start = Number(await slider.inputValue());
+      const from = {x:Math.round(box.x + box.width * start / 100), y:Math.round(box.y + box.height / 2)};
+      const toX = Math.round(box.x + box.width * (start < 50 ? 0.75 : 0.25));
+      if (mobile) {
+        const session = await context.newCDPSession(page);
+        await session.send('Input.dispatchTouchEvent', {type:'touchStart', touchPoints:[from]});
+        await session.send('Input.dispatchTouchEvent', {type:'touchMove', touchPoints:[{x:toX, y:from.y}]});
+        await session.send('Input.dispatchTouchEvent', {type:'touchEnd', touchPoints:[]});
+        await session.detach();
+      } else {
+        await page.mouse.move(from.x, from.y);
+        await page.mouse.down();
+        await page.mouse.move(toX, from.y, {steps:5});
+        await page.mouse.up();
+      }
+      assert.ok(Math.abs(Number(await slider.inputValue()) - start) > 15, room + ' 拉桿應隨拖曳移動');
+      await link('回這個家').click();
+    }
+    await main.getByRole('group', {name:'房間', exact:true}).getByRole('button', {name:'客廳', exact:true}).click();
+
+    // The current wireframe has no layout toggle. Check the retained alternate asset paths in the built site.
+    const alternate = await page.evaluate(async () => {
+      const {roomScene, stages} = await import('/room-scenes.js');
+      return Promise.all(stages.map(async (_, index) => {
+        const img = new Image();
+        img.src = roomScene(2, index, true);
+        await img.decode();
+        return {url:img.src, width:img.naturalWidth, height:img.naturalHeight};
+      }));
+    });
+    assert.equal(new Set(alternate.map(({url}) => url)).size, 5);
+    assert.ok(alternate.every(({url, width, height}) => url.includes('hq-open-kitchen-') && width >= 1250 && height >= 1250));
+  });
+
   await step('補充 整戶', async () => {
     await link('整戶').click();
     await title('一間一間看，整戶一起算');

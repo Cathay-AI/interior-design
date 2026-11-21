@@ -6,14 +6,11 @@ const looks = ['none', 'sepia(.22) saturate(1.2) contrast(1.12) brightness(.9)',
 
 export function roomScene(room, stage = stages.length - 1, openKitchen = false) {
   const name = room === 2 && openKitchen ? 'open-kitchen' : rooms[room];
-  if (stage === 0 && name !== 'open-kitchen') return './imagery/hq-' + name + '-bare.jpg';
-  if (stage === stages.length - 1 && name !== 'open-kitchen') {
+  if (stage === 0) return './imagery/hq-' + name + '-bare.jpg';
+  if (stage === stages.length - 1) {
     return room === 0 ? './imagery/living-4.webp' : './imagery/hq-' + name + '-finished.jpg';
   }
-  if (name !== 'open-kitchen' && stage >= 1 && stage <= 3) {
-    return './imagery/hq-' + name + '-' + stage + '.jpg';
-  }
-  return './imagery/' + name + '-' + stage + '.webp';
+  return './imagery/hq-' + name + '-' + stage + '.jpg';
 }
 
 export function finishFilter(style, stage = stages.length - 1) {
