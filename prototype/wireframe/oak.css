@@ -430,6 +430,7 @@ body[data-page="homes"] main{min-height:100svh;display:flex;flex-direction:colum
 .edit-spot[aria-pressed="true"] .spot-tag{background:var(--ink);color:#FFFFFF}
 .edit-spot.tag-left .spot-tag{left:auto;right:calc(50% + 18px)}
 .model canvas{position:absolute;inset:0;width:100%;height:100%;background:var(--linen);z-index:1}
+.reference-stage:not([data-ready]) canvas{visibility:hidden}
 .reference-stage{background:var(--linen)}
 .reference-stage>.reference-plan{
   position:absolute;inset:64px 14px 62px;width:calc(100% - 28px);height:calc(100% - 126px);

@@ -296,12 +296,11 @@ function loadModel() {
 async function showModel(container, zoomOut, zoomIn, retry, notice, size, look) {
   retry.hidden = zoomOut.hidden = zoomIn.hidden = true;
   notice.textContent = '載入 3D';
-  container.classList.remove('model-failed');
+  delete container.dataset.ready;
   const fail = () => {
     if (!container.isConnected) return;
     scene?.dispose();
     scene = undefined;
-    container.classList.add('model-failed');
     zoomOut.hidden = zoomIn.hidden = true;
     retry.hidden = false;
     notice.textContent = '3D 無法載入，顯示同房間平面';
