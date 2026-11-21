@@ -6,7 +6,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
-import { ROOM as DEFAULT_ROOM, roomLayout } from './layout.js';
+import { ROOM as DEFAULT_ROOM, roomEntry, roomLayout } from './layout.js';
 
 // The room being built. buildScene sets these from the requested size before it places anything
 // (building is synchronous, so the helpers below can read them).
@@ -305,9 +305,17 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
   const wallPiece = (pw, ph, px, py) => add(worldBox(pw, ph, T_W, 1.6), wallMat, [px, py, bz]);
   wallPiece(x0 + w / 2, h, (-w / 2 + x0) / 2, h / 2);
   wallPiece(w / 2 - x1, h, (x1 + w / 2) / 2, h / 2);
-  wallPiece(x1 - x0, y0, (x0 + x1) / 2, y0 / 2);
+  if (y0 > 0) wallPiece(x1 - x0, y0, (x0 + x1) / 2, y0 / 2);
   wallPiece(x1 - x0, h - y1, (x0 + x1) / 2, (h + y1) / 2);
   add(worldBox(T_W, h, d + T_W, 1.6), wallMat, [-w / 2 - T_W / 2, h / 2, -T_W / 2]);
+  if (size.reference && !closed) {
+    const {start, end} = roomEntry(d, size.openKitchen);
+    // Keep the cutaway open for viewing, with low wall sections showing the actual entry location.
+    for (const [a, b] of [[-d / 2, start], [end, d / 2]]) {
+      add(new T.BoxGeometry(T_W, 0.12, b - a), wallMat, [w / 2 + T_W / 2, 0.06, (a + b) / 2]);
+    }
+    add(new T.BoxGeometry(w + T_W, 0.12, T_W), wallMat, [T_W / 2, 0.06, d / 2 + T_W / 2]);
+  }
   if (closed) {
     add(worldBox(T_W, h, d + T_W * 2, 1.6), wallMat, [w / 2 + T_W / 2, h / 2, 0]);
     add(worldBox(w, h, T_W, 1.6), wallMat, [0, h / 2, d / 2 + T_W / 2]);
@@ -324,24 +332,27 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
   add(new T.BoxGeometry(0.015, 0.08, d), skirt, [-w / 2 + 0.0075, 0.04, 0], { cast: false });
 
   /* window: frame, mullion, sill, glass (live only), view outside */
-  const frame = std({ color: look.frame ?? '#34312d', roughness: 0.4, metalness: 0.6 });
   const fz = -d / 2 - 0.02, fw = 0.05;
-  add(new T.BoxGeometry(x1 - x0, fw, 0.07), frame, [(x0 + x1) / 2, y0 + fw / 2, fz]);
-  add(new T.BoxGeometry(x1 - x0, fw, 0.07), frame, [(x0 + x1) / 2, y1 - fw / 2, fz]);
-  for (const fx of [x0 + fw / 2, (x0 + x1) / 2, x1 - fw / 2]) add(new T.BoxGeometry(fw, y1 - y0, 0.07), frame, [fx, (y0 + y1) / 2, fz]);
-  add(new T.BoxGeometry(x1 - x0 - 0.1, 0.035, 0.07), frame, [(x0 + x1) / 2, 2.05, fz]);
-  add(new T.BoxGeometry(x1 - x0 + 0.08, 0.03, 0.2), std({ color: look.sill ?? '#e9e5dd', roughness: 0.35 }), [(x0 + x1) / 2, y0 - 0.015, -d / 2 - 0.02]);
-  if (!pathtrace) {
-    add(new T.PlaneGeometry(x1 - x0, y1 - y0), new T.MeshPhysicalMaterial({ color: '#ffffff', roughness: 0.02, transparent: true, opacity: 0.12, metalness: 0, envMapIntensity: 1.4 }),
-      [(x0 + x1) / 2, (y0 + y1) / 2, fz], { cast: false, receive: false });
+  if (!WINDOW.passage) {
+    const frame = std({ color: look.frame ?? '#34312d', roughness: 0.4, metalness: 0.6 });
+    add(new T.BoxGeometry(x1 - x0, fw, 0.07), frame, [(x0 + x1) / 2, y0 + fw / 2, fz]);
+    add(new T.BoxGeometry(x1 - x0, fw, 0.07), frame, [(x0 + x1) / 2, y1 - fw / 2, fz]);
+    for (const fx of [x0 + fw / 2, (x0 + x1) / 2, x1 - fw / 2]) add(new T.BoxGeometry(fw, y1 - y0, 0.07), frame, [fx, (y0 + y1) / 2, fz]);
+    const crossbar = Math.min(2.05, y1 - 0.15);
+    add(new T.BoxGeometry(x1 - x0 - 0.1, 0.035, 0.07), frame, [(x0 + x1) / 2, crossbar, fz]);
+    if (y0 > 0) add(new T.BoxGeometry(x1 - x0 + 0.08, 0.03, 0.2), std({ color: look.sill ?? '#e9e5dd', roughness: 0.35 }), [(x0 + x1) / 2, y0 - 0.015, -d / 2 - 0.02]);
+    if (!pathtrace) {
+      add(new T.PlaneGeometry(x1 - x0, y1 - y0), new T.MeshPhysicalMaterial({ color: '#ffffff', roughness: 0.02, transparent: true, opacity: 0.12, metalness: 0, envMapIntensity: 1.4 }),
+        [(x0 + x1) / 2, (y0 + y1) / 2, fz], { cast: false, receive: false });
+    }
   }
   // the view outside: in the cut-away it sits right behind the opening so it can never show past the wall
   const vw = closed ? 9 : x1 - x0, vh = closed ? 5.5 : y1 - y0;
-  add(new T.PlaneGeometry(vw, vh), std({ color: '#000', emissive: '#ffffff', emissiveMap: tex(viewTexture()), emissiveIntensity: pathtrace ? 2.2 : 1 }),
+  if (!WINDOW.passage) add(new T.PlaneGeometry(vw, vh), std({ color: '#000', emissive: '#ffffff', emissiveMap: tex(viewTexture()), emissiveIntensity: pathtrace ? 2.2 : 1 }),
     [(x0 + x1) / 2, closed ? 1.6 : (y0 + y1) / 2, -d / 2 - (closed ? 1.4 : 0.1)], { cast: false, receive: false });
 
   /* sheer curtains, bunched at both sides, on a slim track (not in kitchens and bathrooms) */
-  if (!LAYOUT.noCurtain) {
+  if (!LAYOUT.noCurtain && !WINDOW.passage) {
   const sheer = std({ color: '#fbfaf6', roughness: 1, transparent: true, opacity: 0.62, side: T.DoubleSide });
   const ch = y1 - 0.02 + 0.2;
   add(folds(0.75, ch, 0.035, 7), sheer, [x0 + 0.18, ch / 2 + 0.02, -d / 2 + 0.11], { cast: false });
@@ -374,7 +385,7 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
   }
 
   /* low sideboard under the window (left out when the window wall is too short) */
-  if (!LAYOUT.sideboard) { /* nothing */ } else if (has('modern_wooden_cabinet')) {
+  if (!LAYOUT.sideboard) { /* nothing */ } else if (!size.reference && has('modern_wooden_cabinet')) {
     const L = LAYOUT.sideboard, b = place('modern_wooden_cabinet', L.x, -d / 2 + 0.24, { scale: 0.68 });
     place('ceramic_vase_01', L.x - 0.55, -d / 2 + 0.24, { y: b.max.y, scale: 0.9 });
     place('potted_plant_04', L.x + 0.5, -d / 2 + 0.24, { y: b.max.y, scale: 1.1 });
@@ -397,8 +408,8 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
   const S = LAYOUT.sofa, C = LAYOUT.chair, B = LAYOUT.bed;
   if (S) sofa(group(S.x, 0, S.z, Math.PI / 2), put, { L: S.sz, D: S.sx, seats: S.sz < 1.9 ? 2 : 3, mat: sofaMat, legs: look.legs, metal, wood: accentWood, pillows: [pillowA, pillowB], uv: has(look.sofaTex) ? 2.5 : 1 });
   const chairRy = B ? Math.PI - 0.5 : Math.PI / 2 + 0.35;
-  if (!C) { /* no room for an armchair */ } else if (has(look.chairModel)) place(look.chairModel, C.x, C.z, { ry: chairRy, scale: look.chairScale ?? 1 });
-  else sofa(group(C.x, 0, C.z, chairRy - Math.PI), put, { L: 0.86, D: 0.84, seats: 1, mat: look.chairFabric ? std({ map: tex(fabric(look.chairFabric).map), roughness: 0.95 }) : sofaMat, legs: look.legs, metal, wood: accentWood, pillows: [pillowB] });
+  if (!C) { /* no room for an armchair */ } else if (!size.reference && has(look.chairModel)) place(look.chairModel, C.x, C.z, { ry: chairRy, scale: look.chairScale ?? 1 });
+  else sofa(group(C.x, 0, C.z, chairRy - Math.PI), put, { L: C.sz, D: C.sx, seats: 1, mat: look.chairFabric ? std({ map: tex(fabric(look.chairFabric).map), roughness: 0.95 }) : sofaMat, legs: look.legs, metal, wood: accentWood, pillows: [pillowB] });
   // throw on the sofa arm
   if (S) add(soft(0.5, 0.05, 0.46, 0.02), pillowB, [S.x + 0.05, 0.665, S.z + S.sz / 2 - 0.12], { rot: [0, 0.1, 0.05] });
   if (B) {
@@ -407,7 +418,7 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
     for (const n of [LAYOUT.nightA, LAYOUT.nightB]) {
       if (!n) continue;
       let top = 0.5;
-      if (has('side_table_01')) top = place('side_table_01', n.x, n.z, { scale: 0.9 }).max.y;
+      if (!size.reference && has('side_table_01')) top = place('side_table_01', n.x, n.z, { scale: 0.9 }).max.y;
       else { add(soft(n.sx, 0.36, n.sz, 0.015), accentWood, [n.x, 0.32, n.z]); for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) add(new T.CylinderGeometry(0.014, 0.01, 0.14, 8), accentWood, [n.x + dx * 0.16, 0.07, n.z + dz * 0.16]); }
       // bedside lamp
       add(new T.CylinderGeometry(0.055, 0.07, 0.16, 20), std({ color: look.ceramic ?? '#e9e2d6', roughness: 0.35 }), [n.x, top + 0.08, n.z]);
@@ -451,7 +462,11 @@ export function buildScene(look, { closed = false, pathtrace = false, assets: A 
   }
 
   /* coffee table */
-  if (!LAYOUT.table) { /* too narrow for a coffee table */ } else if (has(look.tableModel)) {
+  if (!LAYOUT.table) { /* too narrow for a coffee table */ } else if (size.reference) {
+    const {x, z, sx, sz} = LAYOUT.table;
+    add(new T.CylinderGeometry(0.5, 0.5, 0.04, 48), accentWood, [x, 0.4, z], {scale:[sx, 1, sz]});
+    add(new T.CylinderGeometry(0.14, 0.18, 0.38, 24), metal, [x, 0.19, z]);
+  } else if (has(look.tableModel)) {
     const T0 = LAYOUT.table, b = place(look.tableModel, T0.x, T0.z, { scale: look.tableScale ?? 1 });
     add(new T.BoxGeometry(0.22, 0.03, 0.28), std({ color: '#ece6db', roughness: 0.8 }), [T0.x - 0.04, b.max.y + 0.015, T0.z - 0.18], { rot: [0, 0.3, 0] });
     add(new T.BoxGeometry(0.2, 0.025, 0.26), std({ color: look.accent, roughness: 0.8 }), [T0.x - 0.04, b.max.y + 0.042, T0.z - 0.18], { rot: [0, 0.18, 0] });

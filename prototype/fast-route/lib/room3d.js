@@ -38,20 +38,24 @@ export const preload = (look) => { loadAssets(look).catch(() => {}); loadHDRI().
 const DEFAULT_ZOOM_INDEX = 1;
 
 export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM, onContextLost, initialZoomIndex = DEFAULT_ZOOM_INDEX) {
+  const reference = Boolean(size.reference);
   const scaleOf = (sz) => Math.max(sz.w / DEFAULT_ROOM.w, sz.d / DEFAULT_ROOM.d, sz.h / DEFAULT_ROOM.h, 0.7);
   let f = scaleOf(size), gen = 0;
   const viewPos = (v) => new T.Vector3(...VIEWS[v]).multiplyScalar(f);
   const renderer = new T.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+  const gl = renderer.getContext();
+  const adapter = reference && gl.getExtension('WEBGL_debug_renderer_info');
+  const software = adapter && /swiftshader|llvmpipe|software rasterizer/i.test(gl.getParameter(adapter.UNMASKED_RENDERER_WEBGL));
   renderer.setClearColor(0x000000, 0);   // 背景透明：舞台的底色直接透出來，不被色調處理洗灰
   renderer.outputColorSpace = T.SRGBColorSpace;
   renderer.toneMapping = T.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = !software;
   renderer.shadowMap.type = T.PCFSoftShadowMap;
   renderer.shadowMap.autoUpdate = false; // static scene: render the shadow map once
   // phones and low-core machines get a lighter settled frame so it never stutters
   const lite = matchMedia('(pointer: coarse)').matches || (navigator.hardwareConcurrency || 4) <= 4;
-  const dpr = (moving) => Math.min(window.devicePixelRatio || 1, moving ? 1 : lite ? 1.5 : 1.75);
+  const dpr = (moving) => Math.min(window.devicePixelRatio || 1, software ? 0.8 : moving ? 1 : reference ? 1.25 : lite ? 1.5 : 1.75);
   renderer.setPixelRatio(dpr(false));
   container.prepend(renderer.domElement);
 
@@ -70,25 +74,28 @@ export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM, on
     minAzimuthAngle: 0.06, maxAzimuthAngle: 1.42, minPolarAngle: 0.8, maxPolarAngle: 1.45 });
   controls.update();
 
-  // settled frames go through the composer (MSAA + ambient occlusion); moving frames render directly
-  const composer = new EffectComposer(renderer, new T.WebGLRenderTarget(1, 1, { type: T.HalfFloatType, samples: lite ? 2 : 4 }));
-  const renderPass = new RenderPass(stage, camera);
-  composer.addPass(renderPass);
-  const ao = new GTAOPass(stage, camera, 1, 1);
-  ao.blendIntensity = 0.9;
-  ao.updateGtaoMaterial({ radius: 0.45, distanceExponent: 1.4, thickness: 1.2, scale: 1.1, samples: lite ? 8 : 16 });
-  ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: lite ? 8 : 16 });
-  composer.addPass(ao);
-  composer.addPass(new OutputPass());
+  // Run the cutaway directly so switching rooms stays responsive, even in software WebGL.
+  let composer, renderPass, ao;
+  if (!reference) {
+    composer = new EffectComposer(renderer, new T.WebGLRenderTarget(1, 1, { type: T.HalfFloatType, samples: lite ? 2 : 4 }));
+    renderPass = new RenderPass(stage, camera);
+    composer.addPass(renderPass);
+    ao = new GTAOPass(stage, camera, 1, 1);
+    ao.blendIntensity = 0.9;
+    ao.updateGtaoMaterial({ radius: 0.45, distanceExponent: 1.4, thickness: 1.2, scale: 1.1, samples: lite ? 8 : 16 });
+    ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: lite ? 8 : 16 });
+    composer.addPass(ao);
+    composer.addPass(new OutputPass());
+  }
 
   let frames = 0, disposed = false, tween = null, moving = false;
   const scheduler = createRenderScheduler({
     draw: () => {
       if (disposed) return;
-      if (moving || !room) renderer.render(room ? room.scene : stage, camera); else composer.render();
+      if (moving || !room || !composer) renderer.render(room?.scene ?? stage, camera); else composer.render();
       frames += 1;
     },
-    onInteraction: (m) => { moving = m; renderer.setPixelRatio(dpr(m)); if (!m) composer.setPixelRatio(dpr(false)); },
+    onInteraction: (m) => { moving = m; renderer.setPixelRatio(dpr(m)); if (!m) composer?.setPixelRatio(dpr(false)); },
   });
   controls.addEventListener('start', () => { tween = null; scheduler.start(); });
   controls.addEventListener('change', scheduler.request);
@@ -100,23 +107,30 @@ export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM, on
     if (disposed) return;
     room?.dispose();
     room = buildScene(look, { assets, size });
-    if (lite) room.sun.shadow.mapSize.set(1024, 1024);
+    if (lite || reference) room.sun.shadow.mapSize.set(1024, 1024);
     room.scene.environmentIntensity = 0.55;
     room.scene.environment = env;
-    renderPass.scene = room.scene; ao.scene = room.scene;
+    if (composer) {
+      renderPass.scene = room.scene;
+      ao.scene = room.scene;
+    }
     renderer.shadowMap.needsUpdate = true;
     if (final) { ready = true; container.dataset.ready = 'true'; }
     scheduler.request();
   };
   // Only pay for the stand-in when the real assets are not already cached.
-  const standIn = setTimeout(() => { if (!room) show(null, false); }, 120);
+  const standIn = reference ? undefined : setTimeout(() => { if (!room) show(null, false); }, 120);
   const load = () => {
+    if (software) {
+      show(null);
+      return;
+    }
     const mine = ++gen;
     loadAssets(look).then((a) => { clearTimeout(standIn); if (!disposed && mine === gen) show(a); },
       () => { clearTimeout(standIn); if (disposed || mine !== gen) return; show(null, false); ready = true; container.dataset.ready = 'true'; }); // offline or blocked: the hand-built room
   };
   load();
-  loadHDRI().then((t) => {
+  if (!software) loadHDRI().then((t) => {
     if (disposed) return;
     const pmrem = new T.PMREMGenerator(renderer);
     env = pmrem.fromEquirectangular(t).texture;
@@ -128,7 +142,7 @@ export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM, on
     const w = container.clientWidth, h = container.clientHeight;
     if (!w || !h) return;
     renderer.setSize(w, h, false);
-    composer.setSize(w, h);
+    composer?.setSize(w, h);
     camera.aspect = w / h;
     // keep the whole room in frame on tall, narrow screens
     camera.fov = Math.min(62, (2 * Math.atan(Math.tan(T.MathUtils.degToRad(16)) * Math.max(1, 1.3 / camera.aspect)) * 180) / Math.PI);
@@ -188,7 +202,7 @@ export function mountRoom3D(container, look, view = 'A', size = DEFAULT_ROOM, on
       disposed = true; clearTimeout(standIn);
       scheduler.cancel(); resize.disconnect(); controls.dispose(); room?.dispose();
       env?.dispose();
-      composer.dispose(); ao.dispose?.();
+      composer?.dispose(); ao?.dispose();
       renderer.dispose(); renderer.forceContextLoss(); renderer.domElement.remove();
     },
   };

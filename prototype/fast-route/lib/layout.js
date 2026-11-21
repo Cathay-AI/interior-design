@@ -53,11 +53,12 @@ export function roomSize(cond, ping) {
  * 餐廳／書房／廚房／衛浴 put their own pieces in `fixtures` (axis-aligned boxes: t = dtable, dchair, desk, counter, upper, fridge, vanity, toilet, shower),
  * name the main piece as `anchor`, and may set noCabinet / noCurtain; rug is null where a rug makes no sense.
  */
-export function roomLayout({ w, d, h, space = '客廳', openKitchen = false }) {
+export function roomLayout({ w, d, h, space = '客廳', openKitchen = false, windowType, removed = [] }) {
   const L = -w / 2, R = w / 2, B = -d / 2, F = d / 2;
   const cabinet = { x0: L, x1: L + Math.min(1.75, w * 0.36), depth: 0.42 };
   const x1 = R - 0.45, x0 = Math.max(cabinet.x1 + 0.3, x1 - Math.min(8, 2.4 * Math.max(1, w / ROOM.w)));
-  const window = { x0, x1, y0: 0.45, y1: Math.min(2.55 + (h - ROOM.h) * 0.8, h - 0.25) };
+  const head = Math.min(2.55 + (h - ROOM.h) * 0.8, h - 0.25);
+  const window = { x0, x1, y0: windowType === '半窗' ? 0.95 : windowType ? 0 : 0.45, y1: head, passage: windowType === '開放通道' };
   const sofaLen = Math.max(1.5, Math.min(2.3, d - 0.5));  // two-seater when the room is short
   const sz = d >= 3.4 ? 0.06 * d : 0.15;                  // seating group sits a little forward of centre
   const sofa = { x: L + 0.48, z: Math.min(sz, F - sofaLen / 2 - 0.1), sx: 0.96, sz: sofaLen };
@@ -65,7 +66,7 @@ export function roomLayout({ w, d, h, space = '客廳', openKitchen = false }) {
   const chairX = Math.min(L + 3.35, R - 0.75);
   const chair = w >= 3.6 && d >= 3 ? { x: chairX, z: Math.max(sofa.z - 0.8, B + 0.95), sx: 0.85, sz: 0.85 } : null;
   const plantAt = (chair) => (w >= 3.2 && (!chair || Math.hypot(R - 0.4 - chair.x, B + 0.55 - chair.z) >= 1.25) ? { x: R - 0.4, z: B + 0.55 } : null);
-  const sideboard = x1 - x0 >= 1.8 ? { x: (x0 + x1) / 2, z: B + 0.2, sx: 1.6, sz: 0.4 } : null;
+  const sideboard = x1 - x0 >= 1.8 && (!windowType || windowType === '半窗') ? { x: (x0 + x1) / 2, z: B + 0.2, sx: 1.6, sz: 0.4 } : null;
   const empty = { sofa: null, table: null, lamp: null, sidetable: null, bed: null, nightA: null, nightB: null, chair: null };
   const box = (t, x, z, sx, sz, o = {}) => ({ t, x, z, sx, sz, ...o });
   if (space === '餐廳') {
@@ -122,13 +123,19 @@ export function roomLayout({ w, d, h, space = '客廳', openKitchen = false }) {
     room: { w, d, h }, window, cabinet,
     layout: {
       bed: null, nightA: null, nightB: null,
-      sofa, table, pendant: { x: Math.min(L + 1.65, R - 0.5), z: sofa.z },
+      sofa: removed.includes('sofa') ? null : sofa, table, pendant: { x: Math.min(L + 1.65, R - 0.5), z: sofa.z },
       rug: { x: L + 0.8 + Math.min(2.0, w - 0.9) / 2, z: sofa.z, sx: Math.min(2.0, w - 0.9), sz: Math.min(2.6, d - 0.5) },
-      chair,
+      chair: removed.includes('chair') ? null : chair,
       sideboard,
       lamp: d >= 3.2 ? { x: L + 0.35, z: Math.min(sofa.z + 1.5, F - 0.3) } : null,
       sidetable: d >= 3.6 ? { x: L + 0.3, z: Math.max(sofa.z - 1.5, B + 0.8) } : null,
       plant: plantAt(chair),   // 盆栽放窗邊角落；會和單椅擠在一起就不放（另一個角落是門）
     },
   };
+}
+
+// Position along the right wall, in metres from the room centre.
+export function roomEntry(d, openKitchen = false) {
+  const end = d / 2 - 0.24;
+  return openKitchen ? {start:-d * 0.22, end:d * 0.38} : {start:end - 0.9, end};
 }
